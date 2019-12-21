@@ -75,6 +75,7 @@ public class JMXJobManagerMetricTest extends TestLogger {
 
 		flinkConfiguration.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
 		flinkConfiguration.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "jobmanager.<job_name>");
+		flinkConfiguration.setString("yarn.application.id", "app1");
 
 		return flinkConfiguration;
 	}
