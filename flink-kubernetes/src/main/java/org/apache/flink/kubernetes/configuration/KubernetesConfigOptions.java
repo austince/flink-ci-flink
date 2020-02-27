@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.version.Version;
 
 import java.util.List;
 
@@ -121,8 +122,11 @@ public class KubernetesConfigOptions {
 	public static final ConfigOption<String> CONTAINER_IMAGE =
 		key("kubernetes.container.image")
 		.stringType()
-		.defaultValue("flink:latest")
-		.withDescription("Image to use for Flink containers.");
+		.defaultValue("flink:" + Version.PROJECT_VERSION + "-scala_" + Version.SCALA_VERSION)
+		.withDescription("Image to use for Flink containers. " +
+			"The specified image MUST be based upon Apache Flink " +
+				Version.PROJECT_VERSION + " that uses Scala " + Version.SCALA_VERSION + " . " +
+			"Visit https://hub.docker.com/_/flink?tab=tags for the images provided by the Flink project.");
 
 	/**
 	 * The following config options need to be set according to the image.

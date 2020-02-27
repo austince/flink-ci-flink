@@ -112,7 +112,7 @@ An early version of a [Flink Helm chart](https://github.com/docker-flink/example
 
 ### Session cluster resource definitions
 
-The Deployment definitions use the pre-built image `flink:latest` which can be found [on Docker Hub](https://hub.docker.com/r/_/flink/).
+The Deployment definitions use the pre-built image `flink:{{ site.version }}-scala_2.11` (or `flink:{{ site.version }}-scala_2.12`) which can be found [on Docker Hub](https://hub.docker.com/r/_/flink/).
 The image is built from this [Github repository](https://github.com/docker-flink/docker-flink).
 
 `flink-configuration-configmap.yaml`
@@ -173,7 +173,7 @@ spec:
     spec:
       containers:
       - name: jobmanager
-        image: flink:latest
+        image: flink:{{ site.version }}-scala_2.11
         workingDir: /opt/flink
         command: ["/bin/bash", "-c", "$FLINK_HOME/bin/jobmanager.sh start;\
           while :;
@@ -230,7 +230,7 @@ spec:
     spec:
       containers:
       - name: taskmanager
-        image: flink:latest
+        image: flink:{{ site.version }}-scala_2.11
         workingDir: /opt/flink
         command: ["/bin/bash", "-c", "$FLINK_HOME/bin/taskmanager.sh start; \
           while :;
