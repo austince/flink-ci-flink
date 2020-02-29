@@ -70,8 +70,6 @@ public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
 
 	@Test
 	public void testDeploySessionCluster() throws Exception {
-		mockRestServiceWithLoadBalancer(MOCK_SERVICE_HOST_NAME, MOCK_SERVICE_IP);
-
 		final ClusterClient<String> clusterClient = deploySessionCluster();
 		// Check updated flink config options
 		assertEquals(String.valueOf(Constants.BLOB_SERVER_PORT), flinkConfig.getString(BlobServerOptions.PORT));
@@ -105,7 +103,6 @@ public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
 
 	@Test
 	public void testDeployHighAvailabilitySessionCluster() throws ClusterDeploymentException {
-		mockRestServiceWithLoadBalancer(MOCK_SERVICE_HOST_NAME, MOCK_SERVICE_IP);
 		flinkConfig.setString(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.toString());
 		final ClusterClient<String> clusterClient = deploySessionCluster();
 
@@ -133,8 +130,6 @@ public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
 
 	@Test
 	public void testKillCluster() throws Exception {
-		mockRestServiceWithLoadBalancer(MOCK_SERVICE_HOST_NAME, MOCK_SERVICE_IP);
-
 		final FlinkKubeClient flinkKubeClient = getFabric8FlinkKubeClient();
 		final KubernetesClusterDescriptor descriptor = new KubernetesClusterDescriptor(flinkConfig, flinkKubeClient);
 
