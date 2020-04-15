@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.common.eventtime;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * A {@link TimestampAssigner} that simply forwards the internal timestamp.
  */
-@Public
+@PublicEvolving
 public final class DefaultTimestampAssigner<E> implements TimestampAssigner<E> {
 
 	private static final long serialVersionUID = 1L;

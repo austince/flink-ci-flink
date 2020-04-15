@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.eventtime;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 
 /**
@@ -28,7 +28,7 @@ import org.apache.flink.api.common.ExecutionConfig;
  * <p><b>Note:</b> This WatermarkGenerator subsumes the previous distinction between the
  * {@code AssignerWithPunctuatedWatermarks} and the {@code AssignerWithPeriodicWatermarks}.
  */
-@Public
+@PublicEvolving
 public interface WatermarkGenerator<T> {
 
 	/**

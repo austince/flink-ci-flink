@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.eventtime;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
 
 /**
@@ -32,7 +32,7 @@ import org.apache.flink.api.common.functions.Function;
  *
  * @param <T> The type of the elements to which this assigner assigns timestamps.
  */
-@Public
+@PublicEvolving
 @FunctionalInterface
 public interface TimestampAssigner<T> extends Function {
 
