@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.eventtime;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * A timestamp assigner that assigns timestamps based on the machine's wall clock.
@@ -26,7 +26,7 @@ import org.apache.flink.annotation.Public;
  *
  * @param <T> The type of the elements that get timestamps assigned.
  */
-@Public
+@PublicEvolving
 public final class IngestionTimeAssigner<T> implements SerializableTimestampAssigner<T> {
 	private static final long serialVersionUID = 1L;
 

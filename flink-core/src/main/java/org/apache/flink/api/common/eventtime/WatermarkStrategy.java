@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.eventtime;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.Serializable;
 
@@ -30,7 +30,7 @@ import java.io.Serializable;
  * <p>This interface is {@link Serializable} because watermark strategies may be shipped
  * to workers during distributed execution.
  */
-@Public
+@PublicEvolving
 public interface WatermarkStrategy<T> extends Serializable {
 
 	/**

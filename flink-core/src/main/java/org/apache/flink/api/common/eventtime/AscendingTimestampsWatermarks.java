@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.eventtime;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.time.Duration;
 
@@ -34,7 +34,7 @@ import java.time.Duration;
  * interval in which the watermarks are generated, which can be configured via
  * {@link org.apache.flink.api.common.ExecutionConfig#setAutoWatermarkInterval(long)}.
  */
-@Public
+@PublicEvolving
 public class AscendingTimestampsWatermarks<T> extends BoundedOutOfOrdernessWatermarks<T> {
 
 	/**

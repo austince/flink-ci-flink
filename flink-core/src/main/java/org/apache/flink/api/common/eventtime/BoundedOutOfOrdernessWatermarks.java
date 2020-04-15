@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.eventtime;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.time.Duration;
 
@@ -33,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>The watermarks are generated periodically. The delay introduced by this watermark strategy
  * is the periodic interval length, plus the out-of-orderness bound.
  */
-@Public
+@PublicEvolving
 public class BoundedOutOfOrdernessWatermarks<T> implements WatermarkGenerator<T> {
 
 	/** The maximum timestamp encountered so far. */

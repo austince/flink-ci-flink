@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.eventtime;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -33,6 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * WatermarkStrategies is a simply way to build a {@link WatermarkStrategy} by configuring
  * common strategies.
  */
+@PublicEvolving
 public final class WatermarkStrategies {
 
 	/** The base strategy for watermark generation. Starting point, is always set. */

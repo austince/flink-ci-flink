@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.eventtime;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
@@ -33,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * If no events come within a certain time (timeout duration) then this generator marks
  * the stream as idle, until the next watermark is generated.
  */
-@Public
+@PublicEvolving
 public class WatermarksWithIdleness<T> implements WatermarkGenerator<T> {
 
 	private final WatermarkGenerator<T> watermarks;
