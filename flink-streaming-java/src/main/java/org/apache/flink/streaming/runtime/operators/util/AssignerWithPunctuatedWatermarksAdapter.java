@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.util;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
@@ -67,6 +68,11 @@ public final class AssignerWithPunctuatedWatermarksAdapter<T> implements Waterma
 
 		public Strategy(AssignerWithPunctuatedWatermarks<T> wms) {
 			this.wms = checkNotNull(wms);
+		}
+
+		@Override
+		public TimestampAssigner<T> createTimestampAssigner() {
+			return wms;
 		}
 
 		@Override

@@ -23,15 +23,26 @@ import org.apache.flink.annotation.PublicEvolving;
 import java.io.Serializable;
 
 /**
- * The WatermarkStrategy defines how to generate {@link Watermark}s in the stream sources.
- * The WatermarkStrategy is a builder/factory for the {@link WatermarkGenerator} that
- * generates the watermarks.
+ * The WatermarkStrategy defines how to generate {@link Watermark}s in the stream sources. The
+ * WatermarkStrategy is a builder/factory for the {@link WatermarkGenerator} that generates the
+ * watermarks and the {@link TimestampAssigner} which assigns the internal timestamp of a record.
  *
  * <p>This interface is {@link Serializable} because watermark strategies may be shipped
  * to workers during distributed execution.
  */
 @PublicEvolving
-public interface WatermarkStrategy<T> extends Serializable {
+public interface WatermarkStrategy<T> extends TimestampAssignerSupplier<T>, Serializable {
+
+	/**
+	 * Instantiates a {@link TimestampAssigner} for assigning timestamps according to this
+	 * strategy.
+	 */
+	@Override
+	default TimestampAssigner<T> createTimestampAssigner() {
+		// By default, this is {@link RecordTimestampAssigner},
+		// for cases where records come out of a source with valid timestamps, for example from Kafka.
+		return new RecordTimestampAssigner<>();
+	}
 
 	/**
 	 * Instantiates a WatermarkGenerator that generates watermarks according to this strategy.

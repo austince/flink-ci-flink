@@ -35,16 +35,23 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * common strategies.
  */
 @PublicEvolving
-public final class WatermarkStrategies {
+public final class WatermarkStrategies<T> {
+
+	/**
+	 * The {@link TimestampAssigner} to use. This can be {@code null} for cases where records come
+	 * out of a source with valid timestamps, for example from Kafka.
+	 */
+	@Nullable
+	private TimestampAssignerSupplier<T> timestampAssignerSupplier = null;
 
 	/** The base strategy for watermark generation. Starting point, is always set. */
-	private final WatermarkStrategy<?> baseStrategy;
+	private final WatermarkStrategy<T> baseStrategy;
 
 	/** Optional idle timeout for watermarks. */
 	@Nullable
 	private Duration idleTimeout;
 
-	private WatermarkStrategies(WatermarkStrategy<?> baseStrategy) {
+	private WatermarkStrategies(WatermarkStrategy<T> baseStrategy) {
 		this.baseStrategy = baseStrategy;
 	}
 
@@ -61,7 +68,7 @@ public final class WatermarkStrategies {
 	 * some periods. Without idleness, these streams can stall the overall event time progress of the
 	 * application.
 	 */
-	public WatermarkStrategies withIdleness(Duration idleTimeout) {
+	public WatermarkStrategies<T> withIdleness(Duration idleTimeout) {
 		checkNotNull(idleTimeout, "idleTimeout");
 		checkArgument(!(idleTimeout.isZero() || idleTimeout.isNegative()), "idleTimeout must be greater than zero");
 		this.idleTimeout = idleTimeout;
@@ -69,14 +76,56 @@ public final class WatermarkStrategies {
 	}
 
 	/**
+	 * Adds the given {@link TimestampAssigner} (via a {@link TimestampAssignerSupplier}) to this
+	 * {@link WatermarkStrategies}.
+	 *
+	 * <p>You can use this when a {@link TimestampAssigner} needs additional context, for example
+	 * access to the metrics system.
+	 *
+	 * <pre>
+	 * {@code WatermarkStrategy<Object> wmStrategy = WatermarkStrategies
+	 *   .forMonotonousTimestamps()
+	 *   .withTimestampAssigner((ctx) -> new MetricsReportingAssigner(ctx))
+	 *   .build();
+	 * }</pre>
+	 */
+	public WatermarkStrategies<T> withTimestampAssigner(TimestampAssignerSupplier<T> timestampAssigner) {
+		checkNotNull(timestampAssigner, "timestampAssigner");
+		this.timestampAssignerSupplier = timestampAssigner;
+		return this;
+	}
+
+	/**
+	 * Adds the given {@link TimestampAssigner} to this {@link WatermarkStrategies}.
+	 *
+	 * <p>You can use this in case you want to specify a {@link TimestampAssigner} via a lambda
+	 * function.
+	 *
+	 * <pre>
+	 * {@code WatermarkStrategy<CustomObject> wmStrategy = WatermarkStrategies
+	 *   .<CustomObject>forMonotonousTimestamps()
+	 *   .withTimestampAssigner((event, timestamp) -> event.getTimestamp())
+	 *   .build();
+	 * }</pre>
+	 */
+	public WatermarkStrategies<T> withTimestampAssigner(SerializableTimestampAssigner<T> timestampAssigner) {
+		checkNotNull(timestampAssigner, "timestampAssigner");
+		this.timestampAssignerSupplier = TimestampAssignerSupplier.of(timestampAssigner);
+		return this;
+	}
+
+	/**
 	 * Build the watermark strategy.
 	 */
-	public <T> WatermarkStrategy<T> build() {
-		@SuppressWarnings("unchecked")
-		WatermarkStrategy<T> strategy = (WatermarkStrategy<T>) this.baseStrategy;
+	public WatermarkStrategy<T> build() {
+		WatermarkStrategy<T> strategy = this.baseStrategy;
 
 		if (idleTimeout != null) {
 			strategy = new WithIdlenessStrategy<>(strategy, idleTimeout);
+		}
+
+		if (timestampAssignerSupplier != null) {
+			strategy = new WithTimestampAssigner<>(strategy, timestampAssignerSupplier);
 		}
 
 		return strategy;
@@ -96,8 +145,8 @@ public final class WatermarkStrategies {
 	 *
 	 * @see AscendingTimestampsWatermarks
 	 */
-	public static WatermarkStrategies forMonotonousTimestamps() {
-		return new WatermarkStrategies(AscendingTimestampsWatermarks::new);
+	public static <T> WatermarkStrategies<T> forMonotonousTimestamps() {
+		return new WatermarkStrategies<T>(AscendingTimestampsWatermarks::new);
 	}
 
 	/**
@@ -111,24 +160,22 @@ public final class WatermarkStrategies {
 	 *
 	 * @see BoundedOutOfOrdernessWatermarks
 	 */
-	public static WatermarkStrategies forBoundedOutOfOrderness(Duration maxOutOfOrderness) {
-		return new WatermarkStrategies(() -> new BoundedOutOfOrdernessWatermarks<>(maxOutOfOrderness));
+	public static <T> WatermarkStrategies<T> forBoundedOutOfOrderness(Duration maxOutOfOrderness) {
+		return new WatermarkStrategies<>(() -> new BoundedOutOfOrdernessWatermarks<>(maxOutOfOrderness));
 	}
 
 	/**
 	 * Starts building a watermark strategy based on an existing {@code WatermarkStrategy}.
 	 */
-	public static WatermarkStrategies forStrategy(WatermarkStrategy<?> strategy) {
-		return new WatermarkStrategies(strategy);
+	public static <T> WatermarkStrategies<T> forStrategy(WatermarkStrategy<T> strategy) {
+		return new WatermarkStrategies<>(strategy);
 	}
 
 	/**
 	 * Starts building a watermark strategy based on an existing {@code WatermarkGenerator}.
 	 */
-	public static <X extends WatermarkGenerator<?> & Serializable> WatermarkStrategies forGenerator(X generator) {
-		@SuppressWarnings("unchecked")
-		final WatermarkGenerator<Object> gen = (WatermarkGenerator<Object>) generator;
-		return new WatermarkStrategies(new FromSerializedGeneratorStrategy<>(gen));
+	public static <T, X extends WatermarkGenerator<T> & Serializable> WatermarkStrategies<T> forGenerator(X generator) {
+		return new WatermarkStrategies<>(new FromSerializedGeneratorStrategy<>(generator));
 	}
 
 	// ------------------------------------------------------------------------
@@ -154,6 +201,32 @@ public final class WatermarkStrategies {
 		}
 	}
 
+	/**
+	 * A {@link WatermarkStrategy} that overrides the {@link TimestampAssigner} of the given base
+	 * {@link WatermarkStrategy}.
+	 */
+	private static final class WithTimestampAssigner<T> implements WatermarkStrategy<T> {
+		private static final long serialVersionUID = 1L;
+
+		private final WatermarkStrategy<T> baseStrategy;
+		private final TimestampAssignerSupplier<T> timestampAssigner;
+
+		private WithTimestampAssigner(WatermarkStrategy<T> baseStrategy, TimestampAssignerSupplier<T> timestampAssigner) {
+			this.baseStrategy = baseStrategy;
+			this.timestampAssigner = timestampAssigner;
+		}
+
+		@Override
+		public TimestampAssigner<T> createTimestampAssigner() {
+			return timestampAssigner.createTimestampAssigner();
+		}
+
+		@Override
+		public WatermarkGenerator<T> createWatermarkGenerator() {
+			return baseStrategy.createWatermarkGenerator();
+		}
+	}
+
 	private static final class WithIdlenessStrategy<T> implements WatermarkStrategy<T> {
 		private static final long serialVersionUID = 1L;
 
@@ -163,6 +236,11 @@ public final class WatermarkStrategies {
 		private WithIdlenessStrategy(WatermarkStrategy<T> baseStrategy, Duration idlenessTimeout) {
 			this.baseStrategy = baseStrategy;
 			this.idlenessTimeout = idlenessTimeout;
+		}
+
+		@Override
+		public TimestampAssigner<T> createTimestampAssigner() {
+			return baseStrategy.createTimestampAssigner();
 		}
 
 		@Override
