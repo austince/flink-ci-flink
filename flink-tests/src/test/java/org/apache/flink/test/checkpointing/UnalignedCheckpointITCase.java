@@ -61,7 +61,6 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.shaded.guava18.com.google.common.collect.Iterables.getOnlyElement;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 
 /**
  * Integration test for performing the unaligned checkpoint.
@@ -103,7 +102,6 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
  * </ul>
  */
 public class UnalignedCheckpointITCase extends TestLogger {
-	public static final String NUM_COMPLETED_CHECKPOINTS = "numCompletedCheckpoints";
 	public static final String NUM_INPUTS = "inputs";
 	public static final String NUM_OUTPUTS = "outputs";
 	private static final String NUM_OUT_OF_ORDER = "outOfOrder";
@@ -117,7 +115,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 	@Rule
 	public final TemporaryFolder temp = new TemporaryFolder();
 
-//	@Rule
+	@Rule
 	public final Timeout timeout = Timeout.builder()
 			.withTimeout(300, TimeUnit.SECONDS)
 			.build();
@@ -159,7 +157,6 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		createDAG(env, minCheckpoints, slotSharing);
 		final JobExecutionResult result = env.execute();
 
-		collector.checkThat(result.<Long>getAccumulatorResult(NUM_COMPLETED_CHECKPOINTS), greaterThanOrEqualTo(minCheckpoints));
 		collector.checkThat(result.<Long>getAccumulatorResult(NUM_OUT_OF_ORDER), equalTo(0L));
 		collector.checkThat(result.<Long>getAccumulatorResult(NUM_DUPLICATES), equalTo(0L));
 		collector.checkThat(result.<Long>getAccumulatorResult(NUM_LOST), equalTo(0L));
@@ -201,7 +198,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 				state -> state.runNumber == 4))
 			.slotSharingGroup(slotSharing ? "default" : "map")
 			.partitionCustom(new DistributingPartitioner(), l -> l)
-			.addSink(new VerifyingSink())
+			.addSink(new VerifyingSink(minCheckpoints))
 			.slotSharingGroup(slotSharing ? "default" : "sink");
 	}
 
@@ -265,8 +262,6 @@ public class UnalignedCheckpointITCase extends TestLogger {
 
 			numInputsCounter.add(state.nextNumber / increment);
 			info("Last emitted input {} = {} total emits", state.nextNumber - increment, numInputsCounter.getLocalValue());
-			// wait for all instances to finish, such that pending checkpoint barriers are still processed
-			Thread.sleep(1000);
 		}
 
 		@Override
@@ -290,16 +285,20 @@ public class UnalignedCheckpointITCase extends TestLogger {
 				ArrayUtils.addAll(args, new Object[]{runtimeContext.getIndexOfThisSubtask(), runtimeContext.getAttemptNumber()}));
 	}
 
-	private static class VerifyingSink extends RichSinkFunction<Long> implements CheckpointedFunction, CheckpointListener {
+	private static class VerifyingSink extends RichSinkFunction<Long> implements CheckpointedFunction {
 		private final LongCounter numOutputCounter = new LongCounter();
 		private final LongCounter outOfOrderCounter = new LongCounter();
 		private final LongCounter lostCounter = new LongCounter();
-		private final LongCounter numCompletedCheckpointsCounter = new LongCounter();
 		private final LongCounter duplicatesCounter = new LongCounter();
 		private static final ListStateDescriptor<State> STATE_DESCRIPTOR =
 				new ListStateDescriptor<>("state", State.class);
 		private ListState<State> stateList;
 		private State state;
+		private final long minCheckpoints;
+
+		private VerifyingSink(long minCheckpoints) {
+			this.minCheckpoints = minCheckpoints;
+		}
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
@@ -308,7 +307,6 @@ public class UnalignedCheckpointITCase extends TestLogger {
 			getRuntimeContext().addAccumulator(NUM_OUT_OF_ORDER, outOfOrderCounter);
 			getRuntimeContext().addAccumulator(NUM_DUPLICATES, duplicatesCounter);
 			getRuntimeContext().addAccumulator(NUM_LOST, lostCounter);
-			getRuntimeContext().addAccumulator(NUM_COMPLETED_CHECKPOINTS, numCompletedCheckpointsCounter);
 		}
 
 		@Override
@@ -330,19 +328,11 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		}
 
 		@Override
-		public void notifyCheckpointComplete(long checkpointId) throws Exception {
-			state.numCompletedCheckpoints++;
-		}
-
-		@Override
 		public void close() throws Exception {
 			numOutputCounter.add(state.numOutput);
 			outOfOrderCounter.add(state.numOutOfOrderness);
 			duplicatesCounter.add(state.numDuplicates);
 			lostCounter.add(state.numLostValues);
-			if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
-				numCompletedCheckpointsCounter.add(state.numCompletedCheckpoints);
-			}
 			info("Last received records {}", Arrays.asList(state.lastRecordInPartitions));
 			super.close();
 		}
@@ -367,9 +357,6 @@ public class UnalignedCheckpointITCase extends TestLogger {
 			}
 			state.lastRecordInPartitions[partition] = value;
 			state.numOutput++;
-//			if (numOutputCounter.getLocalValue() % 10000 == 0) {
-//				Thread.sleep(1);
-//			}
 		}
 
 		private static class State {
@@ -377,7 +364,6 @@ public class UnalignedCheckpointITCase extends TestLogger {
 			private long numLostValues;
 			private long numDuplicates;
 			private long numOutput = 0;
-			private long numCompletedCheckpoints = 0;
 			private long[] lastRecordInPartitions;
 
 			private State(int numberOfParallelSubtasks) {
