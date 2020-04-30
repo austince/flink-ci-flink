@@ -570,13 +570,19 @@ public class ResultPartitionTest {
 
 		@Override
 		public ReadResult readInputData(InputChannelInfo info, Buffer buffer) {
-			return ReadResult.NO_MORE_DATA;
+			for (int state: states) {
+				buffer.asByteBuf().writeInt(state);
+			}
+			return getReadResult();
 		}
 
 		@Override
 		public ReadResult readOutputData(ResultSubpartitionInfo info, BufferBuilder bufferBuilder) {
 			bufferBuilder.appendAndCommit(BufferBuilderAndConsumerTest.toByteBuffer(states));
+			return getReadResult();
+		}
 
+		private ReadResult getReadResult() {
 			if (++numRestoredStates < totalStates) {
 				return ReadResult.HAS_MORE_DATA;
 			} else {
@@ -591,13 +597,13 @@ public class ResultPartitionTest {
 
 	/**
 	 * The {@link ChannelStateReader} instance for throwing exception when
-	 * {@link #readOutputData(ResultSubpartitionInfo, BufferBuilder)}.
+	 * {@link #readOutputData(ResultSubpartitionInfo, BufferBuilder)} and {@link #readInputData(InputChannelInfo, Buffer)}.
 	 */
-	private static final class ChannelStateReaderWithException implements ChannelStateReader {
+	public static final class ChannelStateReaderWithException implements ChannelStateReader {
 
 		@Override
-		public ReadResult readInputData(InputChannelInfo info, Buffer buffer) {
-			return ReadResult.NO_MORE_DATA;
+		public ReadResult readInputData(InputChannelInfo info, Buffer buffer) throws IOException {
+			throw new IOException("test");
 		}
 
 		@Override

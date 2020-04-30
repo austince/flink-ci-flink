@@ -287,6 +287,11 @@ public abstract class InputChannel {
 		return 0;
 	}
 
+	protected void updateMetrics(Buffer buffer) {
+		numBytesIn.inc(buffer.getSize());
+		numBuffersIn.inc();
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**

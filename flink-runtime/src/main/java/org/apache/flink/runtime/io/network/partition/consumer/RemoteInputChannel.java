@@ -35,7 +35,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -48,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * An input channel, which requests a remote partition queue.
  */
-public class RemoteInputChannel extends InputChannel {
+public class RemoteInputChannel extends RecoveredInputChannel {
 
 	/** ID to distinguish this channel from other channels sharing the same TCP connection. */
 	private final InputChannelID id = new InputChannelID();
@@ -58,12 +57,6 @@ public class RemoteInputChannel extends InputChannel {
 
 	/** The connection manager to use connect to the remote partition provider. */
 	private final ConnectionManager connectionManager;
-
-	/**
-	 * The received buffers. Received buffers are enqueued by the network I/O thread and the queue
-	 * is consumed by the receiving task thread.
-	 */
-	private final ArrayDeque<Buffer> receivedBuffers = new ArrayDeque<>();
 
 	/**
 	 * Flag indicating whether this channel has been released. Either called by the receiving task
@@ -105,12 +98,15 @@ public class RemoteInputChannel extends InputChannel {
 		int maxBackoff,
 		InputChannelMetrics metrics) {
 
-		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff,
-			metrics.getNumBytesInRemoteCounter(), metrics.getNumBuffersInRemoteCounter());
+		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff, metrics);
 
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
-		this.bufferManager = new BufferManager(this, 0);
+		// In theory it should get the total number of states to indicate the numRequiredBuffers.
+		// Since we can not get this information in advance, and considering only one input channel
+		// will read state at the same time by design, then we give a maximum value here to reduce
+		// unnecessary interactions with buffer pool during recovery.
+		this.bufferManager = new BufferManager(this, Integer.MAX_VALUE);
 	}
 
 	/**
@@ -164,7 +160,6 @@ public class RemoteInputChannel extends InputChannel {
 	@Override
 	Optional<BufferAndAvailability> getNextBuffer() throws IOException {
 		checkState(!isReleased.get(), "Queried for a buffer after channel has been closed.");
-		checkState(partitionRequestClient != null, "Queried for a buffer before requesting a queue.");
 
 		checkError();
 
@@ -176,8 +171,7 @@ public class RemoteInputChannel extends InputChannel {
 			moreAvailable = !receivedBuffers.isEmpty();
 		}
 
-		numBytesIn.inc(next.getSize());
-		numBuffersIn.inc();
+		updateMetrics(next);
 		return Optional.of(new BufferAndAvailability(next, moreAvailable, getSenderBacklog()));
 	}
 
@@ -232,12 +226,7 @@ public class RemoteInputChannel extends InputChannel {
 	@Override
 	void releaseAllResources() throws IOException {
 		if (isReleased.compareAndSet(false, true)) {
-
-			ArrayDeque<Buffer> releasedBuffers;
-			synchronized (receivedBuffers) {
-				releasedBuffers = receivedBuffers;
-			}
-			bufferManager.releaseAllBuffers(releasedBuffers);
+			super.releaseAllResources();
 
 			// The released flag has to be set before closing the connection to ensure that
 			// buffers received concurrently with closing are properly recycled.
@@ -262,13 +251,12 @@ public class RemoteInputChannel extends InputChannel {
 	// Credit-based
 	// ------------------------------------------------------------------------
 
-	/**
-	 * Enqueue this input channel in the pipeline for notifying the producer of unannounced credit.
-	 */
-	private void notifyCreditAvailable() {
-		checkState(partitionRequestClient != null, "Tried to send task event to producer before requesting a queue.");
-
-		partitionRequestClient.notifyCreditAvailable(this);
+	private void mayNotifyCreditAvailable(int numNewCredit) {
+		if (partitionRequestClient != null) {
+			if (numNewCredit > 0 && unannouncedCredit.getAndAdd(numNewCredit) == 0) {
+				partitionRequestClient.notifyCreditAvailable(this);
+			}
+		}
 	}
 
 	public int getNumberOfAvailableBuffers() {
@@ -293,9 +281,13 @@ public class RemoteInputChannel extends InputChannel {
 		return receivedBuffers.poll();
 	}
 
-	@VisibleForTesting
 	public BufferManager getBufferManager() {
 		return bufferManager;
+	}
+
+	@VisibleForTesting
+	PartitionRequestClient getPartitionRequestClient() {
+		return partitionRequestClient;
 	}
 
 
@@ -305,9 +297,7 @@ public class RemoteInputChannel extends InputChannel {
 	 */
 	@Override
 	public void notifyBufferAvailable(int numAvailableBuffers) {
-		if (numAvailableBuffers > 0 && unannouncedCredit.getAndAdd(numAvailableBuffers) == 0) {
-			notifyCreditAvailable();
-		}
+		mayNotifyCreditAvailable(numAvailableBuffers);
 	}
 
 	@Override
@@ -403,9 +393,7 @@ public class RemoteInputChannel extends InputChannel {
 	 */
 	void onSenderBacklog(int backlog) throws IOException {
 		int numRequestedBuffers = bufferManager.requestFloatingBuffers(backlog + initialCredit);
-		if (numRequestedBuffers > 0 && unannouncedCredit.getAndAdd(numRequestedBuffers) == 0) {
-			notifyCreditAvailable();
-		}
+		mayNotifyCreditAvailable(numRequestedBuffers);
 	}
 
 	public void onBuffer(Buffer buffer, int sequenceNumber, int backlog) throws IOException {

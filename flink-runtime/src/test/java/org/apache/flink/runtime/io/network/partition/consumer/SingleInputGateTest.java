@@ -23,11 +23,15 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.runtime.io.network.ConnectionManager;
+import org.apache.flink.runtime.io.network.LocalConnectionManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -39,10 +43,12 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
@@ -72,12 +78,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
+import static org.apache.flink.runtime.io.network.partition.InputGateFairnessTest.setupInputGate;
+import static org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder.STUB_CONNECTION_ID;
+import static org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannelTest.cleanup;
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -86,6 +98,7 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -93,6 +106,84 @@ import static org.junit.Assert.fail;
  * Tests for {@link SingleInputGate}.
  */
 public class SingleInputGateTest extends InputGateTestBase {
+
+	/**
+	 * Tests {@link InputGate#setup()} should create the respective {@link BufferPool} and assign
+	 * exclusive buffers for {@link RemoteInputChannel}s, but should not request partitions.
+	 */
+	@Test
+	public void testSetupLogic() throws Exception {
+		final NetworkBufferPool globalPool = new NetworkBufferPool(10, 32, 2);
+		final BufferPool localPool = globalPool.createBufferPool(2, 2);
+		final SingleInputGate inputGate = new SingleInputGateBuilder()
+			.setNumberOfChannels(2)
+			.setBufferPoolFactory(localPool)
+			.setSegmentProvider(globalPool)
+			.build();
+		final RemoteInputChannel[] inputChannels = new RemoteInputChannel[]{
+			new InputChannelBuilder().buildRemoteChannel(inputGate),
+			new InputChannelBuilder().buildRemoteChannel(inputGate)
+		};
+		inputGate.setInputChannels(inputChannels);
+
+		try {
+			// before setup
+			assertNull(inputGate.getBufferPool());
+			for (RemoteInputChannel remoteChannel : inputChannels) {
+				assertEquals(0, remoteChannel.getNumberOfAvailableBuffers());
+			}
+
+			inputGate.setup();
+
+			// after setup
+			assertEquals(localPool, inputGate.getBufferPool());
+			for (RemoteInputChannel remoteChannel : inputChannels) {
+				assertEquals(2, remoteChannel.getNumberOfAvailableBuffers());
+				assertNull(remoteChannel.getPartitionRequestClient());
+			}
+		} finally {
+			cleanup(globalPool, null, null, null, inputChannels);
+		}
+	}
+
+	/**
+	 * Tests {@link RemoteInputChannel#readRecoveredState(ChannelStateReader)} should be performed
+	 * after calling {@link InputGate#readRecoveredState(ExecutorService, ChannelStateReader)}.
+	 */
+	@Test
+	public void testReadRecoveredState() throws Exception {
+		final SingleInputGate inputGate = createInputGate();
+		final TestReadRecoveredStateInputChannel[] inputChannels = new TestReadRecoveredStateInputChannel[2];
+		for (int i = 0; i < inputChannels.length; i++) {
+			inputChannels[i] = new TestReadRecoveredStateInputChannel(
+				inputGate,
+				i,
+				new ResultPartitionID(),
+				STUB_CONNECTION_ID,
+				new LocalConnectionManager(),
+				0,
+				0,
+				InputChannelTestUtils.newUnregisteredInputChannelMetrics());
+		}
+		final ExecutorService executor = Executors.newFixedThreadPool(1);
+
+		try {
+			inputGate.setInputChannels(inputChannels);
+			inputGate.readRecoveredState(executor, ChannelStateReader.NO_OP);
+
+			executor.shutdown();
+			if (!executor.awaitTermination(30000L, TimeUnit.MILLISECONDS)) {
+				fail("Executor did not shut down within the given timeout." +
+					" This indicates some problems during state recovery.");
+			}
+			for (TestReadRecoveredStateInputChannel channel : inputChannels) {
+				assertTrue(channel.recoveryStateTriggered);
+			}
+		} finally {
+			executor.shutdown();
+		}
+	}
+
 	/**
 	 * Tests basic correctness of buffer-or-event interleaving and correct <code>null</code> return
 	 * value after receiving all end-of-partition events.
@@ -246,8 +337,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 				.setTaskEventPublisher(taskEventPublisher)
 				.buildUnknownChannel(inputGate);
 
-			inputGate.setInputChannels(inputChannels);
-			inputGate.setup();
+			setupInputGate(inputGate, inputChannels);
 
 			// Only the local channel can request
 			assertEquals(1, partitionManager.counter);
@@ -615,9 +705,8 @@ public class SingleInputGateTest extends InputGateTestBase {
 			.buildLocalChannel(inputGate);
 
 		try {
-			inputGate.setInputChannels(inputChannels);
 			resultPartition.setup();
-			inputGate.setup();
+			setupInputGate(inputGate, inputChannels);
 
 			remoteInputChannel.onBuffer(createBuffer(1), 0, 0);
 			assertEquals(1, inputGate.getNumberOfQueuedBuffers());
@@ -867,6 +956,36 @@ public class SingleInputGateTest extends InputGateTestBase {
 		public boolean publish(ResultPartitionID partitionId, TaskEvent event) {
 			++counter;
 			return true;
+		}
+	}
+
+	private static class TestReadRecoveredStateInputChannel extends RemoteInputChannel {
+
+		private boolean recoveryStateTriggered;
+
+		public TestReadRecoveredStateInputChannel(
+				SingleInputGate inputGate,
+				int channelIndex,
+				ResultPartitionID partitionId,
+				ConnectionID connectionId,
+				ConnectionManager connectionManager,
+				int initialBackOff,
+				int maxBackoff,
+				InputChannelMetrics metrics) {
+			super(
+				inputGate,
+				channelIndex,
+				partitionId,
+				connectionId,
+				connectionManager,
+				initialBackOff,
+				maxBackoff,
+				metrics);
+		}
+
+		@Override
+		public void readRecoveredState(ChannelStateReader reader) {
+			recoveryStateTriggered = true;
 		}
 	}
 }

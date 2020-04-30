@@ -63,6 +63,8 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 	}
 
 	protected boolean getNextRecord(T target) throws IOException, InterruptedException {
+		inputGate.requestPartitions();
+
 		if (isFinished) {
 			return false;
 		}

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegmentProvider;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
@@ -58,6 +59,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -227,19 +229,33 @@ public class SingleInputGate extends IndexedInputGate {
 	}
 
 	@Override
-	public void setup() throws IOException, InterruptedException {
+	public void setup() throws IOException {
 		checkState(this.bufferPool == null, "Bug in input gate setup logic: Already registered buffer pool.");
 		// assign exclusive buffers to input channels directly and use the rest for floating buffers
 		assignExclusiveSegments();
 
 		BufferPool bufferPool = bufferPoolFactory.get();
 		setBufferPool(bufferPool);
-
-		requestPartitions();
 	}
 
-	@VisibleForTesting
-	void requestPartitions() throws IOException, InterruptedException {
+	@Override
+	public void readRecoveredState(ExecutorService executor, ChannelStateReader reader) {
+		executor.submit(() -> {
+			for (InputChannel inputChannel : inputChannels.values()) {
+				try {
+					if (inputChannel instanceof RecoveredInputChannel) {
+						((RecoveredInputChannel) inputChannel).readRecoveredState(reader);
+					}
+				} catch (Throwable t) {
+					inputChannel.setError(t);
+					return;
+				}
+			}
+		});
+	}
+
+	@Override
+	public void requestPartitions(@Nullable ExecutorService executor) {
 		synchronized (requestLock) {
 			if (!requestedPartitionsFlag) {
 				if (closeFuture.isDone()) {
@@ -256,12 +272,25 @@ public class SingleInputGate extends IndexedInputGate {
 						numberOfInputChannels));
 				}
 
-				for (InputChannel inputChannel : inputChannels.values()) {
-					inputChannel.requestSubpartition(consumedSubpartitionIndex);
+				if (executor != null) {
+					executor.submit(this :: internalRequestPartitions);
+				} else {
+					internalRequestPartitions();
 				}
 			}
 
 			requestedPartitionsFlag = true;
+		}
+	}
+
+	private void internalRequestPartitions() {
+		for (InputChannel inputChannel : inputChannels.values()) {
+			try {
+				inputChannel.requestSubpartition(consumedSubpartitionIndex);
+			} catch (Throwable t) {
+				inputChannel.setError(t);
+				return;
+			}
 		}
 	}
 

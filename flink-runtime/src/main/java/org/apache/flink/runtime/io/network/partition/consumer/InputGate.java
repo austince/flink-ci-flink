@@ -18,13 +18,17 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -133,7 +137,21 @@ public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>,
 	/**
 	 * Setup gate, potentially heavy-weight, blocking operation comparing to just creation.
 	 */
-	public abstract void setup() throws IOException, InterruptedException;
+	public abstract void setup() throws IOException;
+
+	/**
+	 * Reads the previous unaligned checkpoint states before requesting partition data.
+	 *
+	 * @param executor the dedicated executor for performing this action for all the internal channels.
+	 * @param reader the dedicated reader for unspilling the respective channel state from snapshots.
+	 */
+	public abstract void readRecoveredState(ExecutorService executor, ChannelStateReader reader) throws IOException;
+
+	public void requestPartitions() throws IOException {
+		requestPartitions(null);
+	}
+
+	public abstract void requestPartitions(@Nullable ExecutorService executor) throws IOException;
 
 	public abstract void registerBufferReceivedListener(BufferReceivedListener listener);
 }

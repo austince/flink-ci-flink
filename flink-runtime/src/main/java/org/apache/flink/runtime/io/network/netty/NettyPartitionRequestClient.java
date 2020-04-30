@@ -110,7 +110,7 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
 		clientHandler.addInputChannel(inputChannel);
 
 		final PartitionRequest request = new PartitionRequest(
-				partitionId, subpartitionIndex, inputChannel.getInputChannelId(), inputChannel.getInitialCredit());
+				partitionId, subpartitionIndex, inputChannel.getInputChannelId(), inputChannel.getNumberOfAvailableBuffers());
 
 		final ChannelFutureListener listener = new ChannelFutureListener() {
 			@Override

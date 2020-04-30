@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -35,6 +36,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
 
 /**
  * The test generates two random streams (input channels) which independently
@@ -212,6 +214,14 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 
 		@Override
 		public void setup() {
+		}
+
+		@Override
+		public void readRecoveredState(ExecutorService executor, ChannelStateReader reader) {
+		}
+
+		@Override
+		public void requestPartitions(ExecutorService executor) {
 		}
 
 		@Override

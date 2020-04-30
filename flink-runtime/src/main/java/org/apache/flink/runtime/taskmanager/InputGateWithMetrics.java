@@ -19,17 +19,21 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -79,8 +83,18 @@ public class InputGateWithMetrics extends IndexedInputGate {
 	}
 
 	@Override
-	public void setup() throws IOException, InterruptedException {
+	public void setup() throws IOException {
 		inputGate.setup();
+	}
+
+	@Override
+	public void readRecoveredState(ExecutorService executor, ChannelStateReader reader) throws IOException {
+		inputGate.readRecoveredState(executor, reader);
+	}
+
+	@Override
+	public void requestPartitions(@Nullable ExecutorService executor) throws IOException {
+		inputGate.requestPartitions(executor);
 	}
 
 	@Override

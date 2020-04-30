@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
@@ -31,6 +32,7 @@ import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -265,6 +267,17 @@ public class UnionInputGate extends InputGate {
 
 	@Override
 	public void setup() {
+	}
+
+	@Override
+	public void readRecoveredState(ExecutorService executor, ChannelStateReader reader) {
+	}
+
+	@Override
+	public void requestPartitions(ExecutorService executor) throws IOException {
+		for (InputGate inputGate : inputGates) {
+			inputGate.requestPartitions(executor);
+		}
 	}
 
 	@Override
