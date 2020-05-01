@@ -241,7 +241,8 @@ public class SingleInputGateFactory {
 			int floatingNetworkBuffersPerGate,
 			int size,
 			ResultPartitionType type) {
-		return () -> bufferPoolFactory.createBufferPool(0, floatingNetworkBuffersPerGate);
+		// Note that we should guarantee at-least one floating buffer for local channel state recovery.
+		return () -> bufferPoolFactory.createBufferPool(1, floatingNetworkBuffersPerGate);
 	}
 
 	/**
