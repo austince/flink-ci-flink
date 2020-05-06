@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.data.RowData;
@@ -63,6 +64,13 @@ public interface FileSystemFormatFactory extends TableFormatFactory<RowData> {
 		 * Full schema of the table.
 		 */
 		TableSchema getSchema();
+
+		/**
+		 * Creates type information describing the internal data structures of the given {@link DataType}.
+		 *
+		 * @see TableSchema#toPhysicalRowDataType()
+		 */
+		TypeInformation<?> createTypeInformation(DataType dataType);
 
 		/**
 		 * Properties of this format.

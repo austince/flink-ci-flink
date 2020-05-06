@@ -19,6 +19,7 @@
 package org.apache.flink.table.filesystem;
 
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.DataTypes;
@@ -33,6 +34,8 @@ import org.apache.flink.table.sources.LimitableTableSource;
 import org.apache.flink.table.sources.PartitionableTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.TypeTransformation;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.utils.PartitionPathUtils;
 
 import java.util.ArrayList;
@@ -45,6 +48,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.filesystem.FileSystemTableFactory.createFormatFactory;
+import static org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass;
 
 /**
  * File system table source.
@@ -120,6 +125,14 @@ public class FileSystemTableSource extends InputFormatTableSource<RowData> imple
 			@Override
 			public TableSchema getSchema() {
 				return schema;
+			}
+
+			@Override
+			public TypeInformation<?> createTypeInformation(DataType dataType) {
+				DataType internalDataType = DataTypeUtils.transform(
+					dataType,
+					InternalConversionClassTransformation.INTERNAL_CLASS_TRANSFORM);
+				return fromDataTypeToTypeInfo(internalDataType);
 			}
 
 			@Override
@@ -305,5 +318,15 @@ public class FileSystemTableSource extends InputFormatTableSource<RowData> imple
 
 	private String filtersString() {
 		return filters.stream().map(Expression::asSummaryString).collect(Collectors.joining(","));
+	}
+
+	static final class InternalConversionClassTransformation implements TypeTransformation {
+		static final TypeTransformation INTERNAL_CLASS_TRANSFORM = new InternalConversionClassTransformation();
+
+		@Override
+		public DataType transform(DataType typeToTransform) {
+			Class<?> internalClass = toInternalConversionClass(typeToTransform.getLogicalType());
+			return typeToTransform.bridgedTo(internalClass);
+		}
 	}
 }

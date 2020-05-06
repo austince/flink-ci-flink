@@ -41,7 +41,7 @@ import scala.collection.JavaConversions._
 abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
 
   @Rule
-  def timeoutPerTest: Timeout = Timeout.seconds(20)
+  def timeoutPerTest: Timeout = Timeout.seconds(2000)
 
   protected var resultPath: String = _
 
