@@ -28,7 +28,6 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
-import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -219,11 +218,8 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 	/** GlobalAggregateManager used to update aggregates on the JobMaster. */
 	private final GlobalAggregateManager aggregateManager;
 
-	/** The BLOB cache, from which the task can request BLOB files. */
-	private final BlobCacheService blobService;
-
 	/** The library cache, from which the task can request its class loader. */
-	private final LibraryCacheManager libraryCache;
+	private final LibraryCacheManager.ClassLoaderHandle classLoaderHandle;
 
 	/** The cache for user-defined files that the invokable requires. */
 	private final FileCache fileCache;
@@ -304,8 +300,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		CheckpointResponder checkpointResponder,
 		TaskOperatorEventGateway operatorCoordinatorEventGateway,
 		GlobalAggregateManager aggregateManager,
-		BlobCacheService blobService,
-		LibraryCacheManager libraryCache,
+		LibraryCacheManager.ClassLoaderHandle classLoaderHandle,
 		FileCache fileCache,
 		TaskManagerRuntimeInfo taskManagerConfig,
 		@Nonnull TaskMetricGroup metricGroup,
@@ -357,8 +352,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		this.aggregateManager = Preconditions.checkNotNull(aggregateManager);
 		this.taskManagerActions = checkNotNull(taskManagerActions);
 
-		this.blobService = Preconditions.checkNotNull(blobService);
-		this.libraryCache = Preconditions.checkNotNull(libraryCache);
+		this.classLoaderHandle = Preconditions.checkNotNull(classLoaderHandle);
 		this.fileCache = Preconditions.checkNotNull(fileCache);
 		this.kvStateService = Preconditions.checkNotNull(kvStateService);
 		this.taskManagerConfig = Preconditions.checkNotNull(taskManagerConfig);
@@ -601,8 +595,6 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			LOG.info("Creating FileSystem stream leak safety net for task {}", this);
 			FileSystemSafetyNet.initializeSafetyNetForThread();
 
-			blobService.getPermanentBlobService().registerJob(jobId);
-
 			// first of all, get a user-code classloader
 			// this may involve downloading the job's JAR files and/or classes
 			LOG.info("Loading JAR files for task {}.", this);
@@ -833,10 +825,8 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 					memoryManager.releaseAll(invokable);
 				}
 
-				// remove all of the tasks library resources
-				libraryCache.unregisterTask(jobId, executionId);
+				// remove all of the tasks resources
 				fileCache.releaseJob(jobId, executionId);
-				blobService.getPermanentBlobService().releaseJob(jobId);
 
 				// close and de-activate safety net for task thread
 				LOG.info("Ensuring all FileSystem streams are closed for task {}", this);
@@ -928,15 +918,11 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		long startDownloadTime = System.currentTimeMillis();
 
 		// triggers the download of all missing jar files from the job manager
-		libraryCache.registerTask(jobId, executionId, requiredJarFiles, requiredClasspaths);
+		final ClassLoader userCodeClassLoader = classLoaderHandle.getOrResolveClassLoader(requiredJarFiles, requiredClasspaths);
 
 		LOG.debug("Getting user code class loader for task {} at library cache manager took {} milliseconds",
 				executionId, System.currentTimeMillis() - startDownloadTime);
 
-		ClassLoader userCodeClassLoader = libraryCache.getClassLoader(jobId);
-		if (userCodeClassLoader == null) {
-			throw new Exception("No user code classloader available.");
-		}
 		return userCodeClassLoader;
 	}
 

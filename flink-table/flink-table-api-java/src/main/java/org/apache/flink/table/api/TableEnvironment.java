@@ -828,7 +828,7 @@ public interface TableEnvironment {
 	 * the result of the given {@link Table}.
 	 *
 	 * @param table The table for which the AST and execution plan will be returned.
-	 * @param extended if the plan should contain additional properties such as
+	 * @param extended if the plan should contain additional properties,
 	 * e.g. estimated cost, traits
 	 */
 	String explain(Table table, boolean extended);
@@ -837,10 +837,21 @@ public interface TableEnvironment {
 	 * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
 	 * the result of multiple-sinks plan.
 	 *
-	 * @param extended if the plan should contain additional properties such as
+	 * @param extended if the plan should contain additional properties,
 	 * e.g. estimated cost, traits
 	 */
 	String explain(boolean extended);
+
+	/**
+	 * Returns the AST of the specified statement and the execution plan to compute
+	 * the result of the given statement.
+	 *
+	 * @param statement The statement for which the AST and execution plan will be returned.
+	 * @param extraDetails The extra explain details which the explain result should include,
+	 *   e.g. estimated cost, changelog mode for streaming
+	 * @return AST and the execution plan.
+	 */
+	String explainSql(String statement, ExplainDetail... extraDetails);
 
 	/**
 	 * Returns completion hints for the given statement at the given cursor position.
@@ -1121,4 +1132,11 @@ public interface TableEnvironment {
 	 * @throws Exception which occurs during job execution.
 	 */
 	JobExecutionResult execute(String jobName) throws Exception;
+
+	/**
+	 * Create a {@link StatementSet} instance which accepts DML statements or Tables,
+	 * the planner can optimize all added statements and Tables together
+	 * and then submit as one job.
+	 */
+	StatementSet createStatementSet();
 }
