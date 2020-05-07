@@ -24,9 +24,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Apache Flink的一种常见应用场景是ETL（抽取、转换、加载）管道任务。从一个或多个数据源获取数据，进行一些转换操作和信息补充，将结果存储起来。在这个教程中，我们将介绍如何使用Flink的DataStream API实现这类应用。
+Apache Flink 的一种常见应用场景是 ETL（抽取、转换、加载）管道任务。从一个或多个数据源获取数据，进行一些转换操作和信息补充，将结果存储起来。在这个教程中，我们将介绍如何使用 Flink 的 DataStream API 实现这类应用。
 
-这里注意，Flink的[Table 和 SQL API]({% link dev/table/index.zh.md %})完全可以满足很多ETL使用场景。但无论你最终是否直接使用DataStream API，对这里介绍的基本知识有扎实的理解都是有价值的。
+这里注意，Flink 的 [Table 和 SQL API]({% link dev/table/index.zh.md %}) 完全可以满足很多 ETL 使用场景。但无论你最终是否直接使用 DataStream API，对这里介绍的基本知识有扎实的理解都是有价值的。
 
 
 * This will be replaced by the TOC
@@ -34,13 +34,13 @@ Apache Flink的一种常见应用场景是ETL（抽取、转换、加载）管�
 
 ## 无状态的转换
 
-本节涵盖了 `map()` 和 `flatmap()`，这两种算子可以用来实现无状态转换的基本操作。本节中的示例建立在你已经熟悉[flink-training repo](https://github.com/apache/flink-training/tree/{% if site.is_stable %}release-{{ site.version_title }}{% else %}master{% endif %})中的出租车行程数据的基础上。
+本节涵盖了 `map()` 和 `flatmap()`，这两种算子可以用来实现无状态转换的基本操作。本节中的示例建立在你已经熟悉 [flink-training repo](https://github.com/apache/flink-training/tree/{% if site.is_stable %}release-{{ site.version_title }}{% else %}master{% endif %}) 中的出租车行程数据的基础上。
 
 ### `map()`
 
-在第一个练习中，你讲过滤出租车行程数据中的事件。在同一代码仓库中，有一个 `GeoUtils` 类，提供了一个静态方法 `GeoUtils.mapToGridCell(float lon, float lat)`，它可以将位置坐标（经度，维度）映射到100x100米的对应不同区域的网格单元。
+在第一个练习中，你将过滤出租车行程数据中的事件。在同一代码仓库中，有一个 `GeoUtils` 类，提供了一个静态方法 `GeoUtils.mapToGridCell(float lon, float lat)`，它可以将位置坐标（经度，维度）映射到 100x100 米的对应不同区域的网格单元。
 
-现在让我们为每个出租车行程时间的数据对象增加 `startCell` 和 `endCell` 字段。你可以创建一个继承 `TaxiRide` and `EnrichedRide` 类，添加这些字段：
+现在让我们为每个出租车行程时间的数据对象增加 `startCell` 和 `endCell` 字段。你可以创建一个继承 `TaxiRide` 的 `EnrichedRide` 类，添加这些字段：
 
 {% highlight java %}
 public static class EnrichedRide extends TaxiRide {
@@ -91,7 +91,7 @@ public static class Enrichment implements MapFunction<TaxiRide, EnrichedRide> {
 
 ### `flatmap()`
 
-`MapFunction` 只适用于一对一的转换：对每个进入算子的流元素，`map()` 将发射一个转换后的元素。对于除此以外的场景，你将要使用 `flatmap()`。
+`MapFunction` 只适用于一对一的转换：对每个进入算子的流元素，`map()` 将仅输出一个转换后的元素。对于除此以外的场景，你将要使用 `flatmap()`。
 
 {% highlight java %}
 DataStream<TaxiRide> rides = env.addSource(new TaxiRideSource(...));
@@ -117,7 +117,7 @@ public static class NYCEnrichment implements FlatMapFunction<TaxiRide, EnrichedR
 }
 {% endhighlight %}
 
-使用接口中提供的 `Collector` ，`flatmap()` 可以发射你想要的任意数量的元素，也可以一个都不发。
+使用接口中提供的 `Collector` ，`flatmap()` 可以输出你想要的任意数量的元素，也可以一个都不发。
 
 {% top %}
 
@@ -137,7 +137,7 @@ rides
 
 <img src="{{ site.baseurl }}/fig/keyBy.png" alt="keyBy and network shuffle" class="offset" width="45%" />
 
-在上面的例子中，将 "startCell" 这个字段定义为key。这种选择key的方式有个缺点，就是编译器无法推断用作键的字段的类型，所以 Flink 会将键值作为元组传递，这有时候会比较难处理。所以最好还是使用一个合适的 KeySelector，
+在上面的例子中，将 "startCell" 这个字段定义为键。这种选择键的方式有个缺点，就是编译器无法推断用作键的字段的类型，所以 Flink 会将键值作为元组传递，这有时候会比较难处理。所以最好还是使用一个合适的 KeySelector，
 
 {% highlight java %}
 rides
@@ -152,7 +152,7 @@ rides
         })
 {% endhighlight %}
 
-也可以使用 lambda 表达式使它更简洁：
+也可以使用更简洁的 lambda 表达式：
 
 {% highlight java %}
 rides
@@ -162,9 +162,9 @@ rides
 
 ### 通过计算得到键
 
-KeySelector 不仅限于从事件中抽取键。 你也可以按想要的方式计算得到键值，只要最终结果是确定的，并且有 `hashCode()` 和 `equals()` 的实现。这些限制条件不包括产生随机数或者返回 Arrays 或 Enums 的 KeySelector ，但你可以用元组和 POJO 来组成键，只要他们的元素遵循上述条件。
+KeySelector 不仅限于从事件中抽取键。你也可以按想要的方式计算得到键值，只要最终结果是确定的，并且实现了 `hashCode()` 和 `equals()`。这些限制条件不包括产生随机数或者返回 Arrays 或 Enums 的 KeySelector，但你可以用元组和 POJO 来组成键，只要他们的元素遵循上述条件。
 
-键必须按确定的方式产生，因为它们会再需要的时候被重新计算，而不是一直被带在流的记录中。
+键必须按确定的方式产生，因为它们会在需要的时候被重新计算，而不是一直被带在流记录中。
 
 例如，比起创建一个新的带有 `startCell` 字段的 `EnrichedRide` 类，用这个字段作为 key：
 
@@ -229,15 +229,15 @@ minutesByStartCell
 
 ### （隐式的）状态
 
-这是培训中第一个包含状态的流的例子。尽管状态的处理是透明的，Flink必须跟踪每个不同的键的最大时长。
+这是培训中第一个涉及到有状态流的例子。尽管状态的处理是透明的，Flink 必须跟踪每个不同的键的最大时长。
 
 只要应用中有状态，你就应该考虑状态的大小。如果键值的数量是无限的，那 Flink 的状态需要的空间也同样是无限的。
 
-当我们在流上作业时，考虑有限窗口的聚合往往比整个流聚合更有意义。
+在流处理场景中，考虑有限窗口的聚合往往比整个流聚合更有意义。
 
 ### `reduce()` 和其他聚合算子
 
-上面用到的 `maxBy()` 只是 Flink 中 `KeyedStream` 上使用的众多聚合函数中的一个。还有一个更通用的 `reduce()` 函数可以用来实现你的自定义聚合。
+上面用到的 `maxBy()` 只是 Flink 中 `KeyedStream` 上众多聚合函数中的一个。还有一个更通用的 `reduce()` 函数可以用来实现你的自定义聚合。
 
 {% top %}
 
@@ -245,10 +245,10 @@ minutesByStartCell
 
 ### 为什么 Flink 要参与管理状态？
 
-在Flink不参与管理状态的情况下，你的应用也可以使用状态，但Flink为其管理状态提供了一些引人注目的特性：
+在 Flink 不参与管理状态的情况下，你的应用也可以使用状态，但 Flink 为其管理状态提供了一些引人注目的特性：
 
 * **本地性**: Flink 状态是存储在使用它的机器本地的，并且可以以内存访问速度来获取
-* **持久性**: Flink 状态是容错的，例如，它可以自动按一定的时间间隔产生 checkpoint， 并且在任务失败后进行恢复
+* **持久性**: Flink 状态是容错的，例如，它可以自动按一定的时间间隔产生 checkpoint，并且在任务失败后进行恢复
 * **纵向可扩展性**: Flink 状态可以存储在集成的 RocksDB 实例中，这种方式下可以通过增加本地磁盘来扩展空间
 * **横向可扩展性**: Flink 状态可以随着集群的扩缩容重新分布
 * **可查询性**: Flink 状态可以通过使用 [状态查询 API]({{ site.baseurl }}{% link dev/stream/state/queryable_state.zh.md %}) 从外部进行查询。
@@ -320,7 +320,7 @@ public static class Deduplicator extends RichFlatMapFunction<Event, Event> {
 }
 {% endhighlight %}
 
-当 flatMap 方法调用 `keyHasBeenSeen.value()`，Flink 运行时将在 _当前键的上下文_ 中检索状态的值，只有当它为 `null` 时，才会输出当前事件。这种情况下，它同时也将更新 `keyHasBeenSeen` 为 `true`。
+当 flatMap 方法调用 `keyHasBeenSeen.value()` 时，Flink 会在 _当前键的上下文_ 中检索状态值，只有当状态为 `null` 时，才会输出当前事件。这种情况下，它同时也将更新 `keyHasBeenSeen` 为 `true`。
 
 这种访问和更新按键分区的状态的机制也许看上去很神奇，因为在 `Deduplicator` 的实现中，键不是明确可见的。当 Flink 运行时调用 `RichFlatMapFunction` 的 `open` 方法时，
 是没有事件的，所以这个时候上下文中不含有任何键。但当它调用 `flatMap` 方法，被处理的事件的键在运行时中就是可用的了，并且被用来确定操作哪个 Flink 状态后端的入口。
