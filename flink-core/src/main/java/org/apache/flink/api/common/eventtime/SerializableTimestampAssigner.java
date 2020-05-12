@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,16 +20,11 @@ package org.apache.flink.api.common.eventtime;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.io.Serializable;
+
 /**
- * A {@link TimestampAssigner} that simply forwards the internal timestamp.
+ * A {@link TimestampAssigner} that is also {@link java.io.Serializable}.
  */
 @PublicEvolving
-public final class RecordTimestampAssigner<E> implements SerializableTimestampAssigner<E> {
-
-	private static final long serialVersionUID = 1L;
-
-	@Override
-	public long extractTimestamp(E element, long recordTimestamp) {
-		return recordTimestamp;
-	}
-}
+@FunctionalInterface
+public interface SerializableTimestampAssigner<T> extends TimestampAssigner<T>, Serializable {}
