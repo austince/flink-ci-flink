@@ -524,12 +524,7 @@ class TableEnvironment(object):
                 the affected row count for `DML` (-1 means unknown),
                 or a string message ("OK") for other statements.
         """
-<<<<<<< HEAD
         return TableResult(self._j_tenv.executeSql(stmt))
-=======
-        # TODO convert java TableResult to python TableResult once FLINK-17303 is finished
-        return self._j_tenv.executeSql(stmt)
->>>>>>> 2160c3294e... [FLINK-17252][table] Add Table#execute api and support SELECT statement in TableEnvironment#executeSql
 
     def create_statement_set(self):
         """
