@@ -135,7 +135,7 @@ the Flink Master and TaskManagers:
     docker run flink_with_job_artifacts taskmanager
     ```
 
-The `standalone-job` argument starts a Flink Master container in the Single Job mode.
+The `standalone-job` argument starts a Flink Master container in the Job Cluster mode.
 
 #### Flink Master additional command line arguments
 
