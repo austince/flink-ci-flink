@@ -224,16 +224,15 @@ Otherwise you can use other [advanced methods](#advanced-customization).
 
 ### Advanced customization
 
-If you want to further customize the Flink image, for example:
+If you want to further customize the Flink image, for example, for the following purposes:
 
 * install custom software (e.g. python)
 * enable (symlink) optional libraries or plugins from `/opt/flink/opt` into `/opt/flink/lib` or `/opt/flink/plugins`
 * add other libraries to `/opt/flink/lib` (e.g. [hadoop](hadoop.html#adding-hadoop-to-lib))
 * add other plugins to `/opt/flink/plugins`
 * override configuration files
-* override the startup script completely
 
-This can be usually achieved in several ways:
+you can achieve this in several ways:
 
 * **override the container entry point** with a custom script where you can run any bootstrap actions.
 At the end you can call the standard `/docker-entrypoint.sh` script of the Flink image with the same arguments as the image has.
