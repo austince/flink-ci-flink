@@ -294,7 +294,7 @@ At the end you can call the standard `/docker-entrypoint.sh` script of the Flink
 
 ## Flink with Docker Compose
 
-[Docker Compose](https://docs.docker.com/compose/) is a convenient way to run a group of Docker containers locally.
+[Docker Compose](https://docs.docker.com/compose/) is a way to run a group of Docker containers locally.
 The next chapters show examples of configuration files to run Flink.
 
 ### Usage
