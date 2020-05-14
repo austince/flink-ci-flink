@@ -211,7 +211,7 @@ The `flink-conf.yaml` file must have write permission so that the docker entry p
 As described in the [plugins]({{ site.baseurl }}/ops/plugins.html) documentation page: in order to use plugins they must be
 copied to the correct location in the Flink installation for them to work.
 
-If you want to enable some optional plugins provided with Flink, you can just pass an environment variable `ENABLE_BUILT_IN_PLUGINS`
+If you want to enable plugins provided with Flink, you can pass the environment variable `ENABLE_BUILT_IN_PLUGINS`
 when you run the Flink image.
 The `ENABLE_BUILT_IN_PLUGINS` should contain a list of plugin jar file names separated by `;`.
 
