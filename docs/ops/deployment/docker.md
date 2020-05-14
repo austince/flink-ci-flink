@@ -85,7 +85,7 @@ and required number of TaskManager containers:
 docker run flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} taskmanager
 ```
 
-### Start a Single Job Cluster
+### Start a Job Cluster
 
 A Flink Job cluster is a dedicated cluster which runs a single job.
 The job artifacts should be already available locally in the container and, thus, there is no extra job submission needed.
