@@ -143,7 +143,7 @@ You can provide the following additional command line arguments to the cluster e
 
 * `--job-classname <job class name>`: Class name of the job to run.
 
-  By default, Flink scans its class path for a JAR with a Main-Class or program-class manifest entry and choses it as the job class.
+  By default, Flink scans its class path for a JAR with a Main-Class or program-class manifest entry and chooses it as the job class.
   Use this command line argument to manually set the job class.
   This argument is required in case that no or more than one JAR with such a manifest entry is available on the class path.
 
