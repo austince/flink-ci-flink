@@ -246,10 +246,15 @@ At the end you can call the standard `/docker-entrypoint.sh` script of the Flink
     # create custom_plugin.jar
 
     echo "
-    ln -fs /opt/flink/opt/flink-metrics-graphite-*.jar /opt/flink/lib/.  # enable an optional library
+    ln -fs /opt/flink/opt/flink-queryable-state-runtime-*.jar /opt/flink/lib/.  # enable an optional library
     ln -fs /mnt/custom_lib.jar /opt/flink/lib/.  # enable a custom library
-    ln -fs /opt/flink/opt/flink-s3-fs-hadoop-*.jar /opt/flink/lib/.  # enable an optional plugin
-    ln -fs /mnt/custom_plugin.jar /opt/flink/plugins/.  # enable a custom plugin
+
+    mkdir -p /opt/flink/plugins/flink-s3-fs-hadoop
+    ln -fs /opt/flink/opt/flink-s3-fs-hadoop-*.jar /opt/flink/plugins/flink-s3-fs-hadoop/.  # enable an optional plugin
+
+    mkdir -p /opt/flink/plugins/custom_plugin
+    ln -fs /mnt/custom_plugin.jar /opt/flink/plugins/custom_plugin/.  # enable a custom plugin
+
     /docker-entrypoint.sh <jobmanager|standalone-job|taskmanager>
     " > custom_entry_point_script.sh
 
@@ -264,11 +269,17 @@ At the end you can call the standard `/docker-entrypoint.sh` script of the Flink
 
     ```dockerfile
     FROM flink
+
     RUN set -ex; apt-get update; apt-get -y install python
+
     ADD /host/path/to/flink-conf.yaml /container/local/path/to/custom/conf/flink-conf.yaml
     ADD /host/path/to/log4j.properties /container/local/path/to/custom/conf/log4j.properties
-    ln -fs /opt/flink/opt/flink-metrics-graphite-*.jar /opt/flink/lib/.
-    ln -fs /opt/flink/opt/flink-s3-fs-hadoop-*.jar /opt/flink/lib/.
+
+    RUN ln -fs /opt/flink/opt/flink-queryable-state-runtime-*.jar /opt/flink/lib/.
+
+    RUN mkdir -p /opt/flink/plugins/flink-s3-fs-hadoop
+    RUN ln -fs /opt/flink/opt/flink-s3-fs-hadoop-*.jar /opt/flink/plugins/flink-s3-fs-hadoop/.
+
     ENV VAR_NAME value
     ```
 
