@@ -97,7 +97,7 @@ To deploy a cluster for a single job with docker, you need to
 To make the **job artifacts available** locally in the container, you can
 
 * **either mount a volume** (or multiple volumes) with the artifacts to `/opt/flink/usrlib` when you start
-the Flink image as a Single Job Master and the required number of TaskManagers:
+the Flink Master and TaskManagers:
 
     ```sh
     docker run \
