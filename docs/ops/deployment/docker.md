@@ -152,8 +152,8 @@ You can provide the following additional command line arguments to the cluster e
 * `--fromSavepoint /path/to/savepoint` (optional): Restore from a savepoint
 
   In order to resume from a savepoint, you also need to pass the savepoint path.
-  Note that `/path/to/savepoint` needs to be accessible in the docker container locally
-  (e.g. from the mounted volume or adding it to the image or storing it on a DFS).
+  Note that `/path/to/savepoint` needs to be accessible in all docker containers of the cluster
+  (e.g. storing it on a DFS or from the mounted volume or adding it to the image).
 
 * `--allowNonRestoredState` (optional): Skip broken savepoint state
 
