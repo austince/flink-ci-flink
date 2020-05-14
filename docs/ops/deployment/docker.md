@@ -115,8 +115,8 @@ the Flink Master and TaskManagers:
         flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} taskmanager
     ```
 
-* **or extend the Flink image** by writing a custom `Dockerfile`, build it and start the custom image as a Single Job Master
-and the required number of TaskManagers:
+* **or extend the Flink image** by writing a custom `Dockerfile`, build it and use it for starting the Flink Master and TaskManagers.
+```:
 
     ```dockerfile
     FROM flink
