@@ -159,7 +159,7 @@ You can provide the following additional command line arguments to the cluster e
 
   Additionally you can specify this argument to allow that savepoint state is skipped which cannot be restored.
 
-If the main function of the user job main class has arguments, you can also pass them at the end of the `docker run` command.
+If the main function of the user job main class accepts arguments, you can also pass them at the end of the `docker run` command.
 
 ## Customize Flink image
 
