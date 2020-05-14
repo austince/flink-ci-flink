@@ -133,7 +133,7 @@ A basic Flink Session cluster deployment in Kubernetes has three components:
 Check [the single job specific resource definitions](#job-cluster-resource-definitions) and adjust them accordingly.
 
 The `args` attribute in the `jobmanager-job.yaml` has to specify the main class of the user job.
-Check also [how to specify the Flink Master arguments](docker.html#flink-master-additional-command-line-arguments) to understand
+See also [how to specify the Flink Master arguments](docker.html#flink-master-additional-command-line-arguments) to understand
 how to pass other `args` to the Flink image in the `jobmanager-job.yaml`.
 
 The job artifacts should be available from the `job-artifacts-volume` in [the resource definition examples](#job-cluster-resource-definitions).

@@ -303,7 +303,7 @@ The next chapters show examples of configuration files to run Flink.
     * [Session cluster](#session-cluster-with-docker-compose)
     * [Single Job](#single-job-cluster-with-docker-compose)
 
-    Check also [the Flink docker image tags](#image-tags) and [how to customize the Flink docker image](#advanced-customization)
+    See also [the Flink docker image tags](#image-tags) and [how to customize the Flink docker image](#advanced-customization)
     for usage in the configuration files.
 
 * Launch a cluster in the foreground
@@ -428,7 +428,7 @@ that it allows the user to manage multiple containers deployed across multiple h
 
 The following chapters contain examples of how to configure and start Flink Master and TaskManager containers.
 You can adjust them accordingly to start a cluster.
-Check also [the Flink docker image tags](#image-tags) and [how to customize the Flink docker image](#advanced-customization) for usage in the provided scripts.
+See also [the Flink docker image tags](#image-tags) and [how to customize the Flink docker image](#advanced-customization) for usage in the provided scripts.
 
 The port `8081` is exposed for the Flink Web UI access.
 If you run the swarm locally, you can visit the web UI at [http://localhost:8081](http://localhost:8081) after starting the cluster.
@@ -498,7 +498,7 @@ docker service create \
 ```
 
 The job artifacts must be available in the Flink Master container, check details [here](#start-a-single-job-cluster).
-Check also [how to specify the Flink Master arguments](#flink-master-additional-command-line-arguments) to understand
+See also [how to specify the Flink Master arguments](#flink-master-additional-command-line-arguments) to understand
 how to pass the arguments to the `jobmanager` container.
 
 The example assumes that you run the swarm locally and expects the job artifacts to be in `/host/path/to/job/artifacts`.
