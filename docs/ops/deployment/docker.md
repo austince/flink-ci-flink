@@ -101,8 +101,8 @@ the Flink Master and TaskManagers:
 
     ```sh
     docker run \
-        --mount type=bind,src=/host/path/to/job/artifacts1,target=/opt/flink/usrlib/artifacts/1 \
-        --mount type=bind,src=/host/path/to/job/artifacts2,target=/opt/flink/usrlib/artifacts/2 \
+        --mount type=bind,src=/host/path/to/job/artifacts1,target=/opt/flink/usrlib/artifacts1 \
+        --mount type=bind,src=/host/path/to/job/artifacts2,target=/opt/flink/usrlib/artifacts2 \
         flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} standalone-job \
         --job-classname com.job.ClassName \
         --job-id <job id> \
