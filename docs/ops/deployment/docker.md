@@ -241,7 +241,7 @@ If you want to further customize the Flink image, for example, for the following
 you can achieve this in several ways:
 
 * **override the container entry point** with a custom script where you can run any bootstrap actions.
-At the end you can call the standard `/docker-entrypoint.sh` script of the Flink image with the same arguments as the image has.
+At the end you can call the standard `/docker-entrypoint.sh` script of the Flink image with its usual arguments.
 
   The following example creates a custom entry point script which enables more libraries and plugins.
   The custom script, custom library and plugin are provided from a mounted volume.
