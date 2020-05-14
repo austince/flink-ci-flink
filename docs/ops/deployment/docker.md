@@ -25,7 +25,7 @@ under the License.
 
 [Docker](https://www.docker.com) is a popular container runtime. 
 There are Docker images for Apache Flink available [on Docker Hub](https://hub.docker.com/_/flink).
-You can use the docker images to deploy a Session or Job cluster in a containerised environment, e.g.
+You can use the docker images to deploy a Session or Job cluster in a containerized environment, e.g.,
 [standalone Kubernetes](kubernetes.html) or [native Kubernetes](native_kubernetes.html).
 
 * This will be replaced by the TOC
