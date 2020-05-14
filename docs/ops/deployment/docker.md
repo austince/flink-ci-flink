@@ -66,7 +66,7 @@ This allows you to deploy a standalone cluster (Session or Single Job) in any co
 * [with Docker swarm](#flink-with-docker-swarm).
 
 <span class="label label-info">Note</span> [The native Kubernetes](native_kubernetes.html) also runs the same image by default
-and deploys TaskManagers on demand so that you do not have to do it.
+and deploys TaskManagers on demand so that you do not have to do it manually.
 
 The next chapters describe how to start a single Flink docker container for various purposes.
 
