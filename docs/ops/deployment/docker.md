@@ -110,13 +110,12 @@ the Flink Master and TaskManagers:
         [job arguments]
 
     docker run \
-        --mount type=bind,src=/host/path/to/job/artifacts1,target=/opt/flink/usrlib/artifacts/1 \
-        --mount type=bind,src=/host/path/to/job/artifacts2,target=/opt/flink/usrlib/artifacts/2 \
+        --mount type=bind,src=/host/path/to/job/artifacts1,target=/opt/flink/usrlib/artifacts1 \
+        --mount type=bind,src=/host/path/to/job/artifacts2,target=/opt/flink/usrlib/artifacts2 \
         flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} taskmanager
     ```
 
-* **or extend the Flink image** by writing a custom `Dockerfile`, build it and use it for starting the Flink Master and TaskManagers.
-```:
+* **or extend the Flink image** by writing a custom `Dockerfile`, build it and use it for starting the Flink Master and TaskManagers:
 
     ```dockerfile
     FROM flink
