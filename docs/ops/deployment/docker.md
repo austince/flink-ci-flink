@@ -163,7 +163,7 @@ If the main function of the user job main class accepts arguments, you can also 
 
 ## Customize Flink image
 
-When you run the Flink containers, there is often a need to customize them.
+When you run the Flink containers, there may be a need to customize them.
 The next chapters describe some how-tos of what you can usually customize.
 
 ### Configure options
