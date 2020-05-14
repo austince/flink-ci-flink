@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This page describes how to deploy a Flink Job and Session cluster on [Kubernetes](https://kubernetes.io).
+This page describes how to deploy a *Flink Job* and *Session cluster* on [Kubernetes](https://kubernetes.io).
 
 * This will be replaced by the TOC
 {:toc}
@@ -93,25 +93,25 @@ and use `kubectl` to terminate the common components:
 
 ### Deploy Session Cluster
 
-A Flink Session cluster is executed as a long-running Kubernetes Deployment.
-Note that you can run multiple Flink jobs on a Session cluster.
+A *Flink Session cluster* is executed as a long-running Kubernetes Deployment.
+Note that you can run multiple Flink jobs on a *Session cluster*.
 Each job needs to be submitted to the cluster after the cluster has been deployed.
 
-A basic Flink Session cluster deployment in Kubernetes has three components:
+A basic *Flink Session cluster* deployment in Kubernetes has three components:
 
-* a Deployment which runs a Flink Master
-* a Deployment for a pool of TaskManagers
-* a Service exposing the Flink Master's REST and UI ports
+* a *Deployment* which runs a *Flink Master*
+* a *Deployment* for a pool of *TaskManagers*
+* a *Service* exposing the *Flink Master's* REST and UI ports
 
 After creating [the common cluster components](#deploy-flink-cluster-on-kubernetes), use [the Session specific resource definitions](#session-cluster-resource-definitions)
-to launch the Session cluster with the `kubectl` command:
+to launch the *Session cluster* with the `kubectl` command:
 
 ```sh
     kubectl create -f jobmanager-session-deployment.yaml
     kubectl create -f taskmanager-session-deployment.yaml
 ```
 
-To terminate the Session cluster, these components can be deleted before [the common ones](#deploy-flink-cluster-on-kubernetes) with the `kubectl` command:
+To terminate the *Session cluster*, these components can be deleted before [the common ones](#deploy-flink-cluster-on-kubernetes) with the `kubectl` command:
 
 ```sh
     kubectl delete -f taskmanager-session-deployment.yaml
@@ -120,15 +120,15 @@ To terminate the Session cluster, these components can be deleted before [the co
 
 ### Deploy Job Cluster
 
-A Flink Job cluster is a dedicated cluster which runs a single job.
-The job artifacts should be available locally in the Flink Master container and, thus, there is no extra job submission needed
+A *Flink Job cluster* is a dedicated cluster which runs a single job.
+The job artifacts should be available locally in the *Flink Master* container and, thus, there is no extra job submission needed
 (the details are [here](#start-a-single-job-cluster)).
 
-A basic Flink Session cluster deployment in Kubernetes has three components:
+A basic *Flink Session cluster* deployment in Kubernetes has three components:
 
-* a Job which runs a Flink Master
-* a Deployment for a pool of TaskManagers
-* a Service exposing the Flink Master's REST and UI ports
+* a *Job* which runs a *Flink Master*
+* a *Deployment* for a pool of *TaskManagers*
+* a *Service* exposing the *Flink Master's* REST and UI ports
 
 Check [the single job specific resource definitions](#job-cluster-resource-definitions) and adjust them accordingly.
 
