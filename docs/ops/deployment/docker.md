@@ -180,7 +180,6 @@ docker run --env FLINK_PROPERTIES=${FLINK_PROPERTIES} flink:{% if site.is_stable
 
 The environment variable `FLINK_PROPERTIES` should contain a list of Flink cluster configuration options separated by new line,
 the same way as in the `flink-conf.yaml`.
-The entry point script will override or add the listed options to the `flink-conf.yaml` before starting the Flink process in the container.
 
 ### Provide custom configuration
 
