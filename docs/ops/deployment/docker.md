@@ -383,7 +383,7 @@ services:
 ### Job Cluster with Docker Compose
 
 The artifacts must be available in the Flink containers, check details [here](#start-a-single-job-cluster).
-Check also [how to specify the Flink Master arguments](#flink-master-additional-command-line-arguments) to understand
+See also [how to specify the Flink Master arguments](#flink-master-additional-command-line-arguments) to understand
 how to write the `command` for the `jobmanager` service.
 
 ```yaml
