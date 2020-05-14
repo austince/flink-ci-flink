@@ -121,7 +121,7 @@ To terminate the *Session cluster*, these components can be deleted before [the 
 ### Deploy Job Cluster
 
 A *Flink Job cluster* is a dedicated cluster which runs a single job.
-The job artifacts should be available locally in the *Flink Master* container and, thus, there is no extra job submission needed
+The *job artifacts* should be available locally in the *Flink Master* container and, thus, there is no extra job submission needed
 (the details are [here](#start-a-single-job-cluster)).
 
 A basic *Flink Session cluster* deployment in Kubernetes has three components:
@@ -136,9 +136,9 @@ The `args` attribute in the `jobmanager-job.yaml` has to specify the main class 
 See also [how to specify the Flink Master arguments](docker.html#flink-master-additional-command-line-arguments) to understand
 how to pass other `args` to the Flink image in the `jobmanager-job.yaml`.
 
-The job artifacts should be available from the `job-artifacts-volume` in [the resource definition examples](#job-cluster-resource-definitions).
+The *job artifacts* should be available from the `job-artifacts-volume` in [the resource definition examples](#job-cluster-resource-definitions).
 The definition examples mount the volume as a local directory of the host assuming that you create the components in a minikube cluster.
-If you do not use a minikube cluster, you can use any other type of volume, available in your kubernetes cluster, to supply the job artifacts.
+If you do not use a minikube cluster, you can use any other type of volume, available in your kubernetes cluster, to supply the *job artifacts*.
 Alternatively, you can build [a custom image](docker.html#start-a-single-job-cluster) which already contains the artifacts then you do not need to mount the volume.
 
 After creating [the common cluster components](#deploy-flink-cluster-on-kubernetes), use [the Job cluster specific resource definitions](#job-cluster-resource-definitions)

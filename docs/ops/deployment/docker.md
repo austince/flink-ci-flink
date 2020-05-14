@@ -79,7 +79,7 @@ To deploy a *Flink Session cluster* with docker, you need to start a *Flink Mast
 docker run flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} jobmanager
 ```
 
-and required number of *TaskManager* containers:
+and one or more *TaskManager* containers:
 
 ```sh
 docker run flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} taskmanager
@@ -88,9 +88,15 @@ docker run flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_versi
 ### Start a Job Cluster
 
 A *Flink Job cluster* is a dedicated cluster which runs a single job.
-The job artifacts should be already available locally in the container and, thus, there is no extra job submission needed.
+In this case, you deploy the cluster with the job as one step, thus, there is no extra job submission needed.
+Therefore, the *job artifacts* should be already available locally in the container.
+
+The *job artifacts* are included into the class path of Flink's JVM process within the container and consist of:
+* your job jar, which you would normally submit to a *Session cluster* and
+* all other necessary dependencies or resources, not included into Flink.
+
 To deploy a cluster for a single job with docker, you need to
-* make job artifacts available locally *in all containers* under `/opt/flink/usrlib`,
+* make *job artifacts* available locally *in all containers* under `/opt/flink/usrlib`,
 * start a *Flink Master* container in the *Job Cluster* mode
 * start the required number of *TaskManager* containers.
 
@@ -497,11 +503,11 @@ docker service create \
     taskmanager
 ```
 
-The job artifacts must be available in the *Flink Master* container, check details [here](#start-a-single-job-cluster).
+The *job artifacts* must be available in the *Flink Master* container, check details [here](#start-a-single-job-cluster).
 See also [how to specify the Flink Master arguments](#flink-master-additional-command-line-arguments) to understand
 how to pass the arguments to the `jobmanager` container.
 
-The example assumes that you run the swarm locally and expects the job artifacts to be in `/host/path/to/job/artifacts`.
+The example assumes that you run the swarm locally and expects the *job artifacts* to be in `/host/path/to/job/artifacts`.
 It also mounts the host path with the artifacts as a volume to the container's path `/opt/flink/usrlib`.
 
 {% top %}
