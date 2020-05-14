@@ -380,7 +380,7 @@ services:
         taskmanager.numberOfTaskSlots: 2
 ```
 
-### Single Job Cluster with Docker Compose
+### Job Cluster with Docker Compose
 
 The artifacts must be available in the Flink containers, check details [here](#start-a-single-job-cluster).
 Check also [how to specify the Flink Master arguments](#flink-master-additional-command-line-arguments) to understand
