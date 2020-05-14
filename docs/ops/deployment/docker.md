@@ -54,7 +54,7 @@ that do not include a bundled Hadoop distribution.
 ## How to run Flink image
 
 The Flink image contains a regular Flink distribution with its default configuration and a standard entry point script.
-You can run its standard entry point in the following modes:
+You can run its entry point in the following modes:
 * Flink Master for [a Session cluster](#start-a-session-cluster)
 * Flink Master for [a Single Job cluster](#start-a-single-job-cluster)
 * TaskManager for any cluster
