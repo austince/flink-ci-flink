@@ -91,7 +91,7 @@ A Flink Job cluster is a dedicated cluster which runs a single job.
 The job artifacts should be already available locally in the container and, thus, there is no extra job submission needed.
 To deploy a cluster for a single job with docker, you need to
 * make job artifacts available locally *in all containers* under `/opt/flink/usrlib`,
-* start a Flink Master container in the Single Job mode
+* start a Flink Master container in the Job Cluster mode
 * start the required number of TaskManager containers.
 
 To make the **job artifacts available** locally in the container, you can
