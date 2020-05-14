@@ -59,7 +59,7 @@ You can run its entry point in the following modes:
 * Flink Master for [a Single Job cluster](#start-a-single-job-cluster)
 * TaskManager for any cluster
 
-This allows to deploy a standalone cluster (Session or Single Job) in any containerised environment, for example:
+This allows you to deploy a standalone cluster (Session or Single Job) in any containerised environment, for example:
 * manually in a local docker setup,
 * [in a Kubernetes cluster](kubernetes.html),
 * [with Docker Compose](#flink-with-docker-compose),
