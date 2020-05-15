@@ -43,7 +43,7 @@ If you want to run Kubernetes locally, we recommend using [MiniKube](https://kub
 
 ## Flink Docker image
 
-Before deploying the Flink kubernetes components, check [the Flink docker image documentation](docker.html),
+Before deploying the Flink Kubernetes components, please read [the Flink Docker image documentation](docker.html),
 [its tags](docker.html#image-tags), [how to customize the Flink docker image](docker.html#customize-flink-image) and
 [enable plugins](docker.html#using-plugins) to use the image in the kubernetes definition files.
 
