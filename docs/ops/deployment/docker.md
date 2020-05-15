@@ -55,11 +55,11 @@ that do not include a bundled Hadoop distribution.
 
 The Flink image contains a regular Flink distribution with its default configuration and a standard entry point script.
 You can run its entry point in the following modes:
-* *Flink Master* for [a Session cluster](#start-a-session-cluster)
-* *Flink Master* for [a Single Job cluster](#start-a-single-job-cluster)
-* *TaskManager* for any cluster
+* [Flink Master]({{ site.baseurl }}/concepts/glossary.html#flink-master) for [a Session cluster](#start-a-session-cluster)
+* *Flink Master* for [a Job cluster](#start-a-job-cluster)
+* [TaskManager]({{ site.baseurl }}/concepts/glossary.html#flink-taskmanager) for any cluster
 
-This allows you to deploy a standalone cluster (Session or Single Job) in any containerised environment, for example:
+This allows you to deploy a standalone cluster (Session or Job) in any containerised environment, for example:
 * manually in a local docker setup,
 * [in a Kubernetes cluster](kubernetes.html),
 * [with Docker Compose](#flink-with-docker-compose),
@@ -307,7 +307,7 @@ The next chapters show examples of configuration files to run Flink.
 
 * Create the `yaml` files with the container configuration, check examples for:
     * [Session cluster](#session-cluster-with-docker-compose)
-    * [Single Job](#single-job-cluster-with-docker-compose)
+    * [Job cluster](#job-cluster-with-docker-compose)
 
     See also [the Flink docker image tags](#image-tags) and [how to customize the Flink docker image](#advanced-customization)
     for usage in the configuration files.
@@ -388,7 +388,7 @@ services:
 
 ### Job Cluster with Docker Compose
 
-The artifacts must be available in the Flink containers, check details [here](#start-a-single-job-cluster).
+The artifacts must be available in the Flink containers, check details [here](#start-a-job-cluster).
 See also [how to specify the Flink Master arguments](#flink-master-additional-command-line-arguments) to understand
 how to write the `command` for the `jobmanager` service.
 
@@ -503,7 +503,7 @@ docker service create \
     taskmanager
 ```
 
-The *job artifacts* must be available in the *Flink Master* container, check details [here](#start-a-single-job-cluster).
+The *job artifacts* must be available in the *Flink Master* container, check details [here](#start-a-job-cluster).
 See also [how to specify the Flink Master arguments](#flink-master-additional-command-line-arguments) to understand
 how to pass the arguments to the `jobmanager` container.
 
