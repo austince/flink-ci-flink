@@ -89,7 +89,6 @@ docker run flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_versi
 
 A *Flink Job cluster* is a dedicated cluster which runs a single job.
 In this case, you deploy the cluster with the job as one step, thus, there is no extra job submission needed.
-Therefore, the *job artifacts* should be already available locally in the container.
 
 The *job artifacts* are included into the class path of Flink's JVM process within the container and consist of:
 * your job jar, which you would normally submit to a *Session cluster* and
