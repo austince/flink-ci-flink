@@ -111,7 +111,7 @@ to launch the *Session cluster* with the `kubectl` command:
     kubectl create -f taskmanager-session-deployment.yaml
 ```
 
-To terminate the *Session cluster*, these components can be deleted before [the common ones](#deploy-flink-cluster-on-kubernetes) with the `kubectl` command:
+To terminate the *Session cluster*, these components can be deleted along with [the common ones](#deploy-flink-cluster-on-kubernetes) with the `kubectl` command:
 
 ```sh
     kubectl delete -f taskmanager-session-deployment.yaml
@@ -149,7 +149,7 @@ to launch the cluster with the `kubectl` command:
     kubectl create -f taskmanager-job-deployment.yaml
 ```
 
-To terminate the single job cluster, these components can be deleted before [the common ones](#deploy-flink-cluster-on-kubernetes)
+To terminate the single job cluster, these components can be deleted along with [the common ones](#deploy-flink-cluster-on-kubernetes)
 with the `kubectl` command:
 
 ```sh
