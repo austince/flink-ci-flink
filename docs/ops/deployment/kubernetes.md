@@ -41,7 +41,7 @@ If you want to run Kubernetes locally, we recommend using [MiniKube](https://kub
   Otherwise Flink components are not able to self reference themselves through a Kubernetes service.
 </div>
 
-## Flink docker image
+## Flink Docker image
 
 Before deploying the Flink kubernetes components, check [the Flink docker image documentation](docker.html),
 [its tags](docker.html#image-tags), [how to customize the Flink docker image](docker.html#customize-flink-image) and
