@@ -346,8 +346,15 @@ The next chapters show examples of configuration files to run Flink.
     When the cluster is running, you can visit the web UI at [http://localhost:8081](http://localhost:8081).
     You can also use the web UI to submit a job to a *Session cluster*.
 
-* To submit a job to a *Session cluster* via the command line, you must copy the JAR to the *Flink Master* container and
-submit the job from there. For example:
+* To submit a job to a *Session cluster* via the command line, you can either
+
+  * use [Flink CLI](..//cli.html) on the host if it is installed:
+
+    ```sh
+    flink run -d -c ${JOB_CLASS_NAME} /job.jar
+    ```
+
+  * or copy the JAR to the *Flink Master* container and submit the job using the [CLI](..//cli.html) from there, for example:
 
     ```sh
     JOB_CLASS_NAME="com.job.ClassName"
