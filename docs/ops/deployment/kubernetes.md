@@ -44,8 +44,8 @@ If you want to run Kubernetes locally, we recommend using [MiniKube](https://kub
 ## Flink Docker image
 
 Before deploying the Flink Kubernetes components, please read [the Flink Docker image documentation](docker.html),
-[its tags](docker.html#image-tags), [how to customize the Flink docker image](docker.html#customize-flink-image) and
-[enable plugins](docker.html#using-plugins) to use the image in the kubernetes definition files.
+[its tags](docker.html#image-tags), [how to customize the Flink Docker image](docker.html#customize-flink-image) and
+[enable plugins](docker.html#using-plugins) to use the image in the Kubernetes definition files.
 
 ## Deploy Flink cluster on Kubernetes
 
@@ -138,7 +138,7 @@ how to pass other `args` to the Flink image in the `jobmanager-job.yaml`.
 
 The *job artifacts* should be available from the `job-artifacts-volume` in [the resource definition examples](#job-cluster-resource-definitions).
 The definition examples mount the volume as a local directory of the host assuming that you create the components in a minikube cluster.
-If you do not use a minikube cluster, you can use any other type of volume, available in your kubernetes cluster, to supply the *job artifacts*.
+If you do not use a minikube cluster, you can use any other type of volume, available in your Kubernetes cluster, to supply the *job artifacts*.
 Alternatively, you can build [a custom image](docker.html#start-a-job-cluster) which already contains the artifacts then you do not need to mount the volume.
 
 After creating [the common cluster components](#deploy-flink-cluster-on-kubernetes), use [the Job cluster specific resource definitions](#job-cluster-resource-definitions)

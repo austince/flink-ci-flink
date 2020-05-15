@@ -60,7 +60,7 @@ You can run its entry point in the following modes:
 * [TaskManager]({{ site.baseurl }}/concepts/glossary.html#flink-taskmanager) for any cluster
 
 This allows you to deploy a standalone cluster (Session or Job) in any containerised environment, for example:
-* manually in a local docker setup,
+* manually in a local Docker setup,
 * [in a Kubernetes cluster](kubernetes.html),
 * [with Docker Compose](#flink-with-docker-compose),
 * [with Docker swarm](#flink-with-docker-swarm).
@@ -68,12 +68,12 @@ This allows you to deploy a standalone cluster (Session or Job) in any container
 <span class="label label-info">Note</span> [The native Kubernetes](native_kubernetes.html) also runs the same image by default
 and deploys *TaskManagers* on demand so that you do not have to do it manually.
 
-The next chapters describe how to start a single Flink docker container for various purposes.
+The next chapters describe how to start a single Flink Docker container for various purposes.
 
 ### Start a Session Cluster
 
 A *Flink Session cluster* can be used to run multiple jobs. Each job needs to be submitted to the cluster after it has been deployed.
-To deploy a *Flink Session cluster* with docker, you need to start a *Flink Master* container:
+To deploy a *Flink Session cluster* with Docker, you need to start a *Flink Master* container:
 
 ```sh
 docker run flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} jobmanager
@@ -94,7 +94,7 @@ The *job artifacts* are included into the class path of Flink's JVM process with
 * your job jar, which you would normally submit to a *Session cluster* and
 * all other necessary dependencies or resources, not included into Flink.
 
-To deploy a cluster for a single job with docker, you need to
+To deploy a cluster for a single job with Docker, you need to
 * make *job artifacts* available locally *in all containers* under `/opt/flink/usrlib`,
 * start a *Flink Master* container in the *Job Cluster* mode
 * start the required number of *TaskManager* containers.
@@ -157,7 +157,7 @@ You can provide the following additional command line arguments to the cluster e
 * `--fromSavepoint /path/to/savepoint` (optional): Restore from a savepoint
 
   In order to resume from a savepoint, you also need to pass the savepoint path.
-  Note that `/path/to/savepoint` needs to be accessible in all docker containers of the cluster
+  Note that `/path/to/savepoint` needs to be accessible in all Docker containers of the cluster
   (e.g. storing it on a DFS or from the mounted volume or adding it to the image).
 
 * `--allowNonRestoredState` (optional): Skip broken savepoint state
@@ -208,7 +208,7 @@ To provide a custom location for the Flink configuration files, you can
     ```
 
 <span class="label label-warning">Warning!</span> The mounted volume must contain all necessary configuration files.
-The `flink-conf.yaml` file must have write permission so that the docker entry point script can modify it in certain cases.
+The `flink-conf.yaml` file must have write permission so that the Docker entry point script can modify it in certain cases.
 
 ### Using plugins
 
@@ -308,7 +308,7 @@ The next chapters show examples of configuration files to run Flink.
     * [Session cluster](#session-cluster-with-docker-compose)
     * [Job cluster](#job-cluster-with-docker-compose)
 
-    See also [the Flink docker image tags](#image-tags) and [how to customize the Flink docker image](#advanced-customization)
+    See also [the Flink Docker image tags](#image-tags) and [how to customize the Flink Docker image](#advanced-customization)
     for usage in the configuration files.
 
 * Launch a cluster in the foreground
@@ -440,7 +440,7 @@ that it allows the user to manage multiple containers deployed across multiple h
 
 The following chapters contain examples of how to configure and start *Flink Master* and *TaskManager* containers.
 You can adjust them accordingly to start a cluster.
-See also [the Flink docker image tags](#image-tags) and [how to customize the Flink docker image](#advanced-customization) for usage in the provided scripts.
+See also [the Flink Docker image tags](#image-tags) and [how to customize the Flink Docker image](#advanced-customization) for usage in the provided scripts.
 
 The port `8081` is exposed for the Flink Web UI access.
 If you run the swarm locally, you can visit the web UI at [http://localhost:8081](http://localhost:8081) after starting the cluster.

@@ -76,11 +76,11 @@ Please follow our [configuration guide]({{ site.baseurl }}/ops/config.html) if y
 
 If you do not specify a particular name for your session by `kubernetes.cluster-id`, the Flink client will generate a UUID name. 
 
-### Custom Flink docker image
+### Custom Flink Docker image
 
-If you want to use a custom docker image to deploy Flink containers, check [the Flink docker image documentation](docker.html),
-[its tags](#image-tags), [how to customize the Flink docker image](docker.html#customize-flink-image) and [enable plugins](docker.html#using-plugins).
-If you created a custom docker image you can provide it by setting the [`kubernetes.container.image`](../config.html#kubernetes-container-image) configuration option:
+If you want to use a custom Docker image to deploy Flink containers, check [the Flink Docker image documentation](docker.html),
+[its tags](#image-tags), [how to customize the Flink Docker image](docker.html#customize-flink-image) and [enable plugins](docker.html#using-plugins).
+If you created a custom Docker image you can provide it by setting the [`kubernetes.container.image`](../config.html#kubernetes-container-image) configuration option:
 
 {% highlight bash %}
 ./bin/kubernetes-session.sh \
