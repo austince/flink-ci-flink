@@ -794,7 +794,15 @@ object AkkaUtils {
   }
 
   def getClientTimeout(config: Configuration): time.Duration = {
-    TimeUtils.parseDuration(config.getString(AkkaOptions.CLIENT_TIMEOUT))
+    val clientTimeout = config.getOptional(AkkaOptions.CLIENT_TIMEOUT)
+
+    val timeout = if (clientTimeout.isPresent) {
+      clientTimeout.get()
+    } else {
+      config.getOptional(AkkaOptions.AKKA_CLIENT_TIMEOUT).orElse(AkkaOptions.AKKA_CLIENT_TIMEOUT.defaultValue())
+    }
+
+    TimeUtils.parseDuration(timeout)
   }
 
   /** Returns the address of the given [[ActorSystem]]. The [[Address]] object contains

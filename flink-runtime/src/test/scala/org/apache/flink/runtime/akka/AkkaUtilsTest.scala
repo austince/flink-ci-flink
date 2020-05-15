@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.akka
 
 import java.net.{InetAddress, InetSocketAddress}
+import java.time.temporal.{ChronoUnit, TemporalUnit}
 import java.util.Collections
 
 import org.apache.flink.configuration.{AkkaOptions, Configuration, IllegalConfigurationException, SecurityOptions}
@@ -26,7 +27,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools.FixedThreadPoolE
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils.AkkaProtocol
-import org.apache.flink.util.NetUtils
+import org.apache.flink.util.{NetUtils, TimeUtils}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
@@ -105,7 +106,7 @@ class AkkaUtilsTest
     val IPv4AddressString = "192.168.0.1"
     val port = 1234
     val address = new InetSocketAddress(IPv4AddressString, port)
-    
+
     val url = s"akka://flink@$IPv4AddressString:$port/user/jobmanager"
 
     val result = AkkaUtils.getInetSocketAddressFromAkkaURL(url)
@@ -249,5 +250,20 @@ class AkkaUtilsTest
 
     sslConfig.getStringList("security.cert-fingerprints") should
       equal(Collections.singletonList(fingerprint))
+  }
+
+
+  test("get client.timeout for the client, with a fallback to the akka.client.timeout.") {
+    var configuration = new Configuration()
+    configuration.setString(AkkaOptions.CLIENT_TIMEOUT.key(), "100 s")
+    configuration.setString(AkkaOptions.AKKA_CLIENT_TIMEOUT.key(), "10 s")
+
+    configuration = new Configuration()
+    configuration.setString(AkkaOptions.AKKA_CLIENT_TIMEOUT.key(), "10 s")
+    AkkaUtils.getClientTimeout(configuration).get(ChronoUnit.SECONDS) should equal(10)
+
+    configuration = new Configuration()
+    AkkaUtils.getClientTimeout(configuration).get(ChronoUnit.SECONDS) should
+      equal(TimeUtils.parseDuration(AkkaOptions.AKKA_CLIENT_TIMEOUT.defaultValue()).get(ChronoUnit.SECONDS))
   }
 }
