@@ -217,8 +217,8 @@ public final class WatermarkStrategies<T> {
 		}
 
 		@Override
-		public TimestampAssigner<T> createTimestampAssigner() {
-			return timestampAssigner.createTimestampAssigner();
+		public TimestampAssigner<T> createTimestampAssigner(TimestampAssignerSupplier.Context context) {
+			return timestampAssigner.createTimestampAssigner(context);
 		}
 
 		@Override
@@ -239,8 +239,8 @@ public final class WatermarkStrategies<T> {
 		}
 
 		@Override
-		public TimestampAssigner<T> createTimestampAssigner() {
-			return baseStrategy.createTimestampAssigner();
+		public TimestampAssigner<T> createTimestampAssigner(TimestampAssignerSupplier.Context context) {
+			return baseStrategy.createTimestampAssigner(context);
 		}
 
 		@Override

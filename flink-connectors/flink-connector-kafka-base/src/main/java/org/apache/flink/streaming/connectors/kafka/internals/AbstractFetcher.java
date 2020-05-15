@@ -424,7 +424,7 @@ public abstract class AbstractFetcher<T, KPH> {
 							new KafkaTopicPartitionStateWithWatermarkGenerator<>(
 									partitionEntry.getKey(),
 									kafkaHandle,
-									deserializedWatermarkStrategy.createTimestampAssigner(),
+									deserializedWatermarkStrategy.createTimestampAssigner(() -> consumerMetricGroup),
 									deserializedWatermarkStrategy.createWatermarkGenerator(),
 									immediateOutput,
 									deferredOutput);

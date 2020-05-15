@@ -75,7 +75,7 @@ public class TimestampsAndWatermarksOperator<T>
 	public void open() throws Exception {
 		super.open();
 
-		timestampAssigner = watermarkStrategy.createTimestampAssigner();
+		timestampAssigner = watermarkStrategy.createTimestampAssigner(this::getMetricGroup);
 		watermarkGenerator = watermarkStrategy.createWatermarkGenerator();
 
 		wmOutput = new WatermarkEmitter(output, getContainingTask().getStreamStatusMaintainer());

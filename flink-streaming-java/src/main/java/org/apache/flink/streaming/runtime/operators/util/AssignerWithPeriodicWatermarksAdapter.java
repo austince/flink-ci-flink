@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators.util;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
@@ -69,7 +70,7 @@ public final class AssignerWithPeriodicWatermarksAdapter<T> implements Watermark
 		}
 
 		@Override
-		public TimestampAssigner<T> createTimestampAssigner() {
+		public TimestampAssigner<T> createTimestampAssigner(TimestampAssignerSupplier.Context context) {
 			return wms;
 		}
 

@@ -20,6 +20,7 @@ package org.apache.flink.api.common.eventtime;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.metrics.MetricGroup;
 
 import java.io.Serializable;
 
@@ -29,12 +30,34 @@ import java.io.Serializable;
  */
 @PublicEvolving
 @FunctionalInterface
-interface TimestampAssignerSupplier<T> extends Serializable {
+public interface TimestampAssignerSupplier<T> extends Serializable {
 
-	TimestampAssigner<T> createTimestampAssigner();
+	/**
+	 * Instantiates a {@link TimestampAssigner}.
+	 */
+	TimestampAssigner<T> createTimestampAssigner(Context context);
 
 	static <T> TimestampAssignerSupplier<T> of(SerializableTimestampAssigner<T> assigner) {
 		return new SupplierFromSerializableTimestampAssigner<>(assigner);
+	}
+
+	/**
+	 * Additional information available to {@link #createTimestampAssigner(Context)}. This can be
+	 * access to {@link org.apache.flink.metrics.MetricGroup MetricGroups}, for example.
+	 */
+	interface Context {
+
+		/**
+		 * Returns the metric group for the parallel subtask of the operator that will use the
+		 * {@link TimestampAssigner}.
+		 *
+		 * <p>Instances of this class can be used to register new metrics with Flink and to create
+		 * a nested hierarchy based on the group names. See {@link MetricGroup} for more information
+		 * for the metrics system.
+		 *
+		 * @see MetricGroup
+		 */
+		MetricGroup getMetricGroup();
 	}
 
 	/**
@@ -50,7 +73,7 @@ interface TimestampAssignerSupplier<T> extends Serializable {
 		}
 
 		@Override
-		public TimestampAssigner<T> createTimestampAssigner() {
+		public TimestampAssigner<T> createTimestampAssigner(Context context) {
 			return assigner;
 		}
 	}

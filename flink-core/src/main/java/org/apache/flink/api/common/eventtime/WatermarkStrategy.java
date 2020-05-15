@@ -38,7 +38,7 @@ public interface WatermarkStrategy<T> extends TimestampAssignerSupplier<T>, Seri
 	 * strategy.
 	 */
 	@Override
-	default TimestampAssigner<T> createTimestampAssigner() {
+	default TimestampAssigner<T> createTimestampAssigner(TimestampAssignerSupplier.Context context) {
 		// By default, this is {@link RecordTimestampAssigner},
 		// for cases where records come out of a source with valid timestamps, for example from Kafka.
 		return new RecordTimestampAssigner<>();
