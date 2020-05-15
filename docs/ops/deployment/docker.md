@@ -229,7 +229,7 @@ There are also more [advanced ways](#advanced-customization) for customizing the
 
 ### Advanced customization
 
-If you want to further customize the Flink image, for example, for the following purposes:
+There are several ways in which you can further customize the Flink image:
 
 * install custom software (e.g. python)
 * enable (symlink) optional libraries or plugins from `/opt/flink/opt` into `/opt/flink/lib` or `/opt/flink/plugins`
