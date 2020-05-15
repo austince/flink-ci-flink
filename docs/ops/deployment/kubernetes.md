@@ -81,7 +81,7 @@ You can then access the Flink UI via different ways:
 
         {% highlight bash %}./bin/flink run -m <public-node-ip>:<node-port> ./examples/streaming/WordCount.jar{% endhighlight %}
 
-In order to terminate the Flink cluster, terminate the specific [Session](#deploy-session-cluster) or [Job](#deploy-job-cluster) cluster components
+In order to terminate the Flink cluster, delete the specific [Session](#deploy-session-cluster) or [Job](#deploy-job-cluster) cluster components
 and use `kubectl` to terminate the common components:
 
 ```sh
