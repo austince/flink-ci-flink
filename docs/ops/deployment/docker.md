@@ -225,7 +225,7 @@ The `ENABLE_BUILT_IN_PLUGINS` should contain a list of plugin jar file names sep
         flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} <jobmanager|standalone-job|taskmanager>
     ```
 
-Otherwise you can use other [advanced methods](#advanced-customization).
+There are also more [advanced ways](#advanced-customization) for customizing the Flink image.
 
 ### Advanced customization
 
