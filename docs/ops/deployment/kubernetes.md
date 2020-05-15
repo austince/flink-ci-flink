@@ -29,7 +29,7 @@ This page describes how to deploy a *Flink Job* and *Session cluster* on [Kubern
 {:toc}
 
 {% info %} This page describes deploying a [standalone](#cluster_setup.html) Flink cluster on top of Kubernetes.
-For information on native Kubernetes deployments read [here]({{ site.baseurl }}/ops/deployment/native_kubernetes.html).
+You can find more information on native Kubernetes deployments [here]({{ site.baseurl }}/ops/deployment/native_kubernetes.html).
 
 ## Setup Kubernetes
 
