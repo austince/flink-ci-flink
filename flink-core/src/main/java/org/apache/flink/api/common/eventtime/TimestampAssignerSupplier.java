@@ -27,6 +27,9 @@ import java.io.Serializable;
 /**
  * A supplier for {@link TimestampAssigner TimestampAssigners}. The supplier pattern is used to
  * avoid having to make {@link TimestampAssigner} {@link Serializable} for use in API methods.
+ *
+ * <p>This interface is {@link Serializable} because the supplier may be shipped to workers during
+ * distributed execution.
  */
 @PublicEvolving
 @FunctionalInterface
@@ -48,8 +51,8 @@ public interface TimestampAssignerSupplier<T> extends Serializable {
 	interface Context {
 
 		/**
-		 * Returns the metric group for the parallel subtask of the operator that will use the
-		 * {@link TimestampAssigner}.
+		 * Returns the metric group for the context in which the created {@link TimestampAssigner}
+		 * is used.
 		 *
 		 * <p>Instances of this class can be used to register new metrics with Flink and to create
 		 * a nested hierarchy based on the group names. See {@link MetricGroup} for more information

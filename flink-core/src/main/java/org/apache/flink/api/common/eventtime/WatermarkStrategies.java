@@ -19,12 +19,9 @@
 package org.apache.flink.api.common.eventtime;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.InstantiationUtil;
 
 import javax.annotation.Nullable;
 
-import java.io.Serializable;
 import java.time.Duration;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -172,32 +169,26 @@ public final class WatermarkStrategies<T> {
 	}
 
 	/**
-	 * Starts building a watermark strategy based on an existing {@code WatermarkGenerator}.
+	 * Starts building a watermark strategy based on an existing {@link WatermarkGeneratorSupplier}.
 	 */
-	public static <T, X extends WatermarkGenerator<T> & Serializable> WatermarkStrategies<T> forGenerator(X generator) {
-		return new WatermarkStrategies<>(new FromSerializedGeneratorStrategy<>(generator));
+	public static <T> WatermarkStrategies<T> forGenerator(WatermarkGeneratorSupplier<T> generatorSupplier) {
+		return new WatermarkStrategies<>(new FromWatermarkGeneratorSupplier<>(generatorSupplier));
 	}
 
 	// ------------------------------------------------------------------------
 
-	private static final class FromSerializedGeneratorStrategy<T> implements WatermarkStrategy<T> {
+	private static final class FromWatermarkGeneratorSupplier<T> implements WatermarkStrategy<T> {
 		private static final long serialVersionUID = 1L;
 
-		private final WatermarkGenerator<T> generator;
+		private final WatermarkGeneratorSupplier<T> generatorSupplier;
 
-		private FromSerializedGeneratorStrategy(WatermarkGenerator<T> generator) {
-			this.generator = generator;
+		private FromWatermarkGeneratorSupplier(WatermarkGeneratorSupplier<T> generatorSupplier) {
+			this.generatorSupplier = generatorSupplier;
 		}
 
 		@Override
 		public WatermarkGenerator<T> createWatermarkGenerator() {
-			try {
-				byte[] serialized = InstantiationUtil.serializeObject(generator);
-				return InstantiationUtil.deserializeObject(serialized, generator.getClass().getClassLoader());
-			}
-			catch (Exception e) {
-				throw new FlinkRuntimeException("Cannot clone watermark generator via serialization");
-			}
+			return generatorSupplier.createWatermarkGenerator();
 		}
 	}
 

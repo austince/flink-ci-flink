@@ -31,7 +31,7 @@ import java.io.Serializable;
  * to workers during distributed execution.
  */
 @PublicEvolving
-public interface WatermarkStrategy<T> extends TimestampAssignerSupplier<T>, Serializable {
+public interface WatermarkStrategy<T> extends TimestampAssignerSupplier<T>, WatermarkGeneratorSupplier<T>{
 
 	/**
 	 * Instantiates a {@link TimestampAssigner} for assigning timestamps according to this
@@ -47,5 +47,6 @@ public interface WatermarkStrategy<T> extends TimestampAssignerSupplier<T>, Seri
 	/**
 	 * Instantiates a WatermarkGenerator that generates watermarks according to this strategy.
 	 */
+	@Override
 	WatermarkGenerator<T> createWatermarkGenerator();
 }

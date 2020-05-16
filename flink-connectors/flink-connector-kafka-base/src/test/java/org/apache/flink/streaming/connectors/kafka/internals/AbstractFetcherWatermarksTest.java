@@ -42,7 +42,6 @@ import org.junit.runners.Parameterized;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.io.Serializable;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collection;
@@ -74,7 +73,7 @@ public class AbstractFetcherWatermarksTest {
 			return Arrays.asList(
 					new AssignerWithPeriodicWatermarksAdapter.Strategy<>(new PeriodicTestExtractor()),
 					WatermarkStrategies
-							.forGenerator(new PeriodicTestWatermarkGenerator())
+							.forGenerator(PeriodicTestWatermarkGenerator::new)
 							.withTimestampAssigner((event, previousTimestamp) -> event)
 							.build()
 			);
@@ -495,7 +494,7 @@ public class AbstractFetcherWatermarksTest {
 		}
 	}
 
-	private static class PeriodicTestWatermarkGenerator implements WatermarkGenerator<Long>, Serializable {
+	private static class PeriodicTestWatermarkGenerator implements WatermarkGenerator<Long> {
 
 		private volatile long maxTimestamp = Long.MIN_VALUE;
 
