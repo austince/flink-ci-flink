@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.akka
 
 import java.net.{InetAddress, InetSocketAddress}
-import java.time.temporal.{ChronoUnit, TemporalUnit}
+import java.time.temporal.ChronoUnit
 import java.util.Collections
 
 import org.apache.flink.configuration.{AkkaOptions, Configuration, IllegalConfigurationException, SecurityOptions}
@@ -263,7 +263,9 @@ class AkkaUtilsTest
     AkkaUtils.getClientTimeout(configuration).get(ChronoUnit.SECONDS) should equal(10)
 
     configuration = new Configuration()
-    AkkaUtils.getClientTimeout(configuration).get(ChronoUnit.SECONDS) should
-      equal(TimeUtils.parseDuration(AkkaOptions.AKKA_CLIENT_TIMEOUT.defaultValue()).get(ChronoUnit.SECONDS))
+    val akkaDefaultClientTimeOut = AkkaOptions.AKKA_CLIENT_TIMEOUT.defaultValue()
+    AkkaUtils.getClientTimeout(configuration).get(ChronoUnit.SECONDS) should equal(
+      TimeUtils.parseDuration(akkaDefaultClientTimeOut).get(ChronoUnit.SECONDS)
+    )
   }
 }
