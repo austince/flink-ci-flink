@@ -287,6 +287,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * strictly ascending per Kafka partition, they will not be strictly ascending in the resulting
 	 * Flink DataStream, if the parallel source subtask reads more than one partition.
 	 *
+	 * <p>Common watermark generation patterns can be found in the
+	 * {@link org.apache.flink.api.common.eventtime.WatermarkStrategies} class.
+	 *
 	 * @return The consumer object, to allow function chaining.
 	 */
 	public FlinkKafkaConsumerBase<T> assignTimestampsAndWatermarks(
