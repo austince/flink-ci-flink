@@ -34,7 +34,6 @@ from pyflink.table.descriptors import StreamTableDescriptor, BatchTableDescripto
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table import Table
-from pyflink.table.table_result import TableResult
 from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema
 from pyflink.util import utils
@@ -191,7 +190,7 @@ class TableEnvironment(object):
         .. note:: Deprecated in 1.10. Use :func:`connect` instead.
         """
         warnings.warn("Deprecated in 1.10. Use connect instead.", DeprecationWarning)
-        self._j_tenv.registerTableSource(name, table_source._j_table_source)
+        self._j_tenv.registerTableSourceInternal(name, table_source._j_table_source)
 
     def register_table_sink(self, name, table_sink):
         """
@@ -216,7 +215,7 @@ class TableEnvironment(object):
         .. note:: Deprecated in 1.10. Use :func:`connect` instead.
         """
         warnings.warn("Deprecated in 1.10. Use connect instead.", DeprecationWarning)
-        self._j_tenv.registerTableSink(name, table_sink._j_table_sink)
+        self._j_tenv.registerTableSinkInternal(name, table_sink._j_table_sink)
 
     def scan(self, *table_path):
         """
@@ -532,7 +531,8 @@ class TableEnvironment(object):
                 the affected row count for `DML` (-1 means unknown),
                 or a string message ("OK") for other statements.
         """
-        return TableResult(self._j_tenv.executeSql(stmt))
+        # TODO convert java TableResult to python TableResult once FLINK-17303 is finished
+        return self._j_tenv.executeSql(stmt)
 
     def create_statement_set(self):
         """

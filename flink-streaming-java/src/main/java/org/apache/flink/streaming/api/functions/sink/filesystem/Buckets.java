@@ -65,6 +65,9 @@ public class Buckets<IN, BucketID> {
 
 	private final RollingPolicy<IN, BucketID> rollingPolicy;
 
+	@Nullable
+	private final BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener;
+
 	// --------------------------- runtime fields -----------------------------
 
 	private final int subtaskIndex;
@@ -98,6 +101,7 @@ public class Buckets<IN, BucketID> {
 			final BucketFactory<IN, BucketID> bucketFactory,
 			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
+			@Nullable final BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener,
 			final int subtaskIndex,
 			final OutputFileConfig outputFileConfig) throws IOException {
 
@@ -106,6 +110,7 @@ public class Buckets<IN, BucketID> {
 		this.bucketFactory = Preconditions.checkNotNull(bucketFactory);
 		this.partFileWriterFactory = Preconditions.checkNotNull(partFileWriterFactory);
 		this.rollingPolicy = Preconditions.checkNotNull(rollingPolicy);
+		this.bucketLifeCycleListener = bucketLifeCycleListener;
 		this.subtaskIndex = subtaskIndex;
 
 		this.outputFileConfig = Preconditions.checkNotNull(outputFileConfig);
@@ -145,7 +150,7 @@ public class Buckets<IN, BucketID> {
 	 * @throws Exception if anything goes wrong during retrieving the state or restoring/committing of any
 	 * in-progress/pending part files
 	 */
-	void initializeState(final ListState<byte[]> bucketStates, final ListState<Long> partCounterState) throws Exception {
+	public void initializeState(final ListState<byte[]> bucketStates, final ListState<Long> partCounterState) throws Exception {
 
 		initializePartCounter(partCounterState);
 
@@ -205,7 +210,7 @@ public class Buckets<IN, BucketID> {
 		}
 	}
 
-	void commitUpToCheckpoint(final long checkpointId) throws IOException {
+	public void commitUpToCheckpoint(final long checkpointId) throws IOException {
 		final Iterator<Map.Entry<BucketID, Bucket<IN, BucketID>>> activeBucketIt =
 				activeBuckets.entrySet().iterator();
 
@@ -219,11 +224,15 @@ public class Buckets<IN, BucketID> {
 				// We've dealt with all the pending files and the writer for this bucket is not currently open.
 				// Therefore this bucket is currently inactive and we can remove it from our state.
 				activeBucketIt.remove();
+
+				if (bucketLifeCycleListener != null) {
+					bucketLifeCycleListener.bucketInactive(bucket);
+				}
 			}
 		}
 	}
 
-	void snapshotState(
+	public void snapshotState(
 			final long checkpointId,
 			final ListState<byte[]> bucketStatesContainer,
 			final ListState<Long> partCounterStateContainer) throws Exception {
@@ -260,13 +269,26 @@ public class Buckets<IN, BucketID> {
 		}
 	}
 
-	Bucket<IN, BucketID> onElement(final IN value, final SinkFunction.Context context) throws Exception {
-		final long currentProcessingTime = context.currentProcessingTime();
+	@VisibleForTesting
+	public Bucket<IN, BucketID> onElement(
+			final IN value,
+			final SinkFunction.Context context) throws Exception {
+		return onElement(
+				value,
+				context.currentProcessingTime(),
+				context.timestamp(),
+				context.currentWatermark());
+	}
 
+	public Bucket<IN, BucketID> onElement(
+			final IN value,
+			final long currentProcessingTime,
+			@Nullable final Long elementTimestamp,
+			final long currentWatermark) throws Exception {
 		// setting the values in the bucketer context
 		bucketerContext.update(
-				context.timestamp(),
-				context.currentWatermark(),
+				elementTimestamp,
+				currentWatermark,
 				currentProcessingTime);
 
 		final BucketID bucketId = bucketAssigner.getBucketId(value, bucketerContext);
@@ -295,17 +317,21 @@ public class Buckets<IN, BucketID> {
 					rollingPolicy,
 					outputFileConfig);
 			activeBuckets.put(bucketId, bucket);
+
+			if (bucketLifeCycleListener != null) {
+				bucketLifeCycleListener.bucketCreated(bucket);
+			}
 		}
 		return bucket;
 	}
 
-	void onProcessingTime(long timestamp) throws Exception {
+	public void onProcessingTime(long timestamp) throws Exception {
 		for (Bucket<IN, BucketID> bucket : activeBuckets.values()) {
 			bucket.onProcessingTime(timestamp);
 		}
 	}
 
-	void close() {
+	public void close() {
 		if (activeBuckets != null) {
 			activeBuckets.values().forEach(Bucket::disposePartFile);
 		}

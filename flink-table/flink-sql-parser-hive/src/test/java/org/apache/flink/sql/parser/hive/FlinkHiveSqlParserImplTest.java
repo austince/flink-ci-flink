@@ -204,4 +204,64 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 		sql("drop table tbl").ok("DROP TABLE `TBL`");
 		sql("drop table if exists cat.tbl").ok("DROP TABLE IF EXISTS `CAT`.`TBL`");
 	}
+
+	@Test
+	public void testInsert() {
+		sql("insert into tbl partition(p1=1,p2,p3) select * from src")
+				.ok("INSERT INTO `TBL`\n" +
+						"PARTITION (`P1` = 1, `P2`, `P3`)\n" +
+						"(SELECT *\n" +
+						"FROM `SRC`)");
+		sql("insert overwrite table tbl select * from src")
+				.ok("INSERT OVERWRITE `TBL`\n" +
+						"(SELECT *\n" +
+						"FROM `SRC`)");
+		sql("insert into table tbl(x,y) select * from src")
+				.ok("INSERT INTO `TBL` (`X`, `Y`)\n" +
+						"(SELECT *\n" +
+						"FROM `SRC`)");
+	}
+
+	@Test
+	public void testCreateFunction() {
+		sql("create function func as 'class.name'").ok("CREATE FUNCTION `FUNC` AS 'class.name'");
+		sql("create temporary function func as 'class.name'").ok("CREATE TEMPORARY FUNCTION `FUNC` AS 'class.name'");
+	}
+
+	@Test
+	public void testDropFunction() {
+		sql("drop function if exists func").ok("DROP FUNCTION IF EXISTS `FUNC`");
+		sql("drop temporary function func").ok("DROP TEMPORARY FUNCTION `FUNC`");
+	}
+
+	@Test
+	public void testShowFunctions() {
+		// TODO: support SHOW FUNCTIONS LIKE 'regex_pattern'
+		sql("show functions").ok("SHOW FUNCTIONS");
+	}
+
+	@Test
+	public void testCreateCatalog() {
+		sql("create catalog cat")
+				.ok("CREATE CATALOG `CAT`");
+		sql("create catalog cat with ('k1'='v1')")
+				.ok("CREATE CATALOG `CAT` WITH (\n" +
+						"  'k1' = 'v1'\n" +
+						")");
+	}
+
+	@Test
+	public void testShowCatalogs() {
+		sql("show catalogs").ok("SHOW CATALOGS");
+	}
+
+	@Test
+	public void testUseCatalog() {
+		sql("use catalog cat").ok("USE CATALOG `CAT`");
+	}
+
+	@Test
+	public void testDescribeCatalog() {
+		sql("describe catalog cat").ok("DESCRIBE CATALOG `CAT`");
+	}
 }

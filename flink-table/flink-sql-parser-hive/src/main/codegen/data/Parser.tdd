@@ -37,6 +37,7 @@
     "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintRely"
     "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintTrait"
     "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintValidate"
+    "org.apache.flink.sql.parser.hive.dml.RichSqlHiveInsert"
     "org.apache.flink.sql.parser.hive.type.ExtendedHiveStructTypeNameSpec"
     "org.apache.flink.sql.parser.ddl.constraint.SqlConstraintEnforcement"
     "org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint"
@@ -490,12 +491,17 @@
   # Return type of method implementation should be 'SqlNode'.
   # Example: SqlShowDatabases(), SqlShowTables().
   statementParserMethods: [
+    "RichSqlInsert()"
+    "SqlShowCatalogs()"
+    "SqlDescribeCatalog()"
+    "SqlUseCatalog()"
     "SqlShowDatabases()"
     "SqlUseDatabase()"
     "SqlAlterDatabase()"
     "SqlDescribeDatabase()"
     "SqlShowTables()"
     "SqlRichDescribeTable()"
+    "SqlShowFunctions()"
   ]
 
   # List of methods for parsing custom literals.
@@ -531,6 +537,7 @@
   createStatementParserMethods: [
     "SqlCreateDatabase"
     "SqlCreateTemporary"
+    "SqlCreateCatalog"
   ]
 
   # List of methods for parsing extensions to "DROP" calls.
@@ -538,6 +545,7 @@
   dropStatementParserMethods: [
     "SqlDropTable"
     "SqlDropDatabase"
+    "SqlDropFunction"
   ]
 
   # Binary operators tokens

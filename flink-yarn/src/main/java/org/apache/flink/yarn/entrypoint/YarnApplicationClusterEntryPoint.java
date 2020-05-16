@@ -37,13 +37,17 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * An {@link ApplicationClusterEntryPoint} for Yarn.
@@ -118,11 +122,24 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
 			final Configuration configuration,
 			final String[] programArguments,
 			@Nullable final String jobClassName) throws IOException {
+
+		final File userLibDir = YarnEntrypointUtils.getUsrLibDir(configuration).orElse(null);
+		final File userApplicationJar = getUserApplicationJar(userLibDir, configuration);
 		final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
 				ClassPathPackagedProgramRetriever
 						.newBuilder(programArguments)
+						.setUserLibDirectory(userLibDir)
+						.setJarFile(userApplicationJar)
 						.setJobClassName(jobClassName);
-		YarnEntrypointUtils.getUsrLibDir(configuration).ifPresent(retrieverBuilder::setUserLibDirectory);
 		return retrieverBuilder.build();
+	}
+
+	private static File getUserApplicationJar(final File userLibDir, final Configuration configuration) {
+		final List<File> pipelineJars = configuration.get(PipelineOptions.JARS).stream()
+			.map(uri -> new File(userLibDir, new Path(uri).getName()))
+			.collect(Collectors.toList());
+
+		Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+		return pipelineJars.get(0);
 	}
 }

@@ -152,7 +152,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			unalignedCheckpointEnabled);
 
 		// Step (3): Prepare to spill the in-flight buffers for input and output
-		if (unalignedCheckpointEnabled) {
+		if (unalignedCheckpointEnabled && !options.getCheckpointType().isSavepoint()) {
 			prepareInflightDataSnapshot(metadata.getCheckpointId());
 		}
 
@@ -162,7 +162,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		Map<OperatorID, OperatorSnapshotFutures> snapshotFutures = new HashMap<>(operatorChain.getNumberOfOperators());
 		try {
 			takeSnapshotSync(snapshotFutures, metadata, metrics, options, operatorChain, isCanceled);
-			finishAndReportAsync(snapshotFutures, metadata, metrics);
+			finishAndReportAsync(snapshotFutures, metadata, metrics, options);
 		} catch (Exception ex) {
 			cleanup(snapshotFutures, metadata, metrics, options, ex);
 		}
@@ -179,7 +179,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		} else {
 			LOG.debug("Ignoring notification of complete checkpoint for not-running task {}", taskName);
 		}
-		channelStateWriter.notifyCheckpointComplete(checkpointId);
 		env.getTaskStateManager().notifyCheckpointComplete(checkpointId);
 	}
 
@@ -189,6 +188,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			CheckpointMetrics metrics, CheckpointOptions options,
 			Exception ex) throws Exception {
 
+		channelStateWriter.abort(metadata.getCheckpointId(), ex);
 		for (OperatorSnapshotFutures operatorSnapshotResult : operatorSnapshotsInProgress.values()) {
 			if (operatorSnapshotResult != null) {
 				try {
@@ -236,13 +236,14 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		channelStateWriter.finishOutput(checkpointId);
 	}
 
-	private void finishAndReportAsync(Map<OperatorID, OperatorSnapshotFutures> snapshotFutures, CheckpointMetaData metadata, CheckpointMetrics metrics) {
+	private void finishAndReportAsync(Map<OperatorID, OperatorSnapshotFutures> snapshotFutures, CheckpointMetaData metadata, CheckpointMetrics metrics, CheckpointOptions options) {
 		final Future<?> channelWrittenFuture;
-		if (unalignedCheckpointEnabled) {
+		if (unalignedCheckpointEnabled && !options.getCheckpointType().isSavepoint()) {
 			ChannelStateWriteResult writeResult = channelStateWriter.getWriteResult(metadata.getCheckpointId());
 			channelWrittenFuture = CompletableFuture.allOf(
-				writeResult.getInputChannelStateHandles(),
-				writeResult.getResultSubpartitionStateHandles());
+					writeResult.getInputChannelStateHandles(),
+					writeResult.getResultSubpartitionStateHandles())
+				.whenComplete((dummy, ex) -> channelStateWriter.stop(metadata.getCheckpointId()));
 		} else {
 			channelWrittenFuture = FutureUtils.completedVoidFuture();
 		}
