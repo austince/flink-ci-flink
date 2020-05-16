@@ -48,7 +48,7 @@ public class TimestampsAndWatermarksOperatorTest {
 	public void inputWatermarksAreNotForwarded() throws Exception {
 		OneInputStreamOperatorTestHarness<Long, Long> testHarness = createTestHarness(
 				WatermarkStrategies
-						.forGenerator(PeriodicWatermarkGenerator::new)
+						.forGenerator((ctx) -> new PeriodicWatermarkGenerator())
 						.withTimestampAssigner(new LongExtractor()));
 
 		testHarness.processWatermark(createLegacyWatermark(42L));
@@ -61,7 +61,7 @@ public class TimestampsAndWatermarksOperatorTest {
 	public void longMaxInputWatermarkIsForwarded() throws Exception {
 		OneInputStreamOperatorTestHarness<Long, Long> testHarness = createTestHarness(
 				WatermarkStrategies
-						.forGenerator(PeriodicWatermarkGenerator::new)
+						.forGenerator((ctx) -> new PeriodicWatermarkGenerator())
 						.withTimestampAssigner(new LongExtractor()));
 
 		testHarness.processWatermark(createLegacyWatermark(Long.MAX_VALUE));
@@ -73,7 +73,7 @@ public class TimestampsAndWatermarksOperatorTest {
 	public void periodicWatermarksEmitOnPeriodicEmit() throws Exception {
 		OneInputStreamOperatorTestHarness<Long, Long> testHarness = createTestHarness(
 				WatermarkStrategies
-						.forGenerator(PeriodicWatermarkGenerator::new)
+						.forGenerator((ctx) -> new PeriodicWatermarkGenerator())
 						.withTimestampAssigner(new LongExtractor()));
 
 		testHarness.processElement(new StreamRecord<>(2L, 1));
@@ -93,7 +93,7 @@ public class TimestampsAndWatermarksOperatorTest {
 	public void periodicWatermarksOnlyEmitOnPeriodicEmit() throws Exception {
 		OneInputStreamOperatorTestHarness<Long, Long> testHarness = createTestHarness(
 				WatermarkStrategies
-						.forGenerator(PeriodicWatermarkGenerator::new)
+						.forGenerator((ctx) -> new PeriodicWatermarkGenerator())
 						.withTimestampAssigner(new LongExtractor()));
 
 		testHarness.processElement(new StreamRecord<>(2L, 1));
@@ -106,7 +106,7 @@ public class TimestampsAndWatermarksOperatorTest {
 	public void periodicWatermarksDoNotRegress() throws Exception {
 		OneInputStreamOperatorTestHarness<Long, Long> testHarness = createTestHarness(
 				WatermarkStrategies
-						.forGenerator(PeriodicWatermarkGenerator::new)
+						.forGenerator((ctx) -> new PeriodicWatermarkGenerator())
 						.withTimestampAssigner(new LongExtractor()));
 
 		testHarness.processElement(new StreamRecord<>(4L, 1));
@@ -126,7 +126,7 @@ public class TimestampsAndWatermarksOperatorTest {
 	public void punctuatedWatermarksEmitImmediately() throws Exception {
 		OneInputStreamOperatorTestHarness<Tuple2<Boolean, Long>, Tuple2<Boolean, Long>> testHarness = createTestHarness(
 				WatermarkStrategies
-						.forGenerator(PunctuatedWatermarkGenerator::new)
+						.forGenerator((ctx) -> new PunctuatedWatermarkGenerator())
 						.withTimestampAssigner(new TupleExtractor()));
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>(true, 2L), 1));
@@ -144,7 +144,7 @@ public class TimestampsAndWatermarksOperatorTest {
 	public void punctuatedWatermarksDoNotRegress() throws Exception {
 		OneInputStreamOperatorTestHarness<Tuple2<Boolean, Long>, Tuple2<Boolean, Long>> testHarness = createTestHarness(
 				WatermarkStrategies
-						.forGenerator(PunctuatedWatermarkGenerator::new)
+						.forGenerator((ctx) -> new PunctuatedWatermarkGenerator())
 						.withTimestampAssigner(new TupleExtractor()));
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>(true, 4L), 1));
@@ -166,7 +166,7 @@ public class TimestampsAndWatermarksOperatorTest {
 
 		OneInputStreamOperatorTestHarness<Long, Long> testHarness = createTestHarness(
 				WatermarkStrategies
-						.forGenerator(NeverWatermarkGenerator::new)
+						.forGenerator((ctx) -> new NeverWatermarkGenerator())
 						.withTimestampAssigner(new LongExtractor()));
 
 		long[] values = {Long.MIN_VALUE, -1L, 0L, 1L, 2L, 3L, Long.MAX_VALUE};

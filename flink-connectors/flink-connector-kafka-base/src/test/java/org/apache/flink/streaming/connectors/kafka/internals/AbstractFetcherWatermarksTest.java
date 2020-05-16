@@ -73,7 +73,7 @@ public class AbstractFetcherWatermarksTest {
 			return Arrays.asList(
 					new AssignerWithPeriodicWatermarksAdapter.Strategy<>(new PeriodicTestExtractor()),
 					WatermarkStrategies
-							.forGenerator(PeriodicTestWatermarkGenerator::new)
+							.forGenerator((ctx) -> new PeriodicTestWatermarkGenerator())
 							.withTimestampAssigner((event, previousTimestamp) -> event)
 							.build()
 			);

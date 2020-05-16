@@ -425,7 +425,7 @@ public abstract class AbstractFetcher<T, KPH> {
 									partitionEntry.getKey(),
 									kafkaHandle,
 									deserializedWatermarkStrategy.createTimestampAssigner(() -> consumerMetricGroup),
-									deserializedWatermarkStrategy.createWatermarkGenerator(),
+									deserializedWatermarkStrategy.createWatermarkGenerator(() -> consumerMetricGroup),
 									immediateOutput,
 									deferredOutput);
 

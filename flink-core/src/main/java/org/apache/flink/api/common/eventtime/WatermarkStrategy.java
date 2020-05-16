@@ -48,5 +48,5 @@ public interface WatermarkStrategy<T> extends TimestampAssignerSupplier<T>, Wate
 	 * Instantiates a WatermarkGenerator that generates watermarks according to this strategy.
 	 */
 	@Override
-	WatermarkGenerator<T> createWatermarkGenerator();
+	WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context);
 }

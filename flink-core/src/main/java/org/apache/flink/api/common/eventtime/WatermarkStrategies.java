@@ -143,7 +143,7 @@ public final class WatermarkStrategies<T> {
 	 * @see AscendingTimestampsWatermarks
 	 */
 	public static <T> WatermarkStrategies<T> forMonotonousTimestamps() {
-		return new WatermarkStrategies<T>(AscendingTimestampsWatermarks::new);
+		return new WatermarkStrategies<>((ctx) -> new AscendingTimestampsWatermarks<>());
 	}
 
 	/**
@@ -158,7 +158,7 @@ public final class WatermarkStrategies<T> {
 	 * @see BoundedOutOfOrdernessWatermarks
 	 */
 	public static <T> WatermarkStrategies<T> forBoundedOutOfOrderness(Duration maxOutOfOrderness) {
-		return new WatermarkStrategies<>(() -> new BoundedOutOfOrdernessWatermarks<>(maxOutOfOrderness));
+		return new WatermarkStrategies<>((ctx) -> new BoundedOutOfOrdernessWatermarks<>(maxOutOfOrderness));
 	}
 
 	/**
@@ -187,8 +187,8 @@ public final class WatermarkStrategies<T> {
 		}
 
 		@Override
-		public WatermarkGenerator<T> createWatermarkGenerator() {
-			return generatorSupplier.createWatermarkGenerator();
+		public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
+			return generatorSupplier.createWatermarkGenerator(context);
 		}
 	}
 
@@ -213,8 +213,8 @@ public final class WatermarkStrategies<T> {
 		}
 
 		@Override
-		public WatermarkGenerator<T> createWatermarkGenerator() {
-			return baseStrategy.createWatermarkGenerator();
+		public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
+			return baseStrategy.createWatermarkGenerator(context);
 		}
 	}
 
@@ -235,8 +235,8 @@ public final class WatermarkStrategies<T> {
 		}
 
 		@Override
-		public WatermarkGenerator<T> createWatermarkGenerator() {
-			return new WatermarksWithIdleness<>(baseStrategy.createWatermarkGenerator(), idlenessTimeout);
+		public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
+			return new WatermarksWithIdleness<>(baseStrategy.createWatermarkGenerator(context), idlenessTimeout);
 		}
 	}
 }

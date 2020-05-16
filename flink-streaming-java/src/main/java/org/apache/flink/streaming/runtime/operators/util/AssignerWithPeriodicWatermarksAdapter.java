@@ -23,6 +23,7 @@ import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -75,7 +76,7 @@ public final class AssignerWithPeriodicWatermarksAdapter<T> implements Watermark
 		}
 
 		@Override
-		public WatermarkGenerator<T> createWatermarkGenerator() {
+		public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
 			return new AssignerWithPeriodicWatermarksAdapter<>(wms);
 		}
 	}
