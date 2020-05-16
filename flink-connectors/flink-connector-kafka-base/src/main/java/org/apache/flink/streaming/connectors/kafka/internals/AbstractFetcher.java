@@ -358,7 +358,6 @@ public abstract class AbstractFetcher<T, KPH> {
 					// WatermarkGenerator wrap one and the same object, where extracting the timestamp
 					// updates the internal state of the assigner.
 					timestamp = partitionState.extractTimestamp(record, kafkaEventTimestamp);
-					partitionState.onEvent(record, timestamp);
 				}
 				sourceContext.collectWithTimestamp(record, timestamp);
 
