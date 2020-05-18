@@ -24,7 +24,6 @@ import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -32,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -163,7 +163,7 @@ public class StreamMockEnvironment implements Environment {
 		this.taskConfiguration = taskConfig;
 		this.inputs = new LinkedList<>();
 		this.outputs = new LinkedList<ResultPartitionWriter>();
-		this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(MemoryType.OFF_HEAP, offHeapMemorySize).build();
+		this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(offHeapMemorySize).build();
 		this.ioManager = new IOManagerAsync();
 		this.taskStateManager = Preconditions.checkNotNull(taskStateManager);
 		this.aggregateManager = new TestGlobalAggregateManager();
@@ -317,6 +317,11 @@ public class StreamMockEnvironment implements Environment {
 	@Override
 	public TaskKvStateRegistry getTaskKvStateRegistry() {
 		return kvStateRegistry;
+	}
+
+	@Override
+	public ExternalResourceInfoProvider getExternalResourceInfoProvider() {
+		return ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
 	}
 
 	@Override

@@ -42,12 +42,15 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogPartition;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
@@ -90,13 +93,20 @@ import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.UnregisteredSinkModifyOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOperation;
 import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
+import org.apache.flink.table.operations.ddl.AlterTableSchemaOperation;
+import org.apache.flink.table.operations.ddl.AlterViewAsOperation;
+import org.apache.flink.table.operations.ddl.AlterViewOperation;
+import org.apache.flink.table.operations.ddl.AlterViewPropertiesOperation;
+import org.apache.flink.table.operations.ddl.AlterViewRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
@@ -105,6 +115,7 @@ import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
+import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
@@ -821,6 +832,33 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 							dropConstraintOperation.getTableIdentifier().toObjectPath(),
 							newTable,
 							false);
+				} else if (alterTableOperation instanceof AlterPartitionPropertiesOperation) {
+					AlterPartitionPropertiesOperation alterPartPropsOp = (AlterPartitionPropertiesOperation) operation;
+					catalog.alterPartition(alterPartPropsOp.getTableIdentifier().toObjectPath(),
+							alterPartPropsOp.getPartitionSpec(),
+							alterPartPropsOp.getCatalogPartition(),
+							false);
+				} else if (alterTableOperation instanceof AlterTableSchemaOperation) {
+					AlterTableSchemaOperation alterTableSchemaOperation = (AlterTableSchemaOperation) alterTableOperation;
+					catalog.alterTable(alterTableSchemaOperation.getTableIdentifier().toObjectPath(),
+							alterTableSchemaOperation.getCatalogTable(),
+							false);
+				} else if (alterTableOperation instanceof AddPartitionsOperation) {
+					AddPartitionsOperation addPartitionsOperation = (AddPartitionsOperation) alterTableOperation;
+					List<CatalogPartitionSpec> specs = addPartitionsOperation.getPartitionSpecs();
+					List<CatalogPartition> partitions = addPartitionsOperation.getCatalogPartitions();
+					boolean ifNotExists = addPartitionsOperation.ifNotExists();
+					ObjectPath tablePath = addPartitionsOperation.getTableIdentifier().toObjectPath();
+					for (int i = 0; i < specs.size(); i++) {
+						catalog.createPartition(tablePath, specs.get(i), partitions.get(i), ifNotExists);
+					}
+				} else if (alterTableOperation instanceof DropPartitionsOperation) {
+					DropPartitionsOperation dropPartitionsOperation = (DropPartitionsOperation) alterTableOperation;
+					ObjectPath tablePath = dropPartitionsOperation.getTableIdentifier().toObjectPath();
+					boolean ifExists = dropPartitionsOperation.ifExists();
+					for (CatalogPartitionSpec spec : dropPartitionsOperation.getPartitionSpecs()) {
+						catalog.dropPartition(tablePath, spec, ifExists);
+					}
 				}
 				return TableResultImpl.TABLE_RESULT_OK;
 			} catch (TableAlreadyExistException | TableNotExistException e) {
@@ -854,6 +892,35 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 						dropViewOperation.isIfExists());
 			}
 			return TableResultImpl.TABLE_RESULT_OK;
+		} else if (operation instanceof AlterViewOperation) {
+			AlterViewOperation alterViewOperation = (AlterViewOperation) operation;
+			Catalog catalog = getCatalogOrThrowException(alterViewOperation.getViewIdentifier().getCatalogName());
+			String exMsg = getDDLOpExecuteErrorMsg(alterViewOperation.asSummaryString());
+			try {
+				if (alterViewOperation instanceof AlterViewRenameOperation) {
+					AlterViewRenameOperation alterTableRenameOp = (AlterViewRenameOperation) operation;
+					catalog.renameTable(
+							alterTableRenameOp.getViewIdentifier().toObjectPath(),
+							alterTableRenameOp.getNewViewIdentifier().getObjectName(),
+							false);
+				} else if (alterViewOperation instanceof AlterViewPropertiesOperation) {
+					AlterViewPropertiesOperation alterTablePropertiesOp = (AlterViewPropertiesOperation) operation;
+					catalog.alterTable(
+							alterTablePropertiesOp.getViewIdentifier().toObjectPath(),
+							alterTablePropertiesOp.getCatalogView(),
+							false);
+				} else if (alterViewOperation instanceof AlterViewAsOperation) {
+					AlterViewAsOperation alterViewAsOperation = (AlterViewAsOperation) alterViewOperation;
+					catalog.alterTable(alterViewAsOperation.getViewIdentifier().toObjectPath(),
+							alterViewAsOperation.getNewView(),
+							false);
+				}
+				return TableResultImpl.TABLE_RESULT_OK;
+			} catch (TableAlreadyExistException | TableNotExistException e) {
+				throw new ValidationException(exMsg, e);
+			} catch (Exception e) {
+				throw new TableException(exMsg, e);
+			}
 		} else if (operation instanceof CreateDatabaseOperation) {
 			CreateDatabaseOperation createDatabaseOperation = (CreateDatabaseOperation) operation;
 			Catalog catalog = getCatalogOrThrowException(createDatabaseOperation.getCatalogName());

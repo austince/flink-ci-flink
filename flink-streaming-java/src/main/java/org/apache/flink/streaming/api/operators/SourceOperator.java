@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -38,49 +37,71 @@ import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.runtime.io.InputStatus;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
+import org.apache.flink.util.CollectionUtil;
 
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Base source operator only used for integrating the source reader which is proposed by FLIP-27. It implements
  * the interface of {@link PushingAsyncDataInput} for naturally compatible with one input processing in runtime
  * stack.
  *
- * <p>Note: We are expecting this to be changed to the concrete class once SourceReader interface is introduced.
+ * <p><b>Important Note on Serialization:</b> The SourceOperator inherits the {@link java.io.Serializable}
+ * interface from the StreamOperator, but is in fact NOT serializable. The operator must only be instantiates
+ * in the StreamTask from its factory.
  *
  * @param <OUT> The output type of the operator.
  */
 @Internal
+@SuppressWarnings("serial")
 public class SourceOperator<OUT, SplitT extends SourceSplit>
 		extends AbstractStreamOperator<OUT>
 		implements OperatorEventHandler, PushingAsyncDataInput<OUT> {
+	private static final long serialVersionUID = 1405537676017904695L;
+
 	// Package private for unit test.
 	static final ListStateDescriptor<byte[]> SPLITS_STATE_DESC =
 			new ListStateDescriptor<>("SourceReaderState", BytePrimitiveArraySerializer.INSTANCE);
 
-	private final Source<OUT, SplitT, ?> source;
+	/** The factory for the source reader. This is a workaround, because currently the SourceReader
+	 * must be lazily initialized, which is mainly because the metrics groups that the reader relies on is
+	 * lazily initialized. */
+	private final Function<SourceReaderContext, SourceReader<OUT, SplitT>> readerFactory;
 
-	// Fields that will be setup at runtime.
-	private transient SourceReader<OUT, SplitT> sourceReader;
-	private transient SimpleVersionedSerializer<SplitT> splitSerializer;
-	private transient ListState<byte[]> readerState;
-	private transient OperatorEventGateway operatorEventGateway;
+	/** The serializer for the splits, applied to the split types before storing them in the reader state. */
+	private final SimpleVersionedSerializer<SplitT> splitSerializer;
 
-	public SourceOperator(Source<OUT, SplitT, ?> source) {
-		this.source = source;
+	/** The event gateway through which this operator talks to its coordinator. */
+	private final OperatorEventGateway operatorEventGateway;
+
+	// ---- lazily initialized fields ----
+
+	/** The source reader that does most of the work. */
+	private SourceReader<OUT, SplitT> sourceReader;
+
+	/** The state that holds the currently assigned splits. */
+	private ListState<SplitT> readerState;
+
+	public SourceOperator(
+			Function<SourceReaderContext, SourceReader<OUT, SplitT>> readerFactory,
+			OperatorEventGateway operatorEventGateway,
+			SimpleVersionedSerializer<SplitT> splitSerializer) {
+
+		this.readerFactory = checkNotNull(readerFactory);
+		this.operatorEventGateway = checkNotNull(operatorEventGateway);
+		this.splitSerializer = checkNotNull(splitSerializer);
 	}
 
 	@Override
 	public void open() throws Exception {
-		splitSerializer = source.getSplitSerializer();
-		// Create the source reader.
-		SourceReaderContext context = new SourceReaderContext() {
+		final SourceReaderContext context = new SourceReaderContext() {
 			@Override
 			public MetricGroup metricGroup() {
 				return getRuntimeContext().getMetricGroup();
@@ -91,19 +112,15 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 				operatorEventGateway.sendEventToCoordinator(new SourceEventWrapper(event));
 			}
 		};
-		sourceReader = source.createReader(context);
+
+		sourceReader = readerFactory.apply(context);
 
 		// restore the state if necessary.
-		if (readerState.get() != null && readerState.get().iterator().hasNext()) {
-			List<SplitT> splits = new ArrayList<>();
-			for (byte[] splitBytes : readerState.get()) {
-				SplitStateAndVersion stateWithVersion = SplitStateAndVersion.fromBytes(splitBytes);
-				splits.add(splitSerializer.deserialize(
-						stateWithVersion.getSerializerVersion(),
-						stateWithVersion.getSplitState()));
-			}
+		final List<SplitT> splits = CollectionUtil.iterableToList(readerState.get());
+		if (!splits.isEmpty()) {
 			sourceReader.addSplits(splits);
 		}
+
 		// Start the reader.
 		sourceReader.start();
 		// Register the reader to the coordinator.
@@ -128,15 +145,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 	@Override
 	public void snapshotState(StateSnapshotContext context) throws Exception {
 		LOG.debug("Taking a snapshot for checkpoint {}", context.getCheckpointId());
-		List<SplitT> splitStates = sourceReader.snapshotState();
-		List<byte[]> state = new ArrayList<>();
-		for (SplitT splitState : splitStates) {
-			SplitStateAndVersion stateWithVersion = new SplitStateAndVersion(
-					splitSerializer.getVersion(),
-					splitSerializer.serialize(splitState));
-			state.add(stateWithVersion.toBytes());
-		}
-		readerState.update(state);
+		readerState.update(sourceReader.snapshotState());
 	}
 
 	@Override
@@ -147,11 +156,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 	@Override
 	public void initializeState(StateInitializationContext context) throws Exception {
 		super.initializeState(context);
-		readerState = context.getOperatorStateStore().getListState(SPLITS_STATE_DESC);
-	}
-
-	public void setOperatorEventGateway(OperatorEventGateway operatorEventGateway) {
-		this.operatorEventGateway = operatorEventGateway;
+		final ListState<byte[]> rawState = context.getOperatorStateStore().getListState(SPLITS_STATE_DESC);
+		readerState = new SimpleVersionedListState<>(rawState, splitSerializer);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -178,43 +184,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 		return sourceReader;
 	}
 
-	// --------------- private class -----------------
-
-	/**
-	 * Static container class. Package private for testing.
-	 */
 	@VisibleForTesting
-	static class SplitStateAndVersion {
-		private final int serializerVersion;
-		private final byte[] splitState;
-
-		SplitStateAndVersion(int serializerVersion, byte[] splitState) {
-			this.serializerVersion = serializerVersion;
-			this.splitState = splitState;
-		}
-
-		int getSerializerVersion() {
-			return serializerVersion;
-		}
-
-		byte[] getSplitState() {
-			return splitState;
-		}
-
-		byte[] toBytes() {
-			// 4 Bytes - Serialization Version
-			// N Bytes - Serialized Split State
-			ByteBuffer buf = ByteBuffer.allocate(Integer.BYTES + Integer.BYTES + splitState.length);
-			buf.putInt(serializerVersion);
-			buf.put(splitState);
-			return buf.array();
-		}
-
-		static SplitStateAndVersion fromBytes(byte[] bytes) {
-			ByteBuffer buf = ByteBuffer.wrap(bytes);
-			int version = buf.getInt();
-			byte[] splitState = Arrays.copyOfRange(bytes, buf.position(), buf.limit());
-			return new SplitStateAndVersion(version, splitState);
-		}
+	ListState<SplitT> getReaderState() {
+		return readerState;
 	}
 }
