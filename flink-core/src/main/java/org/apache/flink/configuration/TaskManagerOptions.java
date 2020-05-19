@@ -490,6 +490,13 @@ public class TaskManagerOptions {
 				+ " size will be used. The exact size of JVM Overhead can be explicitly specified by setting the min/max"
 				+ " size to the same value.");
 
+	@Documentation.ExcludeFromDocumentation("This option just serves as a last-ditch escape hatch.")
+	public static final ConfigOption<Integer> NUM_IO_THREADS =
+		key("taskmanager.io.threads.num")
+			.intType()
+			.defaultValue(2)
+			.withDescription("The number of threads to use for non-critical IO operations.");
+
 	// ------------------------------------------------------------------------
 	//  Task Options
 	// ------------------------------------------------------------------------

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -143,6 +144,7 @@ public class NettyShuffleEnvironmentBuilder {
 				maxBuffersPerChannel),
 			taskManagerLocation,
 			new TaskEventDispatcher(),
-			metricGroup);
+			metricGroup,
+			Executors.directExecutor());
 	}
 }
