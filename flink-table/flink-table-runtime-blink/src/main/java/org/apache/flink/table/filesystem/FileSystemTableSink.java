@@ -25,6 +25,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DelegatingConfiguration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -64,8 +66,8 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
-import static org.apache.flink.table.filesystem.FileSystemTableFactory.SINK_ROLLING_POLICY_FILE_SIZE;
-import static org.apache.flink.table.filesystem.FileSystemTableFactory.SINK_ROLLING_POLICY_TIME_INTERVAL;
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_FILE_SIZE;
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_TIME_INTERVAL;
 import static org.apache.flink.table.filesystem.FileSystemTableFactory.createFormatFactory;
 
 /**
@@ -146,7 +148,7 @@ public class FileSystemTableSink implements
 			TableRollingPolicy rollingPolicy = new TableRollingPolicy(
 					!(writer instanceof Encoder),
 					conf.get(SINK_ROLLING_POLICY_FILE_SIZE),
-					conf.get(SINK_ROLLING_POLICY_TIME_INTERVAL));
+					conf.get(SINK_ROLLING_POLICY_TIME_INTERVAL).toMillis());
 
 			BucketsBuilder<RowData, ?, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder;
 			InactiveBucketListener listener = new InactiveBucketListener();
@@ -237,6 +239,9 @@ public class FileSystemTableSink implements
 
 	private Object createWriter() {
 		FileSystemFormatFactory formatFactory = createFormatFactory(properties);
+		Configuration conf = new Configuration();
+		properties.forEach(conf::setString);
+
 		FileSystemFormatFactory.WriterContext context = new FileSystemFormatFactory.WriterContext() {
 
 			@Override
@@ -245,8 +250,8 @@ public class FileSystemTableSink implements
 			}
 
 			@Override
-			public Map<String, String> getFormatProperties() {
-				return properties;
+			public ReadableConfig getFormatOptions() {
+				return new DelegatingConfiguration(conf, formatFactory.factoryIdentifier() + ".");
 			}
 
 			@Override
@@ -399,11 +404,11 @@ public class FileSystemTableSink implements
 	/**
 	 * Table bucket assigner, wrap {@link PartitionComputer}.
 	 */
-	private static class TableBucketAssigner implements BucketAssigner<RowData, String> {
+	public static class TableBucketAssigner implements BucketAssigner<RowData, String> {
 
 		private final PartitionComputer<RowData> computer;
 
-		private TableBucketAssigner(PartitionComputer<RowData> computer) {
+		public TableBucketAssigner(PartitionComputer<RowData> computer) {
 			this.computer = computer;
 		}
 
@@ -426,13 +431,13 @@ public class FileSystemTableSink implements
 	/**
 	 * Table {@link RollingPolicy}, it extends {@link CheckpointRollingPolicy} for bulk writers.
 	 */
-	private static class TableRollingPolicy extends CheckpointRollingPolicy<RowData, String> {
+	public static class TableRollingPolicy extends CheckpointRollingPolicy<RowData, String> {
 
 		private final boolean rollOnCheckpoint;
 		private final long rollingFileSize;
 		private final long rollingTimeInterval;
 
-		private TableRollingPolicy(
+		public TableRollingPolicy(
 				boolean rollOnCheckpoint,
 				long rollingFileSize,
 				long rollingTimeInterval) {
@@ -483,12 +488,15 @@ public class FileSystemTableSink implements
 		}
 	}
 
-	private static class ProjectionBulkFactory implements BulkWriter.Factory<RowData> {
+	/**
+	 * Project row to non-partition fields.
+	 */
+	public static class ProjectionBulkFactory implements BulkWriter.Factory<RowData> {
 
 		private final BulkWriter.Factory<RowData> factory;
 		private final RowDataPartitionComputer computer;
 
-		private ProjectionBulkFactory(BulkWriter.Factory<RowData> factory, RowDataPartitionComputer computer) {
+		public ProjectionBulkFactory(BulkWriter.Factory<RowData> factory, RowDataPartitionComputer computer) {
 			this.factory = factory;
 			this.computer = computer;
 		}
