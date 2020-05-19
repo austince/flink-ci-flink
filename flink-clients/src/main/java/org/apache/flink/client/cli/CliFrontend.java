@@ -141,7 +141,7 @@ public class CliFrontend {
 			customCommandLine.addRunOptions(customCommandLineOptions);
 		}
 
-		this.clientTimeout = AkkaUtils.getClientTimeout(this.configuration);
+		this.clientTimeout = ClientOptions.getClientTimeout(this.configuration);
 		this.defaultParallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
 	}
 

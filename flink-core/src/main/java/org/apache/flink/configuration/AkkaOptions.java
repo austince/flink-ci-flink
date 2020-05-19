@@ -164,15 +164,6 @@ public class AkkaOptions {
 			.withDescription("Timeout for all blocking calls on the client side.");
 
 	/**
-	 * Timeout for all blocking calls on the client side.
-	 */
-	public static final ConfigOption<String> CLIENT_TIMEOUT = ConfigOptions
-		.key("client.timeout")
-		.stringType()
-		.defaultValue("60 s")
-		.withDescription("Timeout for all blocking calls on the client side.");
-
-	/**
 	 * Exit JVM on fatal Akka errors.
 	 */
 	public static final ConfigOption<Boolean> JVM_EXIT_ON_FATAL_ERROR = ConfigOptions

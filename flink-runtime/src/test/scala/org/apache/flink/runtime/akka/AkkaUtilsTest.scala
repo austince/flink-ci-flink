@@ -252,20 +252,4 @@ class AkkaUtilsTest
       equal(Collections.singletonList(fingerprint))
   }
 
-
-  test("get client.timeout for the client, with a fallback to the akka.client.timeout.") {
-    var configuration = new Configuration()
-    configuration.setString(AkkaOptions.CLIENT_TIMEOUT.key(), "100 s")
-    configuration.setString(AkkaOptions.AKKA_CLIENT_TIMEOUT.key(), "10 s")
-
-    configuration = new Configuration()
-    configuration.setString(AkkaOptions.AKKA_CLIENT_TIMEOUT.key(), "10 s")
-    AkkaUtils.getClientTimeout(configuration).get(ChronoUnit.SECONDS) should equal(10)
-
-    configuration = new Configuration()
-    val akkaDefaultClientTimeOut = AkkaOptions.AKKA_CLIENT_TIMEOUT.defaultValue()
-    AkkaUtils.getClientTimeout(configuration).get(ChronoUnit.SECONDS) should equal(
-      TimeUtils.parseDuration(akkaDefaultClientTimeOut).get(ChronoUnit.SECONDS)
-    )
-  }
 }
