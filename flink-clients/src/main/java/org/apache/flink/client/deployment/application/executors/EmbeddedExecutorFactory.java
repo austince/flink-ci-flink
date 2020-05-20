@@ -21,12 +21,11 @@ package org.apache.flink.client.deployment.application.executors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.cli.ClientOptions;
 import org.apache.flink.client.deployment.application.EmbeddedJobClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 
@@ -81,7 +80,7 @@ public class EmbeddedExecutorFactory implements PipelineExecutorFactory {
 				submittedJobIds,
 				dispatcherGateway,
 				jobId -> {
-					final Time timeout = Time.milliseconds(configuration.get(ExecutionOptions.EMBEDDED_RPC_TIMEOUT).toMillis());
+					final Time timeout = Time.milliseconds(configuration.get(ClientOptions.EMBEDDED_RPC_TIMEOUT).toMillis());
 					return new EmbeddedJobClient(jobId, dispatcherGateway, retryExecutor, timeout);
 				});
 	}

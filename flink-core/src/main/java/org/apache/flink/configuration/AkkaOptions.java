@@ -156,7 +156,6 @@ public class AkkaOptions {
 	/**
 	 * Timeout for all blocking calls on the client side.
 	 */
-	@Deprecated
 	public static final ConfigOption<String> AKKA_CLIENT_TIMEOUT = ConfigOptions
 			.key("akka.client.timeout")
 			.stringType()
