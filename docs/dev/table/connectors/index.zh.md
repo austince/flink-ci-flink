@@ -1,7 +1,10 @@
 ---
 title: "Table API Connectors"
+nav-id: connectors-table
+nav-title: Table API Connectors
 nav-parent_id: connectors-root
 nav-pos: 2
+nav-show_overview: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
