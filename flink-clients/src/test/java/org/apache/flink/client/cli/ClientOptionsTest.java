@@ -43,7 +43,7 @@ public class ClientOptionsTest {
 		assertEquals(ClientOptions.getClientTimeout(configuration), Duration.ofSeconds(10));
 
 		configuration = new Configuration();
-		configuration.set(AkkaOptions.AKKA_CLIENT_TIMEOUT, "20 s");
+		configuration.set(AkkaOptions.CLIENT_TIMEOUT, "20 s");
 		assertEquals(ClientOptions.getClientTimeout(configuration), Duration.ofSeconds(20));
 
 		configuration = new Configuration();

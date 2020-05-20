@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.akka
 
 import java.net.{InetAddress, InetSocketAddress}
-import java.time.temporal.ChronoUnit
 import java.util.Collections
 
 import org.apache.flink.configuration.{AkkaOptions, Configuration, IllegalConfigurationException, SecurityOptions}
@@ -27,7 +26,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools.FixedThreadPoolE
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils.AkkaProtocol
-import org.apache.flink.util.{NetUtils, TimeUtils}
+import org.apache.flink.util.NetUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
@@ -251,5 +250,4 @@ class AkkaUtilsTest
     sslConfig.getStringList("security.cert-fingerprints") should
       equal(Collections.singletonList(fingerprint))
   }
-
 }

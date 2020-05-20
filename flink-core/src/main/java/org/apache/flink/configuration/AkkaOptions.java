@@ -153,14 +153,15 @@ public class AkkaOptions {
 		.defaultValue("10 s")
 		.withDescription("Timeout used for the lookup of the JobManager. The timeout value has to contain a time-unit" +
 			" specifier (ms/s/min/h/d).");
+
 	/**
 	 * Timeout for all blocking calls on the client side.
 	 */
-	public static final ConfigOption<String> AKKA_CLIENT_TIMEOUT = ConfigOptions
-			.key("akka.client.timeout")
-			.stringType()
-			.defaultValue("60 s")
-			.withDescription("Timeout for all blocking calls on the client side.");
+	public static final ConfigOption<String> CLIENT_TIMEOUT = ConfigOptions
+		.key("akka.client.timeout")
+		.stringType()
+		.defaultValue("60 s")
+		.withDescription("Timeout for all blocking calls on the client side.");
 
 	/**
 	 * Exit JVM on fatal Akka errors.

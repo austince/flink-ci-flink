@@ -45,18 +45,18 @@ public class ClientOptions {
 					.withDescription("The retry period (in ms) between consecutive attempts to get the job status " +
 							"when executing applications in \"Application Mode\".");
 
-	public static final ConfigOption<Duration> CLIENT_TIMEOUT = ConfigOptions
-			.key("client.timeout")
-			.durationType()
-			.defaultValue(Duration.ofSeconds(60))
-			.withDescription("Timeout on the client side.");
+	public static final ConfigOption<Duration> CLIENT_TIMEOUT =
+			ConfigOptions.key("client.timeout")
+					.durationType()
+					.defaultValue(Duration.ofSeconds(60))
+					.withDescription("Timeout on the client side.");
 
 	public static Duration getClientTimeout(Configuration configuration) {
 		Optional<Duration> timeoutOptional = configuration.getOptional(CLIENT_TIMEOUT);
 		if (timeoutOptional.isPresent()) {
 			return timeoutOptional.get();
 		} else {
-			Optional<String> akkaClientTimeout = configuration.getOptional(AkkaOptions.AKKA_CLIENT_TIMEOUT);
+			Optional<String> akkaClientTimeout = configuration.getOptional(AkkaOptions.CLIENT_TIMEOUT);
 			if (akkaClientTimeout.isPresent()) {
 				return TimeUtils.parseDuration(akkaClientTimeout.get());
 			} else {
