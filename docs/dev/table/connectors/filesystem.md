@@ -161,7 +161,7 @@ To define when to commit a partition, providing partition commit trigger:
         <td><h5>sink.partition-commit.trigger</h5></td>
         <td style="word-wrap: break-word;">process-time</td>
         <td>String</td>
-        <td>Trigger type for partition commit:\n 'process-time': based on the time of the machine, it neither requires partition time extraction nor watermark generation. Commit partition once the 'current system time' passes 'partition creation system time' plus 'delay'.\n 'partition-time': based on the time that extracted from partition values, it requires watermark generation. Commit partition once the 'watermark' passes 'time extracted from partition values' plus 'delay'.</td>
+        <td>Trigger type for partition commit: 'process-time': based on the time of the machine, it neither requires partition time extraction nor watermark generation. Commit partition once the 'current system time' passes 'partition creation system time' plus 'delay'. 'partition-time': based on the time that extracted from partition values, it requires watermark generation. Commit partition once the 'watermark' passes 'time extracted from partition values' plus 'delay'.</td>
     </tr>
     <tr>
         <td><h5>sink.partition-commit.delay</h5></td>
@@ -237,7 +237,7 @@ The default extractor is based on a timestamp pattern composed of your partition
 {% highlight java %}
 
 public class HourPartTimeExtractor implements PartitionTimeExtractor {
-	@Override
+    @Override
     public LocalDateTime extract(List<String> keys, List<String> values) {
         String dt = values.get(0);
         String hour = values.get(1);
@@ -270,7 +270,7 @@ The partition commit policy defines what action is taken when partitions are com
         <td><h5>sink.partition-commit.policy.kind</h5></td>
         <td style="word-wrap: break-word;">(none)</td>
         <td>String</td>
-        <td>Policy to commit a partition is to notify the downstream application that the partition has finished writing, the partition is ready to be read. metastore: add partition to metastore. Only work with hive table, it is empty implementation for file system table. success-file: add '_success' file to directory. Both can be configured at the same time: 'metastore,success-file'. custom: use policy class to create a commit policy. Support to configure multiple policies: 'metastore,success-file'.</td>
+        <td>Policy to commit a partition is to notify the downstream application that the partition has finished writing, the partition is ready to be read. metastore: add partition to metastore. Only hive table supports metastore policy, file system manages partitions through directory structure. success-file: add '_success' file to directory. Both can be configured at the same time: 'metastore,success-file'. custom: use policy class to create a commit policy. Support to configure multiple policies: 'metastore,success-file'.</td>
     </tr>
     <tr>
         <td><h5>sink.partition-commit.policy.class</h5></td>
@@ -341,7 +341,7 @@ CREATE TABLE fs_table (
   'format'='parquet',
   'partition.time-extractor.timestamp-pattern'='$dt $hour:00:00',
   'sink.partition-commit.delay'='1 h',
-  ‘sink.partition-commit.policy.kind'='success-file')
+  'sink.partition-commit.policy.kind'='success-file')
 );
 
 -- streaming sql, insert into file system table
