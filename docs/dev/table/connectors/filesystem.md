@@ -32,7 +32,7 @@ supported by the [Flink FileSystem abstraction]({{ site.baseurl}}/ops/filesystem
 The file system connector itself is included in Flink and does not require an additional dependency.
 A corresponding format needs to be specified for reading and writing rows from and to a file system.
 
-The file system connector allows for reading and writing from a local or distributed filesystem. A filesystem can be defined as:
+The file system connector allows for reading and writing from a local or distributed filesystem. A filesystem table can be defined as:
 
 <div class="codetabs" markdown="1">
 <div data-lang="DDL" markdown="1">
@@ -44,7 +44,7 @@ CREATE TABLE MyUserTable (
   part_name1 INT,
   part_name2 STRING
 ) PARTITIONED BY (part_name1, part_name2) WITH (
-  'connector' = 'filesystem',           -- required: specify to connector type
+  'connector' = 'filesystem',           -- required: specify the connector
   'path' = 'file:///path/to/whatever',  -- required: path to a directory
   'format' = '...',                     -- required: file system connector requires to specify a format,
                                         -- Please refer to Table Formats
@@ -53,7 +53,7 @@ CREATE TABLE MyUserTable (
                                         -- column value is null/empty string.
   
   -- optional: the option to enable shuffle data by dynamic partition fields in sink phase, this can greatly
-  -- reduce the number of file for filesystem sink but may lead data skew, the default value is disabled.
+  -- reduce the number of file for filesystem sink but may lead data skew, the default value is false.
   'sink.shuffle-by-partition.enable' = '...',
   ...
 )
@@ -194,6 +194,10 @@ If you want to let downstream see the partition only when its data is complete, 
 - 'sink.partition-commit.trigger'='process-time' (Default value)
 - 'sink.partition-commit.delay'='1h' ('1h' if your partition is hourly partition, depends on your partition type)
 Try to commit partition accurately, but data delay or failover will lead to premature partition commit.
+
+Late data processing: The record will be written into its partition when a record is supposed to be
+written into a partition that has already been committed, and then the committing of this partition
+will be triggered again.
 
 #### Partition Time Extractor
 
