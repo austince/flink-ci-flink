@@ -227,6 +227,50 @@ Table orders = tableEnv.from("Orders");
 {% endhighlight %}
       </td>
   	</tr>
+  	<tr>
+      <td>
+            <strong>Values</strong><br>
+            <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+          <p>Similar to the VALUES clause in a SQL query. Produces an inline table out of the provided rows.</p>
+          <p>You can use a `row(...)` expression to create composite rows:</p>
+{% highlight java %}
+Table table = tEnv.fromValues(
+   row(1, "ABC"),
+   row(2L, "ABCDE")
+);
+{% endhighlight %}
+          <p>will produce a Table with a schema as follows:</p>
+{% highlight text %}
+root
+|-- f0: BIGINT NOT NULL     // original types INT and BIGINT are generalized to BIGINT
+|-- f1: VARCHAR(5) NOT NULL // original types CHAR(3) and CHAR(5) are generalized
+                            // to VARCHAR(5). VARCHAR is used instead of CHAR so that
+                            // no padding is applied
+{% endhighlight %}
+          <p>The method will derive the types automatically from the input expressions. If types
+          at a certain position differ, the method will try to find a common super type for all types. If a common
+          super type does not exist, an exception will be thrown.</p> 
+          <p>You can also specify the requested type explicitly. It might be helpful for assigning more generic types like  e.g. DECIMAL or naming the columns.</p>
+{% highlight java %}
+Table table = tEnv.fromValues(
+    DataTypes.ROW(
+        DataTypes.FIELD("id", DataTypes.DECIMAL(10, 2)),
+        DataTypes.FIELD("name", DataTypes.STRING())
+    ),
+    row(1, "ABC"),
+    row(2L, "ABCDE")
+);
+{% endhighlight %}
+                    <p>will produce a Table with a schema as follows:</p>
+{% highlight text %}
+root
+|-- id: DECIMAL(10, 2)
+|-- name: STRING
+{% endhighlight %}
+      </td>
+    </tr>
     <tr>
       <td>
         <strong>Select</strong><br>
@@ -302,6 +346,50 @@ val orders: Table = tableEnv.from("Orders")
 {% endhighlight %}
       </td>
   	</tr>
+  	<tr>
+      <td>
+            <strong>Values</strong><br>
+            <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+          <p>Similar to the VALUES clause in a SQL query. Produces an inline table out of the provided rows.</p>
+          <p>You can use a `row(...)` expression to create composite rows:</p>
+{% highlight scala %}
+val table = tEnv.fromValues(
+   row(1, "ABC"),
+   row(2L, "ABCDE")
+)
+{% endhighlight %}
+          <p>will produce a Table with a schema as follows:</p>
+{% highlight text %}
+root
+|-- f0: BIGINT NOT NULL     // original types INT and BIGINT are generalized to BIGINT
+|-- f1: VARCHAR(5) NOT NULL // original types CHAR(3) and CHAR(5) are generalized
+                            // to VARCHAR(5). VARCHAR is used instead of CHAR so that
+                            // no padding is applied
+{% endhighlight %}
+          <p>The method will derive the types automatically from the input expressions. If types
+          at a certain position differ, the method will try to find a common super type for all types. If a common
+          super type does not exist, an exception will be thrown.</p> 
+          <p>You can also specify the requested type explicitly. It might be helpful for assigning more generic types like  e.g. DECIMAL or naming the columns.</p>
+{% highlight scala %}
+val table = tEnv.fromValues(
+    DataTypes.ROW(
+        DataTypes.FIELD("id", DataTypes.DECIMAL(10, 2)),
+        DataTypes.FIELD("name", DataTypes.STRING())
+    ),
+    row(1, "ABC"),
+    row(2L, "ABCDE")
+)
+{% endhighlight %}
+                    <p>will produce a Table with a schema as follows:</p>
+{% highlight text %}
+root
+|-- id: DECIMAL(10, 2)
+|-- name: STRING
+{% endhighlight %}
+      </td>
+    </tr>
   	<tr>
       <td>
         <strong>Select</strong><br>
@@ -1074,15 +1162,15 @@ Table fullOuterResult = left.fullOuterJoin(right, $("a").isEqual($("d")))
       </td>
     </tr>
     <tr>
-      <td><strong>Time-windowed Join</strong><br>
+      <td><strong>Interval Join</strong><br>
         <span class="label label-primary">Batch</span>
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><b>Note:</b> Time-windowed joins are a subset of regular joins that can be processed in a streaming fashion.</p>
+        <p><b>Note:</b> Interval joins are a subset of regular joins that can be processed in a streaming fashion.</p>
 
-        <p>A time-windowed join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p> 
-        <p>For example, the following predicates are valid window join conditions:</p>
+        <p>A interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
+        <p>For example, the following predicates are valid interval join conditions:</p>
 
         <ul>
           <li><code>ltime === rtime</code></li>
@@ -1227,15 +1315,15 @@ val fullOuterResult = left.fullOuterJoin(right, $"a" === $"d").select($"a", $"b"
       </td>
     </tr>
     <tr>
-      <td><strong>Time-windowed Join</strong><br>
+      <td><strong>Interval Join</strong><br>
         <span class="label label-primary">Batch</span>
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><b>Note:</b> Time-windowed joins are a subset of regular joins that can be processed in a streaming fashion.</p>
+        <p><b>Note:</b> Interval joins are a subset of regular joins that can be processed in a streaming fashion.</p>
 
-        <p>A time-windowed join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
-        <p>For example, the following predicates are valid window join conditions:</p>
+        <p>A interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
+        <p>For example, the following predicates are valid interval join conditions:</p>
 
         <ul>
           <li><code>$"ltime" === $"rtime"</code></li>
@@ -1367,7 +1455,7 @@ full_outer_result = left.full_outer_join(right, "a = d").select("a, b, e")
       </td>
     </tr>
     <tr>
-      <td><strong>Time-windowed Join</strong><br>
+      <td><strong>Interval Join</strong><br>
         <span class="label label-primary">Batch</span>
         <span class="label label-primary">Streaming</span>
       </td>
