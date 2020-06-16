@@ -44,7 +44,6 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.lang3.ArrayUtils;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ErrorCollector;
@@ -102,7 +101,6 @@ import static org.hamcrest.Matchers.greaterThan;
  *     <li>The number of successful checkpoints is indeed {@code >=n}.</li>
  * </ul>
  */
-@Ignore
 public class UnalignedCheckpointITCase extends TestLogger {
 	public static final String NUM_INPUTS = "inputs";
 	public static final String NUM_OUTPUTS = "outputs";
@@ -200,7 +198,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 				state -> state.runNumber == 4))
 			.slotSharingGroup(slotSharing ? "default" : "map")
 			.partitionCustom(new DistributingPartitioner(), l -> l)
-			.addSink(new VerifyingSink(minCheckpoints))
+			.addSink(new VerifyingSink())
 			.slotSharingGroup(slotSharing ? "default" : "sink");
 	}
 
@@ -229,13 +227,14 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		public void initializeState(FunctionInitializationContext context) throws Exception {
 			stateList = context.getOperatorStateStore().getListState(STATE_DESCRIPTOR);
 			state = getOnlyElement(stateList.get(), new State(0, getRuntimeContext().getIndexOfThisSubtask()));
+			info("initializeState source state {}", state);
 		}
 
 		@Override
 		public void snapshotState(FunctionSnapshotContext context) throws Exception {
 			stateList.clear();
 			stateList.add(state);
-			info("Snapshotted next input {}", state.nextNumber);
+			info("snapshotState source state {}", state);
 		}
 
 		private void info(String description, Object... args) {
@@ -245,6 +244,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		@Override
 		public void notifyCheckpointComplete(long checkpointId) {
 			state.numCompletedCheckpoints++;
+			info("notifyCheckpointComplete source state  {}", state);
 		}
 
 		@Override
@@ -283,6 +283,14 @@ public class UnalignedCheckpointITCase extends TestLogger {
 				this.numCompletedCheckpoints = numCompletedCheckpoints;
 				this.nextNumber = nextNumber;
 			}
+
+			@Override
+			public String toString() {
+				return "State{" +
+					"numCompletedCheckpoints=" + numCompletedCheckpoints +
+					", nextNumber=" + nextNumber +
+					'}';
+			}
 		}
 	}
 
@@ -300,11 +308,6 @@ public class UnalignedCheckpointITCase extends TestLogger {
 				new ListStateDescriptor<>("state", State.class);
 		private ListState<State> stateList;
 		private State state;
-		private final long minCheckpoints;
-
-		private VerifyingSink(long minCheckpoints) {
-			this.minCheckpoints = minCheckpoints;
-		}
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
@@ -319,7 +322,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		public void initializeState(FunctionInitializationContext context) throws Exception {
 			stateList = context.getOperatorStateStore().getListState(STATE_DESCRIPTOR);
 			state = getOnlyElement(stateList.get(), new State(getRuntimeContext().getNumberOfParallelSubtasks()));
-			info("Initialized last snapshotted records {}", Arrays.asList(state.lastRecordInPartitions));
+			info("initializeState {}", state);
 		}
 
 		private void info(String description, Object... args) {
@@ -330,7 +333,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		public void snapshotState(FunctionSnapshotContext context) throws Exception {
 			stateList.clear();
 			stateList.add(state);
-			info("Last snapshotted records {}", Arrays.asList(state.lastRecordInPartitions));
+			info("snapshotState {}", state);
 		}
 
 		@Override
@@ -339,7 +342,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 			outOfOrderCounter.add(state.numOutOfOrderness);
 			duplicatesCounter.add(state.numDuplicates);
 			lostCounter.add(state.numLostValues);
-			info("Last received records {}", Arrays.asList(state.lastRecordInPartitions));
+			info("Last state {}", state);
 			super.close();
 		}
 
@@ -378,6 +381,17 @@ public class UnalignedCheckpointITCase extends TestLogger {
 					lastRecordInPartitions[index] = -1;
 				}
 			}
+
+			@Override
+			public String toString() {
+				return "State{" +
+					"numOutOfOrderness=" + numOutOfOrderness +
+					", numLostValues=" + numLostValues +
+					", numDuplicates=" + numDuplicates +
+					", numOutput=" + numOutput +
+					", lastRecordInPartitions=" + Arrays.toString(lastRecordInPartitions) +
+					'}';
+			}
 		}
 	}
 
@@ -402,6 +416,14 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		private FailingMapperState(long completedCheckpoints, long runNumber) {
 			this.completedCheckpoints = completedCheckpoints;
 			this.runNumber = runNumber;
+		}
+
+		@Override
+		public String toString() {
+			return "FailingMapperState{" +
+				"completedCheckpoints=" + completedCheckpoints +
+				", runNumber=" + runNumber +
+				'}';
 		}
 	}
 
@@ -447,6 +469,11 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		@Override
 		public void notifyCheckpointComplete(long checkpointId) {
 			state.completedCheckpoints++;
+			info("notifyCheckpointComplete {}", state);
+		}
+
+		private void info(String description, Object... args) {
+			UnalignedCheckpointITCase.info(getRuntimeContext(), description, args);
 		}
 
 		@Override
@@ -458,6 +485,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 			checkFail(failDuringSnapshot, "snapshotState");
 			listState.clear();
 			listState.add(state);
+			info("snapshotState {}", state);
 		}
 
 		@Override
@@ -471,6 +499,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 			listState = context.getOperatorStateStore().getListState(FAILING_MAPPER_STATE_DESCRIPTOR);
 			state = getOnlyElement(listState.get(), new FailingMapperState(0, 0));
 			state.runNumber = getRuntimeContext().getAttemptNumber();
+			info("initializeState {}", state);
 			checkFail(failDuringRecovery, "initializeState");
 		}
 	}
