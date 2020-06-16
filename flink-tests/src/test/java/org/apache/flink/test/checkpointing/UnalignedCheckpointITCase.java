@@ -102,7 +102,6 @@ import static org.hamcrest.Matchers.greaterThan;
  *     <li>The number of successful checkpoints is indeed {@code >=n}.</li>
  * </ul>
  */
-@Ignore
 public class UnalignedCheckpointITCase extends TestLogger {
 	public static final String NUM_INPUTS = "inputs";
 	public static final String NUM_OUTPUTS = "outputs";
