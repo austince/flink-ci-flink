@@ -403,7 +403,9 @@ public class SingleInputGate extends IndexedInputGate {
 	}
 
 	public CompletableFuture<Void> getCloseFuture() {
-		return closeFuture;
+		synchronized (requestLock) {
+			return closeFuture;
+		}
 	}
 
 	@Override
