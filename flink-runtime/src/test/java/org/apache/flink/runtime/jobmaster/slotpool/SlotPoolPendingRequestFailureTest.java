@@ -27,16 +27,13 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAda
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -59,20 +56,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the failing of pending slot requests at the {@link SlotPool}.
  */
-public class SlotPoolPendingRequestFailureTest extends TestLogger {
-
-	public static final Time TIMEOUT = Time.seconds(10L);
-	private static final ComponentMainThreadExecutor mainThreadExecutor =
-		ComponentMainThreadExecutorServiceAdapter.forMainThread();
-
-	private TestingResourceManagerGateway resourceManagerGateway;
-	private SlotPoolBuilder slotPoolBuilder;
-
-	@Before
-	public void setup() throws Exception {
-		resourceManagerGateway = new TestingResourceManagerGateway();
-		slotPoolBuilder = new SlotPoolBuilder(mainThreadExecutor).setResourceManagerGateway(resourceManagerGateway);
-	}
+public class SlotPoolPendingRequestFailureTest extends SlotPoolTestBase {
 
 	/**
 	 * Tests that failing an allocation fails the pending slot request.
@@ -201,13 +185,5 @@ public class SlotPoolPendingRequestFailureTest extends TestLogger {
 			CompletableFuture.runAsync(ThrowingRunnable.unchecked(slotPool::close), componentMainThreadExecutor).get();
 			singleThreadExecutor.shutdownNow();
 		}
-	}
-
-	private CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(SlotPoolImpl slotPool, SlotRequestId slotRequestId) {
-		return requestNewAllocatedSlot(slotPool, slotRequestId, TIMEOUT);
-	}
-
-	private CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(SlotPoolImpl slotPool, SlotRequestId slotRequestId, Time timeout) {
-		return slotPool.requestNewAllocatedSlot(slotRequestId, ResourceProfile.UNKNOWN, timeout);
 	}
 }

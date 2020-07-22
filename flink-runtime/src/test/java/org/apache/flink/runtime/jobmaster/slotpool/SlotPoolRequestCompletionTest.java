@@ -19,23 +19,17 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
-import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.CheckedSupplier;
 
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -57,21 +51,7 @@ import static org.hamcrest.Matchers.nullValue;
 /**
  * Tests how the {@link SlotPoolImpl} completes slot requests.
  */
-public class SlotPoolRequestCompletionTest extends TestLogger {
-
-	private static final Time TIMEOUT = Time.seconds(10L);
-	private static final ComponentMainThreadExecutor mainThreadExecutor =
-		ComponentMainThreadExecutorServiceAdapter.forMainThread();
-
-
-	private TestingResourceManagerGateway resourceManagerGateway;
-	private SlotPoolBuilder slotPoolBuilder;
-
-	@Before
-	public void setUp() throws Exception {
-		resourceManagerGateway = new TestingResourceManagerGateway();
-		slotPoolBuilder = new SlotPoolBuilder(mainThreadExecutor);
-	}
+public class SlotPoolRequestCompletionTest extends SlotPoolTestBase {
 
 	/**
 	 * Tests that the {@link SlotPoolImpl} completes slots in request order.

@@ -36,14 +36,12 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
-import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.clock.ManualClock;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
@@ -86,7 +84,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the {@link SlotPoolImpl}.
  */
-public class SlotPoolImplTest extends TestLogger {
+public class SlotPoolImplTest extends SlotPoolTestBase {
 
 	private static final Time TIMEOUT = Time.seconds(10L);
 	private static final ComponentMainThreadExecutor mainThreadExecutor =
@@ -94,15 +92,13 @@ public class SlotPoolImplTest extends TestLogger {
 
 	private TaskManagerLocation taskManagerLocation;
 	private SimpleAckingTaskManagerGateway taskManagerGateway;
-	private TestingResourceManagerGateway resourceManagerGateway;
-	private SlotPoolBuilder slotPoolBuilder;
 
 	@Before
+	@Override
 	public void setup() throws Exception {
 		taskManagerLocation = new LocalTaskManagerLocation();
 		taskManagerGateway = new SimpleAckingTaskManagerGateway();
-		resourceManagerGateway = new TestingResourceManagerGateway();
-		slotPoolBuilder = new SlotPoolBuilder(mainThreadExecutor).setResourceManagerGateway(resourceManagerGateway);
+		super.setup();
 	}
 
 	@Test
@@ -779,25 +775,6 @@ public class SlotPoolImplTest extends TestLogger {
 			assertThat(slotFuture.isCompletedExceptionally(), is(false));
 			assertThat(slotFuture.getNow(null).getAllocationId(), is(allocationId));
 		}
-	}
-
-	private void requestNewAllocatedSlots(final SlotPool slotPool, final SlotRequestId... slotRequestIds) {
-		for (SlotRequestId slotRequestId : slotRequestIds) {
-			requestNewAllocatedSlot(slotPool, slotRequestId);
-		}
-	}
-
-	private CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
-			final SlotPool slotPool,
-			final SlotRequestId slotRequestId) {
-		return requestNewAllocatedSlot(slotPool, slotRequestId, TIMEOUT);
-	}
-
-	private CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
-		final SlotPool slotPool,
-		final SlotRequestId slotRequestId,
-		final Time timeout) {
-		return slotPool.requestNewAllocatedSlot(slotRequestId, ResourceProfile.UNKNOWN, timeout);
 	}
 
 	private void offerSlot(final SlotPoolImpl slotPool, final AllocationID allocationId) {

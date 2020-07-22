@@ -22,14 +22,11 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnfulfillableSlotRequestException;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.clock.ManualClock;
 
 import org.junit.Before;
@@ -51,21 +48,16 @@ import static org.junit.Assert.fail;
 /**
  * Tests for batch slot requests.
  */
-public class SlotPoolBatchSlotRequestTest extends TestLogger {
-
-	private static final ComponentMainThreadExecutor mainThreadExecutor =
-		ComponentMainThreadExecutorServiceAdapter.forMainThread();
+public class SlotPoolBatchSlotRequestTest extends SlotPoolTestBase {
 
 	private static final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 1024);
 	private static final ResourceProfile smallerResourceProfile = ResourceProfile.fromResources(0.5, 512);
 	public static final CompletableFuture[] COMPLETABLE_FUTURES_EMPTY_ARRAY = new CompletableFuture[0];
 
-	private SlotPoolBuilder slotPoolBuilder;
-	private TestingResourceManagerGateway testingResourceManagerGateway;
-
 	@Before
+	@Override
 	public void setup() throws Exception {
-		testingResourceManagerGateway = new TestingResourceManagerGateway();
+		resourceManagerGateway = new TestingResourceManagerGateway();
 		slotPoolBuilder = new SlotPoolBuilder(mainThreadExecutor);
 	}
 
@@ -133,13 +125,13 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 	@Test
 	public void testPendingBatchSlotRequestDoesNotFailIfAllocationFails() throws Exception {
 		final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
-		testingResourceManagerGateway.setRequestSlotConsumer(
+		resourceManagerGateway.setRequestSlotConsumer(
 			slotRequest -> allocationIdFuture.complete(slotRequest.getAllocationId()));
 
 		final Time batchSlotTimeout = Time.milliseconds(1000L);
 		try (final SlotPoolImpl slotPool = slotPoolBuilder
 				.setBatchSlotTimeout(batchSlotTimeout)
-				.setResourceManagerGateway(testingResourceManagerGateway)
+				.setResourceManagerGateway(resourceManagerGateway)
 				.build()) {
 
 			final CompletableFuture<PhysicalSlot> slotFuture = SlotPoolUtils.requestNewAllocatedBatchSlot(
@@ -164,11 +156,11 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 	@Test
 	public void testPendingBatchSlotRequestFailsIfAllocationFailsUnfulfillably() throws Exception {
 		final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
-		testingResourceManagerGateway.setRequestSlotConsumer(
+		resourceManagerGateway.setRequestSlotConsumer(
 			slotRequest -> allocationIdFuture.complete(slotRequest.getAllocationId()));
 
 		try (final SlotPoolImpl slotPool = slotPoolBuilder
-				.setResourceManagerGateway(testingResourceManagerGateway)
+				.setResourceManagerGateway(resourceManagerGateway)
 				.build()) {
 
 			final CompletableFuture<PhysicalSlot> slotFuture = SlotPoolUtils.requestNewAllocatedBatchSlot(
@@ -191,12 +183,12 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 	 */
 	@Test
 	public void testPendingBatchSlotRequestDoesNotFailIfRMRequestFails() throws Exception {
-		testingResourceManagerGateway.setRequestSlotFuture(FutureUtils.completedExceptionally(new FlinkException("Failed request")));
+		resourceManagerGateway.setRequestSlotFuture(FutureUtils.completedExceptionally(new FlinkException("Failed request")));
 
 		final Time batchSlotTimeout = Time.milliseconds(1000L);
 		try (final SlotPoolImpl slotPool = slotPoolBuilder
 			.setBatchSlotTimeout(batchSlotTimeout)
-			.setResourceManagerGateway(testingResourceManagerGateway)
+			.setResourceManagerGateway(resourceManagerGateway)
 			.build()) {
 
 			final CompletableFuture<PhysicalSlot> slotFuture =
@@ -211,11 +203,11 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 	 */
 	@Test
 	public void testPendingBatchSlotRequestFailsIfRMRequestFailsUnfulfillably() throws Exception {
-		testingResourceManagerGateway.setRequestSlotFuture(FutureUtils.completedExceptionally(
+		resourceManagerGateway.setRequestSlotFuture(FutureUtils.completedExceptionally(
 			new UnfulfillableSlotRequestException(new AllocationID(), ResourceProfile.UNKNOWN)));
 
 		try (final SlotPoolImpl slotPool = slotPoolBuilder
-			.setResourceManagerGateway(testingResourceManagerGateway)
+			.setResourceManagerGateway(resourceManagerGateway)
 			.build()) {
 
 			final CompletableFuture<PhysicalSlot> slotFuture =
