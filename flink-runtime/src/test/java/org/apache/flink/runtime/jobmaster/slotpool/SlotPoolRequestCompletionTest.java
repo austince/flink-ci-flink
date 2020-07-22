@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -59,12 +60,17 @@ import static org.hamcrest.Matchers.nullValue;
 public class SlotPoolRequestCompletionTest extends TestLogger {
 
 	private static final Time TIMEOUT = Time.seconds(10L);
+	private static final ComponentMainThreadExecutor mainThreadExecutor =
+		ComponentMainThreadExecutorServiceAdapter.forMainThread();
+
 
 	private TestingResourceManagerGateway resourceManagerGateway;
+	private SlotPoolBuilder slotPoolBuilder;
 
 	@Before
 	public void setUp() throws Exception {
 		resourceManagerGateway = new TestingResourceManagerGateway();
+		slotPoolBuilder = new SlotPoolBuilder(mainThreadExecutor);
 	}
 
 	/**
@@ -73,7 +79,7 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
 	@Test
 	public void testRequestsAreCompletedInRequestOrder() {
 		runSlotRequestCompletionTest(
-			CheckedSupplier.unchecked(this::setUpSlotPoolAndConnectToResourceManager),
+			CheckedSupplier.unchecked(slotPoolBuilder.setResourceManagerGateway(resourceManagerGateway)::build),
 			slotPool -> {});
 	}
 
@@ -99,7 +105,7 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
 				.collect(Collectors.toList());
 
 			final List<SlotRequest> rmReceivedSlotRequests = new ArrayList<>(requestNum);
-			resourceManagerGateway.setRequestSlotConsumer(request -> rmReceivedSlotRequests.add(request));
+			resourceManagerGateway.setRequestSlotConsumer(rmReceivedSlotRequests::add);
 
 			final List<CompletableFuture<PhysicalSlot>> slotRequests = slotRequestIds
 				.stream()
@@ -129,22 +135,13 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
 		}
 	}
 
-	private SlotPoolImpl setUpSlotPoolAndConnectToResourceManager() throws Exception {
-		final SlotPoolImpl slotPool = setUpSlotPool();
-		connectToResourceManager(slotPool);
-
-		return slotPool;
-	}
-
 	private void connectToResourceManager(SlotPoolImpl slotPool) {
 		slotPool.connectToResourceManager(resourceManagerGateway);
 	}
 
 	private SlotPoolImpl setUpSlotPool() throws Exception {
 		final SlotPoolImpl slotPool = new TestingSlotPoolImpl(new JobID());
-
-		slotPool.start(JobMasterId.generate(), "foobar", ComponentMainThreadExecutorServiceAdapter.forMainThread());
-
+		slotPool.start(JobMasterId.generate(), "foobar", mainThreadExecutor);
 		return slotPool;
 	}
 }

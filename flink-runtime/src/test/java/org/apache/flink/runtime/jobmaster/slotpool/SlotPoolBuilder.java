@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -35,9 +36,10 @@ import java.util.concurrent.CompletableFuture;
  */
 public class SlotPoolBuilder {
 
-	private ComponentMainThreadExecutor componentMainThreadExecutor;
-	private ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
-	private Time batchSlotTimeout = Time.milliseconds(2L);
+	private final ComponentMainThreadExecutor componentMainThreadExecutor;
+	private ResourceManagerGateway resourceManagerGateway;
+	private Time batchSlotTimeout = Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue());
+	private Time idleSlotTimeout = TestingUtils.infiniteTime();
 	private Clock clock = SystemClock.getInstance();
 
 	public SlotPoolBuilder(ComponentMainThreadExecutor componentMainThreadExecutor) {
@@ -54,23 +56,47 @@ public class SlotPoolBuilder {
 		return this;
 	}
 
+	public SlotPoolBuilder setIdleSlotTimeout(Time idleSlotTimeout) {
+		this.idleSlotTimeout = idleSlotTimeout;
+		return this;
+	}
+
 	public SlotPoolBuilder setClock(Clock clock) {
 		this.clock = clock;
 		return this;
 	}
 
-	public TestingSlotPoolImpl build() throws Exception {
+	public TestingSlotPoolImpl build(JobID jobID, Boolean connectToResourceManager) throws Exception {
 		final TestingSlotPoolImpl slotPool = new TestingSlotPoolImpl(
-			new JobID(),
+			jobID,
 			clock,
 			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
+			idleSlotTimeout,
 			batchSlotTimeout);
 
 		slotPool.start(JobMasterId.generate(), "foobar", componentMainThreadExecutor);
 
-		CompletableFuture.runAsync(() -> slotPool.connectToResourceManager(resourceManagerGateway), componentMainThreadExecutor).join();
+		if (connectToResourceManager) {
+			if (resourceManagerGateway == null) {
+				resourceManagerGateway = new TestingResourceManagerGateway();
+			}
+			CompletableFuture.runAsync(
+				() -> slotPool.connectToResourceManager(resourceManagerGateway), componentMainThreadExecutor)
+				.join();
+		}
 
 		return slotPool;
+	}
+
+	public TestingSlotPoolImpl build(Boolean connectToResourceManager) throws Exception {
+		return build(new JobID(), connectToResourceManager);
+	}
+
+	public TestingSlotPoolImpl build(JobID jobID) throws Exception {
+		return build(jobID, true);
+	}
+
+	public TestingSlotPoolImpl build() throws Exception {
+		return build(new JobID());
 	}
 }
