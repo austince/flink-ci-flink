@@ -119,11 +119,11 @@ public class TestingSlotPoolImpl extends SlotPoolImpl {
 	protected void timeoutPendingSlotRequest(SlotRequestId slotRequestId) {
 		final Consumer<SlotRequestId> currentTimeoutPendingSlotRequestConsumer = timeoutPendingSlotRequestConsumer;
 
+		super.timeoutPendingSlotRequest(slotRequestId);
+
 		if (currentTimeoutPendingSlotRequestConsumer != null) {
 			currentTimeoutPendingSlotRequestConsumer.accept(slotRequestId);
 		}
-
-		super.timeoutPendingSlotRequest(slotRequestId);
 	}
 
 	boolean containsAllocatedSlot(AllocationID allocationId) {
