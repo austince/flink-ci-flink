@@ -226,6 +226,9 @@ public class SqlCommandParserTest {
 				// show tables
 				TestItem.validSql("SHOW TABLES;", SqlCommand.SHOW_TABLES),
 				TestItem.validSql("  SHOW   TABLES   ;", SqlCommand.SHOW_TABLES),
+				// show create table
+				TestItem.validSql("show create table tb1", SqlCommand.SHOW_CREATE_TABLE, "`default_catalog`.`default_database`.`tb1`"),
+				TestItem.validSql("show create table catalog1.db1.tb1", SqlCommand.SHOW_CREATE_TABLE, "`catalog1`.`db1`.`tb1`"),
 				// show functions
 				TestItem.validSql("SHOW FUNCTIONS;", SqlCommand.SHOW_FUNCTIONS),
 				TestItem.validSql("  SHOW    FUNCTIONS   ", SqlCommand.SHOW_FUNCTIONS),

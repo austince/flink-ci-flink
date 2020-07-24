@@ -298,6 +298,9 @@ public class CliClient {
 			case SHOW_TABLES:
 				callShowTables();
 				break;
+			case SHOW_CREATE_TABLE:
+				callShowCreateTable(cmdCall);
+				break;
 			case SHOW_FUNCTIONS:
 				callShowFunctions();
 				break;
@@ -507,6 +510,18 @@ public class CliClient {
 		} else {
 			tables.forEach((v) -> terminal.writer().println(v));
 		}
+		terminal.flush();
+	}
+
+	private void callShowCreateTable(SqlCommandCall cmdCall) {
+		final List<String> createStatement;
+		try {
+			createStatement = getShowResult(String.format("CREATE TABLE %s", cmdCall.operands[0]));
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
+		}
+		terminal.writer().println(createStatement.get(0));
 		terminal.flush();
 	}
 

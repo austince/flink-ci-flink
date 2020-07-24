@@ -25,7 +25,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-SHOW statements are used to list all catalogs, or list all databases in the current catalog, or list all tables/views in the current catalog and the current database, or show current catalog and database, or list all functions including temp system functions, system functions, temp catalog functions and catalog functions in the current catalog and the current database.
+SHOW statements are used to list all catalogs, or list all databases in the current catalog, or list all tables/views in the current catalog and the current database, or show current catalog and database, or show create statement for specified table, or list all functions including temp system functions, system functions, temp catalog functions and catalog functions in the current catalog and the current database.
 
 Flink SQL supports the following SHOW statements for now:
 - SHOW CATALOGS
@@ -33,6 +33,7 @@ Flink SQL supports the following SHOW statements for now:
 - SHOW DATABASES
 - SHOW CURRENT DATABASE
 - SHOW TABLES
+- SHOW CREATE TABLE
 - SHOW VIEWS
 - SHOW FUNCTIONS
 
@@ -90,6 +91,20 @@ tEnv.executeSql("SHOW TABLES").print();
 // +------------+
 // |   my_table |
 // +------------+
+
+// create a table
+tEnv.executeSql("CREATE TABLE my_table (...) WITH (...)");
+// show create table my_table
+tEnv.executeSql("SHOW CREATE TABLE my_table").print();
+// +---------------------------+
+// |              create table |
+// +---------------------------+
+// | CREATE TABLE `my_table` ( |
+// |   ...                     |
+// | ) WITH (                  |
+// |   ...                     |
+// | )                         |
+// +---------------------------+
 
 // create a view
 tEnv.executeSql("CREATE VIEW my_view AS ...");
@@ -293,6 +308,14 @@ SHOW TABLES
 {% endhighlight %}
 
 Show all tables in the current catalog and the current database.
+
+## SHOW CREATE TABLE
+
+{% highlight sql %}
+SHOW CREATE TABLE [catalog_name.][db_name.]table_name
+{% endhighlight %}
+
+Show create table statement for specified table.
 
 ## SHOW VIEWS
 

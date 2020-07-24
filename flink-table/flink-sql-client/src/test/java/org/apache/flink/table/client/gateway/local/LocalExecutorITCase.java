@@ -987,19 +987,21 @@ public class LocalExecutorITCase extends TestLogger {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(session);
-		final String ddlTemplate = "create table %s(\n" +
-				"  a int,\n" +
-				"  b bigint,\n" +
-				"  c varchar\n" +
-				") with (\n" +
-				"  'connector.type'='filesystem',\n" +
-				"  'format.type'='csv',\n" +
-				"  'connector.path'='xxx'\n" +
-				")\n";
+		final String ddlTemplate = "CREATE TABLE %s (\n" +
+				"  `a` INT,\n" +
+				"  `b` BIGINT,\n" +
+				"  `c` STRING\n" +
+				") WITH (\n" +
+				"  'connector.type' = 'filesystem',\n" +
+				"  'connector.path' = 'xxx',\n" +
+				"  'format.type' = 'csv'\n" +
+			")\n";
 		try {
 			// Test create table with simple name.
 			executor.executeSql(sessionId, "use catalog catalog1");
 			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertShowResult(executor.executeSql(sessionId, String.format("show create table %s", "MyTable1")),
+				Arrays.asList(String.format(ddlTemplate, "`MyTable1`")));
 			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.singletonList("MyTable1"));
 			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable2"));
 			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Arrays.asList("MyTable1", "MyTable2"));
@@ -1011,12 +1013,16 @@ public class LocalExecutorITCase extends TestLogger {
 			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Arrays.asList("MyTable1", "MyTable2"));
 			executor.executeSql(sessionId, "use catalog `simple-catalog`");
 			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Arrays.asList("MyTable3", "MyTable4", "test-table"));
+			assertShowResult(executor.executeSql(sessionId, "show create table `simple-catalog`.`default_database`.`MyTable3`"),
+				Arrays.asList(String.format(ddlTemplate, "`MyTable3`")));
 
 			// Test create table with db and table name.
 			executor.executeSql(sessionId, "use catalog catalog1");
 			executor.executeSql(sessionId, String.format(ddlTemplate, "`default`.MyTable5"));
 			executor.executeSql(sessionId, String.format(ddlTemplate, "`default`.MyTable6"));
 			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Arrays.asList("MyTable1", "MyTable2", "MyTable5", "MyTable6"));
+			assertShowResult(executor.executeSql(sessionId, "show create table `default`.MyTable5"),
+				Arrays.asList(String.format(ddlTemplate, "`MyTable5`")));
 		} finally {
 			executor.closeSession(sessionId);
 		}

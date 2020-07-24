@@ -19,7 +19,7 @@
 package org.apache.flink.table.calcite
 
 import org.apache.flink.sql.parser.ExtendedSqlNode
-import org.apache.flink.sql.parser.dql.{SqlRichDescribeTable, SqlShowCatalogs, SqlShowCurrentCatalog, SqlShowCurrentDatabase, SqlShowDatabases, SqlShowFunctions, SqlShowTables, SqlShowViews}
+import org.apache.flink.sql.parser.dql.{SqlRichDescribeTable, SqlShowCatalogs, SqlShowCreateTable, SqlShowCurrentCatalog, SqlShowCurrentDatabase, SqlShowDatabases, SqlShowFunctions, SqlShowTables, SqlShowViews}
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.catalog.CatalogReader
 
@@ -127,6 +127,7 @@ class FlinkPlannerImpl(
         || sqlNode.isInstanceOf[SqlShowDatabases]
         || sqlNode.isInstanceOf[SqlShowCurrentDatabase]
         || sqlNode.isInstanceOf[SqlShowTables]
+        || sqlNode.isInstanceOf[SqlShowCreateTable]
         || sqlNode.isInstanceOf[SqlShowFunctions]
         || sqlNode.isInstanceOf[SqlShowViews]
         || sqlNode.isInstanceOf[SqlRichDescribeTable]) {

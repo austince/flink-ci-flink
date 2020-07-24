@@ -295,6 +295,21 @@ public class CliClientTest extends TestLogger {
 		assertThat(executor.getNumExecuteSqlCalls(), is(1));
 	}
 
+	@Test
+	public void testShowCreateTable() throws Exception {
+		TestingExecutor executor = new TestingExecutorBuilder()
+			.setExecuteSqlConsumer((sessionId, sql) -> {
+				if (sql.toLowerCase().equals("show create table `catalog1`.`db1`.`tbl1`")){
+					return TestTableResult.TABLE_RESULT_OK;
+				} else {
+					throw new SqlExecutionException(String.format("Unknown sql statement: %s.", sql));
+				}
+			}).build();
+		String output = testExecuteSql(executor, "show create table catalog1.db1.tbl1;");
+		assertFalse(output.contains("Unknown sql statement"));
+		assertThat(executor.getNumExecuteSqlCalls(), is(1));
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	/**

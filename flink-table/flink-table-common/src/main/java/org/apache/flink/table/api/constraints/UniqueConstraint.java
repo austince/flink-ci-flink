@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -75,19 +76,24 @@ public final class UniqueConstraint extends AbstractConstraint {
 	 */
 	@Override
 	public final String asSummaryString() {
-		final String typeString;
-		switch (getType()) {
-			case PRIMARY_KEY:
-				typeString = "PRIMARY KEY";
-				break;
-			case UNIQUE_KEY:
-				typeString = "UNIQUE";
-				break;
-			default:
-				throw new IllegalStateException("Unknown key type: " + getType());
-		}
-
+		final String typeString = getTypeString();
 		return String.format("CONSTRAINT %s %s (%s)", getName(), typeString, String.join(", ", columns));
+	}
+
+	/**
+	 * Returns constraint's canonical summary. All constraints summary will be formatted as
+	 * <pre>
+	 * CONSTRAINT [constraint-name] [constraint-type] ([constraint-definition]) NOT ENFORCED
+	 *
+	 * E.g CONSTRAINT pk PRIMARY KEY (`f0`, `f1`) NOT ENFORCED
+	 * </pre>
+	 */
+	public final String asCanonicalString() {
+		final String typeString = getTypeString();
+		return String.format("CONSTRAINT %s %s (%s) NOT ENFORCED",
+			getName(),
+			typeString,
+			String.join(", ", columns.stream().map(col -> String.format("`%s`", col)).collect(Collectors.toList())));
 	}
 
 	@Override
@@ -109,5 +115,16 @@ public final class UniqueConstraint extends AbstractConstraint {
 	@Override
 	public int hashCode() {
 		return Objects.hash(super.hashCode(), columns, type);
+	}
+
+	private final String getTypeString() {
+		switch (getType()) {
+			case PRIMARY_KEY:
+				return "PRIMARY KEY";
+			case UNIQUE_KEY:
+				return "UNIQUE";
+			default:
+				throw new IllegalStateException("Unknown key type: " + getType());
+		}
 	}
 }

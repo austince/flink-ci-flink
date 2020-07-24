@@ -26,6 +26,7 @@ import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
+import org.apache.flink.table.operations.ShowCreateTableOperation;
 import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
@@ -155,6 +156,9 @@ public final class SqlCommandParser {
 		} else if (operation instanceof ShowTablesOperation) {
 			cmd = SqlCommand.SHOW_TABLES;
 			operands = new String[0];
+		} else if (operation instanceof ShowCreateTableOperation) {
+			cmd = SqlCommand.SHOW_CREATE_TABLE;
+			operands = new String[]{((ShowCreateTableOperation) operation).getSqlIdentifier().toString()};
 		} else if (operation instanceof ShowFunctionsOperation) {
 			cmd = SqlCommand.SHOW_FUNCTIONS;
 			operands = new String[0];
@@ -243,6 +247,8 @@ public final class SqlCommandParser {
 		SHOW_CURRENT_DATABASE,
 
 		SHOW_TABLES,
+
+		SHOW_CREATE_TABLE,
 
 		SHOW_FUNCTIONS,
 
