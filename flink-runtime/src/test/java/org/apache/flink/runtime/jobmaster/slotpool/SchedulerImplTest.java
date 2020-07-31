@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
@@ -42,7 +43,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.apache.flink.runtime.jobmaster.slotpool.AvailableSlotsTest.DEFAULT_TESTING_PROFILE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -95,17 +95,17 @@ public class SchedulerImplTest extends TestLogger {
 			final SlotOffer slotOffer = new SlotOffer(
 				slotRequest.getAllocationId(),
 				0,
-				DEFAULT_TESTING_PROFILE);
+				ResourceProfile.ANY);
 
 			testMainThreadExecutor.execute(() -> slotPool.offerSlot(
 				taskManagerLocation,
 				taskManagerGateway,
 				slotOffer));
 
-			final LogicalSlot slot = allocatedSlotFuture.get(1, TimeUnit.SECONDS);
+			final LogicalSlot allocatedSlot = allocatedSlotFuture.get(1, TimeUnit.SECONDS);
 			assertTrue(allocatedSlotFuture.isDone());
-			assertTrue(slot.isAlive());
-			assertEquals(taskManagerLocation, slot.getTaskManagerLocation());
+			assertTrue(allocatedSlot.isAlive());
+			assertEquals(taskManagerLocation, allocatedSlot.getTaskManagerLocation());
 		}
 	}
 
