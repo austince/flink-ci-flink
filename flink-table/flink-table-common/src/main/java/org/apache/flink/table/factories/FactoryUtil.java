@@ -50,8 +50,8 @@ import java.util.Optional;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /**
  * Utility for working with {@link Factory}s.

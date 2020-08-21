@@ -25,12 +25,11 @@ import java.util.Collections;
 import java.util.Set;
 
 /**
- * Test implementations for {@link DynamicTableSourceFactory} and {@link DynamicTableSinkFactory}.
+ * Test implementations for {@link DynamicTableSinkFactory}.
  */
 public final class TestDynamicTableSinkOnlyFactory implements  DynamicTableSinkFactory {
 
 	public static final String IDENTIFIER = "test-connector-sink-only";
-
 
 	@Override
 	public DynamicTableSink createDynamicTableSink(Context context) {

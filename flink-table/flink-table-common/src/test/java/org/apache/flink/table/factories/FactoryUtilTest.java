@@ -224,7 +224,6 @@ public class FactoryUtilTest {
 		assertEquals(actual, expected);
 	}
 
-
 	@Test
 	public void testOptionalFormat() {
 		final Map<String, String> options = createAllOptions();

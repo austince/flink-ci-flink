@@ -25,7 +25,7 @@ import java.util.Collections;
 import java.util.Set;
 
 /**
- * Test implementations for {@link DynamicTableSourceFactory} and {@link DynamicTableSinkFactory}.
+ * Test implementations for {@link DynamicTableSourceFactory}.
  */
 public final class TestDynamicTableSourceOnlyFactory implements DynamicTableSourceFactory {
 
@@ -35,6 +35,7 @@ public final class TestDynamicTableSourceOnlyFactory implements DynamicTableSour
 	public DynamicTableSource createDynamicTableSource(Context context) {
 		return null;
 	}
+
 	@Override
 	public String factoryIdentifier() {
 		return IDENTIFIER;
