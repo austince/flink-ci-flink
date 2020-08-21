@@ -51,6 +51,7 @@ import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.TreeSet;
 
 /**
  * Utility for working with {@link Factory}s.
@@ -236,17 +237,42 @@ public final class FactoryUtil {
 			.collect(Collectors.toList());
 
 		if (matchingFactories.isEmpty()) {
-			throw new ValidationException(
-				String.format(
-					"Could not find any factory for identifier '%s' that implements '%s' in the classpath.\n\n" +
-					"Available factory identifiers are:\n\n" +
-					"%s",
-					factoryIdentifier,
-					factoryClass.getName(),
-					foundFactories.stream()
-						.map(Factory::factoryIdentifier)
-						.sorted()
-						.collect(Collectors.joining("\n"))));
+			List<Factory> connectorfactories = factories.stream()
+				.filter(f -> DynamicTableSourceFactory.class.isAssignableFrom(f.getClass()) || DynamicTableSinkFactory.class.isAssignableFrom(f.getClass()))
+				.filter(f -> f.factoryIdentifier().equals(factoryIdentifier))
+				.collect(Collectors.toList());
+			if (connectorfactories.isEmpty()) {
+				throw new ValidationException(
+					String.format(
+						"Could not find any factory for identifier '%s' that implements '%s' in the classpath.\n\n" +
+							"Available factory identifiers are:\n\n" +
+							"%s",
+						factoryIdentifier,
+						factoryClass.getName(),
+						getAvailableFactoryTips(factories)
+					));
+			} else {
+				if (DynamicTableSinkFactory.class.isAssignableFrom(connectorfactories.get(0).getClass())) {
+					throw new ValidationException(
+						String.format(
+							"The connector named '%s' is only supported as sink,cann't be used as a source.\n\n" +
+								"Available factory identifiers are:\n\n" +
+								"%s",
+							factoryIdentifier,
+							getAvailableFactoryTips(factories)
+						));
+				} else {
+					throw new ValidationException(
+						String.format(
+							"The connector named '%s' is only supported as source,cann't be used as a sink.\n\n" +
+								"Available factory identifiers are:\n\n" +
+								"%s",
+							factoryIdentifier,
+							getAvailableFactoryTips(factories)
+						));
+				}
+
+			}
 		}
 		if (matchingFactories.size() > 1) {
 			throw new ValidationException(
@@ -263,6 +289,40 @@ public final class FactoryUtil {
 		}
 
 		return (T) matchingFactories.get(0);
+	}
+
+	/**
+	 * Get available factory tips.
+	 */
+	private static String getAvailableFactoryTips(List<Factory> factories) {
+		List<String> sourceIdentifiers = factories.stream()
+			.filter(f -> DynamicTableSourceFactory.class.isAssignableFrom(f.getClass()))
+			.map(f -> f.factoryIdentifier())
+			.collect(Collectors.toList());
+
+		List<String> sinkIdentifiers = factories.stream()
+			.filter(f -> DynamicTableSinkFactory.class.isAssignableFrom(f.getClass()))
+			.map(f -> f.factoryIdentifier())
+			.collect(Collectors.toList());
+
+		Set<String> identifiers = new TreeSet<>();
+		identifiers.addAll(sourceIdentifiers);
+		identifiers.addAll(sinkIdentifiers);
+
+		return identifiers.stream().map(s -> {
+			boolean sourceBool = sourceIdentifiers.contains(s);
+			boolean sinkBool = sinkIdentifiers.contains(s);
+			if (sourceBool && sinkBool) {
+				return String.format("%s (%s,%s)", s, "source", "sink");
+			}
+			if (sourceBool) {
+				return String.format("%s (%s)", s, "source-only");
+			}
+			if (sinkBool) {
+				return String.format("%s (%s)", s, "sink-only");
+			}
+			return String.format("%s (%s)", s, "unknown");
+		}).collect(Collectors.joining("\n"));
 	}
 
 	/**

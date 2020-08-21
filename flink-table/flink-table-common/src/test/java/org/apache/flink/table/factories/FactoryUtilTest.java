@@ -160,6 +160,72 @@ public class FactoryUtilTest {
 	}
 
 	@Test
+	public void testAvailableFactoryTipsNoDependencyJar() {
+		String connector = "no-exist-connector";
+		final Map<String, String> options = createAllOptions();
+		options.put("connector", connector);
+		String actual = null;
+		try {
+			createTableSource(options);
+		} catch (ValidationException e) {
+			actual = e.getCause().getCause().getMessage();
+		}
+		String expected = String.format(
+			"Could not find any factory for identifier '%s' that implements '%s' in the classpath.\n\n" +
+				"Available factory identifiers are:\n\n" +
+				"%s",
+			connector,
+			DynamicTableSourceFactory.class.getName(),
+			"test-connector (source,sink)\ntest-connector-sink-only (sink-only)\ntest-connector-source-only (source-only)"
+		);
+		assertEquals(actual, expected);
+	}
+
+	@Test
+	public void testAvailableFactoryTipsDependencyJar() {
+		String sourceKeyWord = "source";
+		String sinkKeyWord = "sink";
+		String connector = "test-connector-sink-only";
+		final Map<String, String> options = createAllOptions();
+		options.put("connector", connector);
+		String actual = null;
+		try {
+			createTableSource(options);
+		} catch (ValidationException e) {
+			actual = e.getCause().getCause().getMessage();
+		}
+		String expected = String.format(
+			"The connector named '%s' is only supported as %s,cann't be used as a %s.\n\n" +
+				"Available factory identifiers are:\n\n" +
+				"%s",
+			connector,
+			sinkKeyWord,
+			sourceKeyWord,
+			"test-connector (source,sink)\ntest-connector-sink-only (sink-only)\ntest-connector-source-only (source-only)"
+		);
+		assertEquals(actual, expected);
+
+		String connectorSource = "test-connector-source-only";
+		options.put("connector", connectorSource);
+		try {
+			createTableSink(options);
+		} catch (ValidationException e) {
+			actual = e.getCause().getCause().getMessage();
+		}
+		expected = String.format(
+			"The connector named '%s' is only supported as %s,cann't be used as a %s.\n\n" +
+				"Available factory identifiers are:\n\n" +
+				"%s",
+			connectorSource,
+			sourceKeyWord,
+			sinkKeyWord,
+			"test-connector (source,sink)\ntest-connector-sink-only (sink-only)\ntest-connector-source-only (source-only)"
+		);
+		assertEquals(actual, expected);
+	}
+
+
+	@Test
 	public void testOptionalFormat() {
 		final Map<String, String> options = createAllOptions();
 		options.remove("key.format");
