@@ -237,11 +237,44 @@ public final class FactoryUtil {
 			.collect(Collectors.toList());
 
 		if (matchingFactories.isEmpty()) {
-			List<Factory> connectorfactories = factories.stream()
-				.filter(f -> DynamicTableSourceFactory.class.isAssignableFrom(f.getClass()) || DynamicTableSinkFactory.class.isAssignableFrom(f.getClass()))
-				.filter(f -> f.factoryIdentifier().equals(factoryIdentifier))
-				.collect(Collectors.toList());
-			if (connectorfactories.isEmpty()) {
+			boolean connectorOrNot = DynamicTableSourceFactory.class.equals(factoryClass) || DynamicTableSinkFactory.class.equals(factoryClass);
+			if (connectorOrNot) {
+				List<Factory> connectorfactories = factories.stream()
+					.filter(f -> DynamicTableSourceFactory.class.isAssignableFrom(f.getClass()) || DynamicTableSinkFactory.class.isAssignableFrom(f.getClass()))
+					.filter(f -> f.factoryIdentifier().equals(factoryIdentifier))
+					.collect(Collectors.toList());
+				if (!connectorfactories.isEmpty()) {
+					if (DynamicTableSinkFactory.class.isAssignableFrom(connectorfactories.get(0).getClass())) {
+						throw new ValidationException(
+							String.format(
+								"The connector named '%s' is only supported as sink,cann't be used as a source.\n\n" +
+									"Available factory identifiers are:\n\n" +
+									"%s",
+								factoryIdentifier,
+								getAvailableFactoryTips(factories)
+							));
+					} else {
+						throw new ValidationException(
+							String.format(
+								"The connector named '%s' is only supported as source,cann't be used as a sink.\n\n" +
+									"Available factory identifiers are:\n\n" +
+									"%s",
+								factoryIdentifier,
+								getAvailableFactoryTips(factories)
+							));
+					}
+				} else {
+					throw new ValidationException(
+						String.format(
+							"Could not find any factory for identifier '%s' that implements '%s' in the classpath.\n\n" +
+								"Available factory identifiers are:\n\n" +
+								"%s",
+							factoryIdentifier,
+							factoryClass.getName(),
+							getAvailableFactoryTips(factories)
+							));
+				}
+			} else {
 				throw new ValidationException(
 					String.format(
 						"Could not find any factory for identifier '%s' that implements '%s' in the classpath.\n\n" +
@@ -249,30 +282,12 @@ public final class FactoryUtil {
 							"%s",
 						factoryIdentifier,
 						factoryClass.getName(),
-						getAvailableFactoryTips(factories)
-					));
-			} else {
-				if (DynamicTableSinkFactory.class.isAssignableFrom(connectorfactories.get(0).getClass())) {
-					throw new ValidationException(
-						String.format(
-							"The connector named '%s' is only supported as sink,cann't be used as a source.\n\n" +
-								"Available factory identifiers are:\n\n" +
-								"%s",
-							factoryIdentifier,
-							getAvailableFactoryTips(factories)
-						));
-				} else {
-					throw new ValidationException(
-						String.format(
-							"The connector named '%s' is only supported as source,cann't be used as a sink.\n\n" +
-								"Available factory identifiers are:\n\n" +
-								"%s",
-							factoryIdentifier,
-							getAvailableFactoryTips(factories)
-						));
-				}
-
+						foundFactories.stream()
+							.map(Factory::factoryIdentifier)
+							.sorted()
+							.collect(Collectors.joining("\n"))));
 			}
+
 		}
 		if (matchingFactories.size() > 1) {
 			throw new ValidationException(

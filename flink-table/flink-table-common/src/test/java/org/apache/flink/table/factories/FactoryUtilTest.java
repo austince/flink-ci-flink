@@ -52,6 +52,8 @@ public class FactoryUtilTest {
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
+	private static final String CONNECTOR_TIPS = "test-connector (source,sink)\ntest-connector-sink-only (sink-only)\ntest-connector-source-only (source-only)";
+
 	@Test
 	public void testMissingConnector() {
 		expectError("Table options do not contain an option key 'connector' for discovering a connector.");
@@ -63,8 +65,8 @@ public class FactoryUtilTest {
 		expectError(
 			"Could not find any factory for identifier 'FAIL' that implements '" +
 				DynamicTableSourceFactory.class.getName() + "' in the classpath.\n\n" +
-			"Available factory identifiers are:\n\n" +
-			"test-connector");
+				"Available factory identifiers are:\n\n" +
+				CONNECTOR_TIPS);
 		testError(options -> options.put("connector", "FAIL"));
 	}
 
@@ -72,8 +74,8 @@ public class FactoryUtilTest {
 	public void testMissingConnectorOption() {
 		expectError(
 			"One or more required options are missing.\n\n" +
-			"Missing required options are:\n\n" +
-			"target");
+				"Missing required options are:\n\n" +
+				"target");
 		testError(options -> options.remove("target"));
 	}
 
@@ -94,8 +96,8 @@ public class FactoryUtilTest {
 		expectError(
 			"Could not find any factory for identifier 'FAIL' that implements '" +
 				DeserializationFormatFactory.class.getName() + "' in the classpath.\n\n" +
-			"Available factory identifiers are:\n\n" +
-			"test-format");
+				"Available factory identifiers are:\n\n" +
+				"test-format");
 		testError(options -> options.put("value.format", "FAIL"));
 	}
 
@@ -176,7 +178,7 @@ public class FactoryUtilTest {
 				"%s",
 			connector,
 			DynamicTableSourceFactory.class.getName(),
-			"test-connector (source,sink)\ntest-connector-sink-only (sink-only)\ntest-connector-source-only (source-only)"
+			CONNECTOR_TIPS
 		);
 		assertEquals(actual, expected);
 	}
@@ -201,7 +203,7 @@ public class FactoryUtilTest {
 			connector,
 			sinkKeyWord,
 			sourceKeyWord,
-			"test-connector (source,sink)\ntest-connector-sink-only (sink-only)\ntest-connector-source-only (source-only)"
+			CONNECTOR_TIPS
 		);
 		assertEquals(actual, expected);
 
