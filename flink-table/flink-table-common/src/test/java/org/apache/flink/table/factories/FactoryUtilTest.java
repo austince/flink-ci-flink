@@ -221,7 +221,7 @@ public class FactoryUtilTest {
 			connectorSource,
 			sourceKeyWord,
 			sinkKeyWord,
-			"test-connector (source,sink)\ntest-connector-sink-only (sink-only)\ntest-connector-source-only (source-only)"
+			CONNECTOR_TIPS
 		);
 		assertEquals(actual, expected);
 	}
