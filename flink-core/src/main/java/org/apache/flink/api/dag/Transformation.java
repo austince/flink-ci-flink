@@ -100,6 +100,8 @@ public abstract class Transformation<T> {
 
 	public static final int DEFAULT_MANAGED_MEMORY_WEIGHT = 1;
 
+	public static final long UNDEFINED_NETWORK_BUFFER_TIMEOUT = -1L;
+
 	// This is used to assign a unique ID to every Transformation
 	protected static Integer idCounter = 0;
 
@@ -156,7 +158,7 @@ public abstract class Transformation<T> {
 
 	private String userProvidedNodeHash;
 
-	protected long bufferTimeout = -1;
+	protected long bufferTimeout = UNDEFINED_NETWORK_BUFFER_TIMEOUT;
 
 	private String slotSharingGroup;
 
