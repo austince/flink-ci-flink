@@ -52,7 +52,8 @@ public class FactoryUtilTest {
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
-	private static final String CONNECTOR_TIPS = "test-connector (source,sink)\ntest-connector-sink-only (sink-only)\ntest-connector-source-only (source-only)";
+	private static final String CONNECTOR_TIPS = "test-connector (DynamicTableSourceFactory,DynamicTableSinkFactory)\ntest-connector-sink-only (DynamicTableSinkFactory)\ntest-connector-source-only (DynamicTableSourceFactory)";
+	private static final String FORMAT_TIPS = "test-format (SerializationFormatFactory,DeserializationFormatFactory)\ntest-format-deserialization-only (DeserializationFormatFactory)\ntest-format-serialization-only (SerializationFormatFactory)";
 
 	@Test
 	public void testMissingConnector() {
@@ -97,9 +98,75 @@ public class FactoryUtilTest {
 			"Could not find any factory for identifier 'FAIL' that implements '" +
 				DeserializationFormatFactory.class.getName() + "' in the classpath.\n\n" +
 				"Available factory identifiers are:\n\n" +
-				"test-format");
+				FORMAT_TIPS);
 		testError(options -> options.put("value.format", "FAIL"));
 	}
+
+	@Test
+	public void testAvailableFactoryTipsNoDependencyJarForFormat() {
+		String format = "no-exist-format";
+		final Map<String, String> options = createAllOptions();
+		options.put("key.format", format);
+		String actual = null;
+		try {
+			createTableSource(options);
+		} catch (ValidationException e) {
+			actual = e.getCause().getMessage();
+		}
+		String expected = String.format(
+			"Could not find any factory for identifier '%s' that implements '%s' in the classpath.\n\n" +
+				"Available factory identifiers are:\n\n" +
+				"%s",
+			format,
+			DeserializationFormatFactory.class.getName(),
+			FORMAT_TIPS
+		);
+		assertEquals(actual, expected);
+	}
+
+	@Test
+	public void testAvailableFactoryTipsDependencyJarForFormat() {
+		String serKeyWord = "serialization";
+		String deserKeyWord = "deserialization";
+		String format = "test-format-serialization-only";
+		final Map<String, String> options = createAllOptions();
+		options.put("key.format", format);
+		String actual = null;
+		try {
+			createTableSource(options);
+		} catch (ValidationException e) {
+			actual = e.getCause().getMessage();
+		}
+		String expected = String.format(
+			"The format named '%s' is only supported as %s,cann't be used as a %s.\n\n" +
+				"Available factory identifiers are:\n\n" +
+				"%s",
+			format,
+			serKeyWord,
+			deserKeyWord,
+			FORMAT_TIPS
+		);
+		assertEquals(actual, expected);
+
+		format = "test-format-deserialization-only";
+		options.put("key.format", format);
+		try {
+			createTableSink(options);
+		} catch (ValidationException e) {
+			actual = e.getCause().getMessage();
+		}
+		expected = String.format(
+			"The format named '%s' is only supported as %s,cann't be used as a %s.\n\n" +
+				"Available factory identifiers are:\n\n" +
+				"%s",
+			format,
+			deserKeyWord,
+			serKeyWord,
+			FORMAT_TIPS
+		);
+		assertEquals(actual, expected);
+	}
+
 
 	@Test
 	public void testMissingFormatOption() {
@@ -162,7 +229,7 @@ public class FactoryUtilTest {
 	}
 
 	@Test
-	public void testAvailableFactoryTipsNoDependencyJar() {
+	public void testAvailableFactoryTipsNoDependencyJarForConnector() {
 		String connector = "no-exist-connector";
 		final Map<String, String> options = createAllOptions();
 		options.put("connector", connector);
@@ -184,7 +251,7 @@ public class FactoryUtilTest {
 	}
 
 	@Test
-	public void testAvailableFactoryTipsDependencyJar() {
+	public void testAvailableFactoryTipsDependencyJarForConnector() {
 		String sourceKeyWord = "source";
 		String sinkKeyWord = "sink";
 		String connector = "test-connector-sink-only";

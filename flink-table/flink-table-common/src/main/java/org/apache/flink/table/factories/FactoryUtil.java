@@ -237,57 +237,7 @@ public final class FactoryUtil {
 			.collect(Collectors.toList());
 
 		if (matchingFactories.isEmpty()) {
-			boolean connectorOrNot = DynamicTableSourceFactory.class.equals(factoryClass) || DynamicTableSinkFactory.class.equals(factoryClass);
-			if (connectorOrNot) {
-				List<Factory> connectorfactories = factories.stream()
-					.filter(f -> DynamicTableSourceFactory.class.isAssignableFrom(f.getClass()) || DynamicTableSinkFactory.class.isAssignableFrom(f.getClass()))
-					.filter(f -> f.factoryIdentifier().equals(factoryIdentifier))
-					.collect(Collectors.toList());
-				if (!connectorfactories.isEmpty()) {
-					if (DynamicTableSinkFactory.class.isAssignableFrom(connectorfactories.get(0).getClass())) {
-						throw new ValidationException(
-							String.format(
-								"The connector named '%s' is only supported as sink,cann't be used as a source.\n\n" +
-									"Available factory identifiers are:\n\n" +
-									"%s",
-								factoryIdentifier,
-								getAvailableFactoryTips(factories)
-							));
-					} else {
-						throw new ValidationException(
-							String.format(
-								"The connector named '%s' is only supported as source,cann't be used as a sink.\n\n" +
-									"Available factory identifiers are:\n\n" +
-									"%s",
-								factoryIdentifier,
-								getAvailableFactoryTips(factories)
-							));
-					}
-				} else {
-					throw new ValidationException(
-						String.format(
-							"Could not find any factory for identifier '%s' that implements '%s' in the classpath.\n\n" +
-								"Available factory identifiers are:\n\n" +
-								"%s",
-							factoryIdentifier,
-							factoryClass.getName(),
-							getAvailableFactoryTips(factories)
-							));
-				}
-			} else {
-				throw new ValidationException(
-					String.format(
-						"Could not find any factory for identifier '%s' that implements '%s' in the classpath.\n\n" +
-							"Available factory identifiers are:\n\n" +
-							"%s",
-						factoryIdentifier,
-						factoryClass.getName(),
-						foundFactories.stream()
-							.map(Factory::factoryIdentifier)
-							.sorted()
-							.collect(Collectors.joining("\n"))));
-			}
-
+			throw new ValidationException(getAvailableFactoryTips(factories, factoryClass, factoryIdentifier));
 		}
 		if (matchingFactories.size() > 1) {
 			throw new ValidationException(
@@ -309,35 +259,95 @@ public final class FactoryUtil {
 	/**
 	 * Get available factory tips.
 	 */
-	private static String getAvailableFactoryTips(List<Factory> factories) {
-		List<String> sourceIdentifiers = factories.stream()
-			.filter(f -> DynamicTableSourceFactory.class.isAssignableFrom(f.getClass()))
-			.map(f -> f.factoryIdentifier())
-			.collect(Collectors.toList());
-
-		List<String> sinkIdentifiers = factories.stream()
-			.filter(f -> DynamicTableSinkFactory.class.isAssignableFrom(f.getClass()))
-			.map(f -> f.factoryIdentifier())
-			.collect(Collectors.toList());
-
+	private static String getAvailableFactoryTips(List<Factory> factories, Class factoryClass, String factoryIdentifier) {
+		boolean connectorOrNot = DynamicTableSourceFactory.class.equals(factoryClass) || DynamicTableSinkFactory.class.equals(factoryClass);
+		String template = "Could not find any factory for identifier '%s' that implements '%s' in the classpath.\n\n" +
+			"Available factory identifiers are:\n\n" +
+			"%s";
 		Set<String> identifiers = new TreeSet<>();
-		identifiers.addAll(sourceIdentifiers);
-		identifiers.addAll(sinkIdentifiers);
+		List<String> leftIdentifiers;
+		List<String> rightIdentifiers;
+		String leftName;
+		String rightName;
+		if (connectorOrNot) {
+			leftIdentifiers = factories.stream()
+				.filter(f -> DynamicTableSourceFactory.class.isAssignableFrom(f.getClass()))
+				.map(f -> f.factoryIdentifier())
+				.collect(Collectors.toList());
+			rightIdentifiers = factories.stream()
+				.filter(f -> DynamicTableSinkFactory.class.isAssignableFrom(f.getClass()))
+				.map(f -> f.factoryIdentifier())
+				.collect(Collectors.toList());
+			leftName = DynamicTableSourceFactory.class.getSimpleName();
+			rightName = DynamicTableSinkFactory.class.getSimpleName();
+		} else {
+			leftIdentifiers = factories.stream()
+				.filter(f -> SerializationFormatFactory.class.isAssignableFrom(f.getClass()))
+				.map(f -> f.factoryIdentifier())
+				.collect(Collectors.toList());
+			rightIdentifiers = factories.stream()
+				.filter(f -> DeserializationFormatFactory.class.isAssignableFrom(f.getClass()))
+				.map(f -> f.factoryIdentifier())
+				.collect(Collectors.toList());
+			leftName = SerializationFormatFactory.class.getSimpleName();
+			rightName = DeserializationFormatFactory.class.getSimpleName();
 
-		return identifiers.stream().map(s -> {
-			boolean sourceBool = sourceIdentifiers.contains(s);
-			boolean sinkBool = sinkIdentifiers.contains(s);
-			if (sourceBool && sinkBool) {
-				return String.format("%s (%s,%s)", s, "source", "sink");
+		}
+		identifiers.addAll(leftIdentifiers);
+		identifiers.addAll(rightIdentifiers);
+		String tips = identifiers.stream().map(s -> {
+			boolean leftBool = leftIdentifiers.contains(s);
+			boolean rightBool = rightIdentifiers.contains(s);
+			if (leftBool && rightBool) {
+				return String.format("%s (%s,%s)", s, leftName, rightName);
 			}
-			if (sourceBool) {
-				return String.format("%s (%s)", s, "source-only");
+			if (leftBool) {
+				return String.format("%s (%s)", s, leftName);
 			}
-			if (sinkBool) {
-				return String.format("%s (%s)", s, "sink-only");
+			if (rightBool) {
+				return String.format("%s (%s)", s, rightName);
 			}
 			return String.format("%s (%s)", s, "unknown");
 		}).collect(Collectors.joining("\n"));
+		if (connectorOrNot) {
+			List<Factory> connectorfactories = factories.stream()
+				.filter(f -> DynamicTableSourceFactory.class.isAssignableFrom(f.getClass()) || DynamicTableSinkFactory.class.isAssignableFrom(f.getClass()))
+				.filter(f -> f.factoryIdentifier().equals(factoryIdentifier))
+				.collect(Collectors.toList());
+			if (!connectorfactories.isEmpty()) {
+				if (DynamicTableSinkFactory.class.isAssignableFrom(connectorfactories.get(0).getClass())) {
+					return String.format("The connector named '%s' is only supported as sink,cann't be used as a source.\n\n" +
+						"Available factory identifiers are:\n\n" +
+						"%s", factoryIdentifier, tips);
+				} else {
+					return String.format("The connector named '%s' is only supported as source,cann't be used as a sink.\n\n" +
+						"Available factory identifiers are:\n\n" +
+						"%s", factoryIdentifier, tips);
+				}
+			}
+		} else {
+			List<Factory> formatfactories = factories.stream()
+				.filter(f -> SerializationFormatFactory.class.isAssignableFrom(f.getClass()) || DeserializationFormatFactory.class.isAssignableFrom(f.getClass()))
+				.filter(f -> f.factoryIdentifier().equals(factoryIdentifier))
+				.collect(Collectors.toList());
+			if (!formatfactories.isEmpty()) {
+				if (SerializationFormatFactory.class.isAssignableFrom(formatfactories.get(0).getClass())) {
+					return String.format("The format named '%s' is only supported as serialization,cann't be used as a deserialization.\n\n" +
+						"Available factory identifiers are:\n\n" +
+						"%s", factoryIdentifier, tips);
+				} else {
+					return String.format("The format named '%s' is only supported as deserialization,cann't be used as a serialization.\n\n" +
+						"Available factory identifiers are:\n\n" +
+						"%s", factoryIdentifier, tips);
+				}
+			}
+		}
+		return String.format(
+			template,
+			factoryIdentifier,
+			factoryClass.getName(),
+			tips
+		);
 	}
 
 	/**
