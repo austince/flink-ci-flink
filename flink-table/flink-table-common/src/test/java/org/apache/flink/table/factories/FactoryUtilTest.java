@@ -167,7 +167,6 @@ public class FactoryUtilTest {
 		assertEquals(actual, expected);
 	}
 
-
 	@Test
 	public void testMissingFormatOption() {
 		expectError(

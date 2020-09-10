@@ -36,7 +36,7 @@ public class TestFormatDeserializationOnlyFactory implements DeserializationForm
 
 	/**
 	 * Creates a format from the given context and format options.
-	 * <p>
+	 *
 	 * <p>The format options have been projected to top-level options (e.g. from {@code key.format.ignore-errors}
 	 * to {@code format.ignore-errors}).
 	 *
@@ -50,7 +50,7 @@ public class TestFormatDeserializationOnlyFactory implements DeserializationForm
 
 	/**
 	 * Returns a unique identifier among same factory interfaces.
-	 * <p>
+	 *
 	 * <p>For consistency, an identifier should be declared as one lower case word (e.g. {@code kafka}). If
 	 * multiple factories exist for different versions, a version should be appended using "-" (e.g. {@code kafka-0.10}).
 	 */
@@ -62,7 +62,7 @@ public class TestFormatDeserializationOnlyFactory implements DeserializationForm
 	/**
 	 * Returns a set of {@link ConfigOption} that an implementation of this factory requires in addition to
 	 * {@link #optionalOptions()}.
-	 * <p>
+	 *
 	 * <p>See the documentation of {@link Factory} for more information.
 	 */
 	@Override
@@ -73,7 +73,7 @@ public class TestFormatDeserializationOnlyFactory implements DeserializationForm
 	/**
 	 * Returns a set of {@link ConfigOption} that an implementation of this factory consumes in addition to
 	 * {@link #requiredOptions()}.
-	 * <p>
+	 *
 	 * <p>See the documentation of {@link Factory} for more information.
 	 */
 	@Override
