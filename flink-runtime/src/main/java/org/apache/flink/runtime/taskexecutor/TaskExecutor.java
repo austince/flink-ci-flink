@@ -1776,6 +1776,25 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		return unresolvedTaskManagerLocation.getResourceID();
 	}
 
+	public long getUsedManagedMemory() {
+		Iterator<AllocationID> slotIterator = taskSlotTable.getActiveSlots();
+
+		long usedMemory = 0L;
+		while (slotIterator.hasNext()) {
+			try {
+				usedMemory += taskSlotTable.getTaskMemoryManager(slotIterator.next()).usedMemory();
+			} catch (SlotNotFoundException e) {
+				onFatalError(new TaskManagerException("The used managed memory couldn't be determined due to a missing TaskSlot.", e));
+			}
+		}
+
+		return usedMemory;
+	}
+
+	public long getTotalManagedMemory() {
+		return this.taskExecutorServices.getManagedMemorySize();
+	}
+
 	// ------------------------------------------------------------------------
 	//  Error Handling
 	// ------------------------------------------------------------------------

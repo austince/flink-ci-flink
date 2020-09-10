@@ -859,7 +859,7 @@ Thus, in order to infer the metric identifier:
   </thead>                                                         
   <tbody>                                                          
     <tr>                                                           
-      <th rowspan="12"><strong>Job-/TaskManager</strong></th>
+      <th rowspan="14"><strong>Job-/TaskManager</strong></th>
       <td rowspan="12">Status.JVM.Memory</td>
       <td>Heap.Used</td>
       <td>The amount of heap memory currently used (in bytes).</td>
@@ -919,7 +919,18 @@ Thus, in order to infer the metric identifier:
       <td>Mapped.TotalCapacity</td>
       <td>The number of buffers in the mapped buffer pool (in bytes).</td>
       <td>Gauge</td>
-    </tr>                                                         
+    </tr>
+    <tr>
+      <td rowspan="2">Status.ManagedMemory</td>
+      <td>Used</td>
+      <td>The amount of managed memory currently used.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>Total</td>
+      <td>The total amount of managed memory.</td>
+      <td>Gauge</td>
+    </tr>
   </tbody>                                                         
 </table>
 

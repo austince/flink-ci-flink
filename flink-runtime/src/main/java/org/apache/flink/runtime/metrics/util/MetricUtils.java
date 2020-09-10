@@ -35,6 +35,7 @@ import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -58,6 +59,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.metrics.util.SystemResourcesMetricsInitializer.instantiateSystemMetrics;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utility class to register pre-defined metric sets.
@@ -130,6 +132,17 @@ public class MetricUtils {
 		instantiateMemoryMetrics(jvm.addGroup("Memory"));
 		instantiateThreadMetrics(jvm.addGroup("Threads"));
 		instantiateCPUMetrics(jvm.addGroup("CPU"));
+	}
+
+	public static void instantiateManagedMemoryMetrics(
+			MetricGroup metricGroup,
+			TaskExecutor taskExecutor) {
+		checkNotNull(metricGroup);
+		checkNotNull(taskExecutor);
+
+		MetricGroup managedMemoryMetricGroup = metricGroup.addGroup("ManagedMemory");
+		managedMemoryMetricGroup.gauge("Used", taskExecutor::getUsedManagedMemory);
+		managedMemoryMetricGroup.gauge("Total", taskExecutor::getTotalManagedMemory);
 	}
 
 	public static RpcService startRemoteMetricsRpcService(Configuration configuration, String hostname) throws Exception {

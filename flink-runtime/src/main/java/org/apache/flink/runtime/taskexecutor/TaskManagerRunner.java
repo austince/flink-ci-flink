@@ -403,7 +403,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 		String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 
-		return new TaskExecutor(
+		TaskExecutor taskExecutor = new TaskExecutor(
 			rpcService,
 			taskManagerConfiguration,
 			highAvailabilityServices,
@@ -416,6 +416,9 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			fatalErrorHandler,
 			new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()),
 			createBackPressureSampleService(configuration, rpcService.getScheduledExecutor()));
+		MetricUtils.instantiateManagedMemoryMetrics(taskManagerMetricGroup.f1, taskExecutor);
+
+		return taskExecutor;
 	}
 
 	static BackPressureSampleService createBackPressureSampleService(
