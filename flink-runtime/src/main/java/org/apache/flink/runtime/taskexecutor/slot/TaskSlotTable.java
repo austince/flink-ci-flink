@@ -204,6 +204,13 @@ public interface TaskSlotTable<T extends TaskSlotPayload> extends TimeoutListene
 	Iterator<AllocationID> getActiveSlots(JobID jobId);
 
 	/**
+	 * Returns an iterator of all active slots' application ids.
+	 *
+	 * @return Iterator of active slots' allocation ids.
+	 */
+	Iterator<AllocationID> getActiveSlots();
+
+	/**
 	 * Returns the owning job of the {@link TaskSlot} identified by the
 	 * given {@link AllocationID}.
 	 *

@@ -41,6 +41,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -90,6 +91,31 @@ public class TaskSlotTableImplTest extends TestLogger {
 		} finally {
 			taskSlotTable.close();
 			assertThat(taskSlotTable.isClosed(), is(true));
+		}
+	}
+
+	/**
+	 * Tests {@link TaskSlotTableImpl#getActiveSlots()}.
+	 */
+	@Test
+	public void testRetrievingAllActiveSlots() throws Exception {
+		try (final TaskSlotTableImpl<?> taskSlotTable = createTaskSlotTableAndStart(3)) {
+			final JobID jobId1 = new JobID();
+			final AllocationID allocationId1 = new AllocationID();
+			taskSlotTable.allocateSlot(0, jobId1, allocationId1, SLOT_TIMEOUT);
+			final AllocationID allocationId2 = new AllocationID();
+			taskSlotTable.allocateSlot(1, jobId1, allocationId2, SLOT_TIMEOUT);
+			final AllocationID allocationId3 = new AllocationID();
+			final JobID jobId2 = new JobID();
+			taskSlotTable.allocateSlot(2, jobId2, allocationId3, SLOT_TIMEOUT);
+
+			taskSlotTable.markSlotActive(allocationId1);
+			taskSlotTable.markSlotActive(allocationId3);
+
+			Set<AllocationID> actualActiveTaskSlots = new HashSet<>();
+			taskSlotTable.getActiveSlots().forEachRemaining(actualActiveTaskSlots::add);
+
+			assertThat(actualActiveTaskSlots, is(Sets.newHashSet(allocationId1, allocationId3)));
 		}
 	}
 

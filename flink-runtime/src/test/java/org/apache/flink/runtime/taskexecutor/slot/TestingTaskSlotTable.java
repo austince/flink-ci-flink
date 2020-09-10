@@ -52,6 +52,7 @@ public class TestingTaskSlotTable<T extends TaskSlotPayload> implements TaskSlot
 	private final Supplier<CompletableFuture<Void>> closeAsyncSupplier;
 	private final Function<JobID, Iterator<T>> tasksForJobFunction;
 	private final Function<JobID, Iterator<AllocationID>> activeSlotsForJobFunction;
+	private final Supplier<Iterator<AllocationID>> activeSlotsIteratorSupplier;
 
 	private TestingTaskSlotTable(
 			Supplier<SlotReport> createSlotReportSupplier,
@@ -61,7 +62,8 @@ public class TestingTaskSlotTable<T extends TaskSlotPayload> implements TaskSlot
 			Function<AllocationID, MemoryManager> memoryManagerGetter,
 			Supplier<CompletableFuture<Void>> closeAsyncSupplier,
 			Function<JobID, Iterator<T>> tasksForJobFunction,
-			Function<JobID, Iterator<AllocationID>> activeSlotsForJobFunction) {
+			Function<JobID, Iterator<AllocationID>> activeSlotsForJobFunction,
+			Supplier<Iterator<AllocationID>> activeSlotsIteratorSupplier) {
 		this.createSlotReportSupplier = createSlotReportSupplier;
 		this.allocateSlotSupplier = allocateSlotSupplier;
 		this.tryMarkSlotActiveBiFunction = tryMarkSlotActiveBiFunction;
@@ -70,6 +72,7 @@ public class TestingTaskSlotTable<T extends TaskSlotPayload> implements TaskSlot
 		this.closeAsyncSupplier = closeAsyncSupplier;
 		this.tasksForJobFunction = tasksForJobFunction;
 		this.activeSlotsForJobFunction = activeSlotsForJobFunction;
+		this.activeSlotsIteratorSupplier = activeSlotsIteratorSupplier;
 	}
 
 	@Override
@@ -147,6 +150,11 @@ public class TestingTaskSlotTable<T extends TaskSlotPayload> implements TaskSlot
 		return activeSlotsForJobFunction.apply(jobId);
 	}
 
+	@Override
+	public Iterator<AllocationID> getActiveSlots() {
+		return activeSlotsIteratorSupplier.get();
+	}
+
 	@Nullable
 	@Override
 	public JobID getOwningJob(AllocationID allocationId) {
@@ -211,6 +219,7 @@ public class TestingTaskSlotTable<T extends TaskSlotPayload> implements TaskSlot
 		private Supplier<CompletableFuture<Void>> closeAsyncSupplier = FutureUtils::completedVoidFuture;
 		private Function<JobID, Iterator<T>> tasksForJobFunction = ignored -> Collections.emptyIterator();
 		private Function<JobID, Iterator<AllocationID>> activeSlotsForJobFunction = ignored -> Collections.emptyIterator();
+		private Supplier<Iterator<AllocationID>> activeSlotsIteratorSupplier = () -> Collections.emptyIterator();
 
 		public TestingTaskSlotTableBuilder<T> createSlotReportSupplier(Supplier<SlotReport> createSlotReportSupplier) {
 			this.createSlotReportSupplier = createSlotReportSupplier;
@@ -252,6 +261,11 @@ public class TestingTaskSlotTable<T extends TaskSlotPayload> implements TaskSlot
 			return this;
 		}
 
+		public TestingTaskSlotTableBuilder<T> activeSlotsReturns(Supplier<Iterator<AllocationID>> activeSlotsIteratorSupplier) {
+			this.activeSlotsIteratorSupplier = activeSlotsIteratorSupplier;
+			return this;
+		}
+
 		public TaskSlotTable<T> build() {
 			return new TestingTaskSlotTable<>(
 				createSlotReportSupplier,
@@ -261,7 +275,8 @@ public class TestingTaskSlotTable<T extends TaskSlotPayload> implements TaskSlot
 				memoryManagerGetter,
 				closeAsyncSupplier,
 				tasksForJobFunction,
-				activeSlotsForJobFunction);
+				activeSlotsForJobFunction,
+				activeSlotsIteratorSupplier);
 		}
 	}
 }

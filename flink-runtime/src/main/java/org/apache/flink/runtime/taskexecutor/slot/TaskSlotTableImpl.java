@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -468,6 +469,11 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 	}
 
 	@Override
+	public Iterator<AllocationID> getActiveSlots() {
+		return new AllocationIDIterator(TaskSlotState.ACTIVE);
+	}
+
+	@Override
 	@Nullable
 	public JobID getOwningJob(AllocationID allocationId) {
 		final TaskSlot<T> taskSlot = getTaskSlot(allocationId);
@@ -632,6 +638,10 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 	private final class AllocationIDIterator implements Iterator<AllocationID> {
 		private final Iterator<TaskSlot<T>> iterator;
 
+		private AllocationIDIterator(TaskSlotState state) {
+			this(null, state);
+		}
+
 		private AllocationIDIterator(JobID jobId, TaskSlotState state) {
 			iterator = new TaskSlotIterator(jobId, state);
 		}
@@ -668,12 +678,20 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 
 		private TaskSlotIterator(JobID jobId, TaskSlotState state) {
 
-			Set<AllocationID> allocationIds = slotsPerJob.get(jobId);
-
-			if (allocationIds == null || allocationIds.isEmpty()) {
-				allSlots = Collections.emptyIterator();
+			if (jobId == null) {
+				allSlots = slotsPerJob.values()
+					.stream()
+					.flatMap(Collection::stream)
+					.collect(Collectors.toSet())
+					.iterator();
 			} else {
-				allSlots = allocationIds.iterator();
+				Set<AllocationID> allocationIds = slotsPerJob.get(jobId);
+
+				if (allocationIds == null || allocationIds.isEmpty()) {
+					allSlots = Collections.emptyIterator();
+				} else {
+					allSlots = allocationIds.iterator();
+				}
 			}
 
 			this.state = Preconditions.checkNotNull(state);
