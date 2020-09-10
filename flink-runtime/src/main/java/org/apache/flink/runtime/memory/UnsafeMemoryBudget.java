@@ -59,6 +59,10 @@ class UnsafeMemoryBudget {
 		return availableMemorySize.get();
 	}
 
+	long getUsedMemorySize() {
+		return getTotalMemorySize() - getAvailableMemorySize();
+	}
+
 	boolean verifyEmpty() {
 		try {
 			// we wait longer than during the normal reserveMemory as we have to GC all memory,

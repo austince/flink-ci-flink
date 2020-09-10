@@ -599,6 +599,15 @@ public class MemoryManager {
 	}
 
 	/**
+	 * Returns the used amount of memory handled by this memory manager.
+	 *
+	 * @return The used amount of memory.
+	 */
+	public long usedMemory() {
+		return memoryBudget.getUsedMemorySize();
+	}
+
+	/**
 	 * Computes to how many pages the given number of bytes corresponds. If the given number of bytes is not an
 	 * exact multiple of a page size, the result is rounded down, such that a portion of the memory (smaller
 	 * than the page size) is not included.
