@@ -74,6 +74,12 @@ public class TaskManagerMetricsInfo {
 
 	public static final String FIELD_NAME_SHUFFLE_MEMORY_TOTAL = "nettyShuffleMemoryTotal";
 
+	public static final String FIELD_NAME_MANAGED_MEMORY_AVAILABLE = "managedMemoryAvailable";
+
+	public static final String FIELD_NAME_MANAGED_MEMORY_USED = "managedMemoryUsed";
+
+	public static final String FIELD_NAME_MANAGED_MEMORY_TOTAL = "managedMemoryTotal";
+
 	public static final String FIELD_NAME_GARBAGE_COLLECTORS = "garbageCollectors";
 
 	// --------- Heap memory -------------
@@ -140,6 +146,17 @@ public class TaskManagerMetricsInfo {
 	@JsonProperty(FIELD_NAME_SHUFFLE_MEMORY_TOTAL)
 	private final long shuffleMemoryTotal;
 
+	// --------- Managed memory -------------
+
+	@JsonProperty(FIELD_NAME_MANAGED_MEMORY_AVAILABLE)
+	private final long managedMemoryAvailable;
+
+	@JsonProperty(FIELD_NAME_MANAGED_MEMORY_USED)
+	private final long managedMemoryUsed;
+
+	@JsonProperty(FIELD_NAME_MANAGED_MEMORY_TOTAL)
+	private final long managedMemoryTotal;
+
 	// --------- Garbage collectors -------------
 
 	@JsonProperty(FIELD_NAME_GARBAGE_COLLECTORS)
@@ -164,6 +181,9 @@ public class TaskManagerMetricsInfo {
 			long shuffleMemoryAvailable,
 			long shuffleMemoryUsed,
 			long shuffleMemoryTotal,
+			long managedMemoryAvailable,
+			long managedMemoryUsed,
+			long managedMemoryTotal,
 			List<GarbageCollectorInfo> garbageCollectorsInfo) {
 		this(heapUsed,
 			heapCommitted,
@@ -185,6 +205,9 @@ public class TaskManagerMetricsInfo {
 			shuffleMemoryAvailable,
 			shuffleMemoryUsed,
 			shuffleMemoryTotal,
+			managedMemoryAvailable,
+			managedMemoryUsed,
+			managedMemoryTotal,
 			garbageCollectorsInfo);
 	}
 
@@ -210,6 +233,9 @@ public class TaskManagerMetricsInfo {
 			@JsonProperty(FIELD_NAME_SHUFFLE_MEMORY_AVAILABLE) long shuffleMemoryAvailable,
 			@JsonProperty(FIELD_NAME_SHUFFLE_MEMORY_USED) long shuffleMemoryUsed,
 			@JsonProperty(FIELD_NAME_SHUFFLE_MEMORY_TOTAL) long shuffleMemoryTotal,
+			@JsonProperty(FIELD_NAME_MANAGED_MEMORY_AVAILABLE) long managedMemoryAvailable,
+			@JsonProperty(FIELD_NAME_MANAGED_MEMORY_USED) long managedMemoryUsed,
+			@JsonProperty(FIELD_NAME_MANAGED_MEMORY_TOTAL) long managedMemoryTotal,
 			@JsonProperty(FIELD_NAME_GARBAGE_COLLECTORS) List<GarbageCollectorInfo> garbageCollectorsInfo) {
 		this.heapUsed = heapUsed;
 		this.heapCommitted = heapCommitted;
@@ -229,6 +255,9 @@ public class TaskManagerMetricsInfo {
 		this.shuffleMemoryAvailable = shuffleMemoryAvailable;
 		this.shuffleMemoryUsed = shuffleMemoryUsed;
 		this.shuffleMemoryTotal = shuffleMemoryTotal;
+		this.managedMemoryAvailable = managedMemoryAvailable;
+		this.managedMemoryUsed = managedMemoryUsed;
+		this.managedMemoryTotal = managedMemoryTotal;
 		this.garbageCollectorsInfo = Preconditions.checkNotNull(garbageCollectorsInfo);
 	}
 
@@ -271,12 +300,15 @@ public class TaskManagerMetricsInfo {
 			shuffleMemoryAvailable == that.shuffleMemoryAvailable &&
 			shuffleMemoryUsed == that.shuffleMemoryUsed &&
 			shuffleMemoryTotal == that.shuffleMemoryTotal &&
+			managedMemoryAvailable == that.managedMemoryAvailable &&
+			managedMemoryUsed == that.managedMemoryUsed &&
+			managedMemoryTotal == that.managedMemoryTotal &&
 			Objects.equals(garbageCollectorsInfo, that.garbageCollectorsInfo);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(heapUsed, heapCommitted, heapMax, nonHeapUsed, nonHeapCommitted, nonHeapMax, directCount, directUsed, directMax, mappedCount, mappedUsed, mappedMax, shuffleMemorySegmentsAvailable, shuffleMemorySegmentsUsed, shuffleMemorySegmentsTotal, shuffleMemoryAvailable, shuffleMemoryUsed, shuffleMemoryTotal, garbageCollectorsInfo);
+		return Objects.hash(heapUsed, heapCommitted, heapMax, nonHeapUsed, nonHeapCommitted, nonHeapMax, directCount, directUsed, directMax, mappedCount, mappedUsed, mappedMax, shuffleMemorySegmentsAvailable, shuffleMemorySegmentsUsed, shuffleMemorySegmentsTotal, shuffleMemoryAvailable, shuffleMemoryUsed, shuffleMemoryTotal, managedMemoryAvailable, managedMemoryUsed, managedMemoryTotal, garbageCollectorsInfo);
 	}
 
 	/**
@@ -331,6 +363,9 @@ public class TaskManagerMetricsInfo {
 
 	public static TaskManagerMetricsInfo empty() {
 		return new TaskManagerMetricsInfo(
+			0L,
+			0L,
+			0L,
 			0L,
 			0L,
 			0L,

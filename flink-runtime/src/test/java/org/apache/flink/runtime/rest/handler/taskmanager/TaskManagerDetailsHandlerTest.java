@@ -112,6 +112,9 @@ public class TaskManagerDetailsHandlerTest extends TestLogger {
 			18L,
 			19L,
 			20L,
+			1L, // available managed memory is calculated based on the total and used amounts
+			22L,
+			23L,
 			Collections.emptyList()
 		);
 
@@ -151,6 +154,9 @@ public class TaskManagerDetailsHandlerTest extends TestLogger {
 		metricStore.add(new MetricDump.CounterDump(tmScope, "Shuffle.Netty.AvailableMemory", 18));
 		metricStore.add(new MetricDump.CounterDump(tmScope, "Shuffle.Netty.UsedMemory", 19));
 		metricStore.add(new MetricDump.CounterDump(tmScope, "Shuffle.Netty.TotalMemory", 20));
+
+		metricStore.add(new MetricDump.CounterDump(tmScope, "ManagedMemory.Used", 22));
+		metricStore.add(new MetricDump.CounterDump(tmScope, "ManagedMemory.Total", 23));
 	}
 
 	private static TaskManagerInfo createEmptyTaskManagerInfo() {
