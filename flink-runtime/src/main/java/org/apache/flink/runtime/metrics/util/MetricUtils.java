@@ -29,7 +29,6 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -81,7 +80,7 @@ public class MetricUtils {
 			final Optional<Time> systemResourceProbeInterval) {
 		final ProcessMetricGroup processMetricGroup = ProcessMetricGroup.create(metricRegistry, hostname);
 
-		createAndInitializeStatusMetricGroup(processMetricGroup);
+		instantiateStatusMetricGroup(processMetricGroup);
 
 		systemResourceProbeInterval.ifPresent(interval -> instantiateSystemMetrics(processMetricGroup, interval));
 
@@ -108,7 +107,7 @@ public class MetricUtils {
 			hostName,
 			resourceID.toString());
 
-		MetricGroup statusGroup = createAndInitializeStatusMetricGroup(taskManagerMetricGroup);
+		MetricGroup statusGroup = instantiateStatusMetricGroup(taskManagerMetricGroup);
 
 		if (systemResourceProbeInterval.isPresent()) {
 			instantiateSystemMetrics(taskManagerMetricGroup, systemResourceProbeInterval.get());
@@ -116,14 +115,14 @@ public class MetricUtils {
 		return Tuple2.of(taskManagerMetricGroup, statusGroup);
 	}
 
-	private static MetricGroup createAndInitializeStatusMetricGroup(AbstractMetricGroup<?> parentMetricGroup) {
+	private static MetricGroup instantiateStatusMetricGroup(MetricGroup parentMetricGroup) {
 		MetricGroup statusGroup = parentMetricGroup.addGroup(METRIC_GROUP_STATUS_NAME);
 
-		instantiateStatusMetrics(statusGroup);
+		instantiateJVMMetrics(statusGroup);
 		return statusGroup;
 	}
 
-	public static void instantiateStatusMetrics(
+	private static void instantiateJVMMetrics(
 			MetricGroup metricGroup) {
 		MetricGroup jvm = metricGroup.addGroup("JVM");
 
