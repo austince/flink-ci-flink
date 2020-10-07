@@ -146,7 +146,7 @@ public class TaskManagerDetailsHandler extends AbstractResourceManagerHandler<Re
 		long networkMemoryTotal = Long.valueOf(tmMetrics.getMetric("Status.Shuffle.Netty.TotalMemory", "0"));
 
 		long managedMemoryUsed = Long.valueOf(tmMetrics.getMetric("Status.ManagedMemory.Used"));
-		long managedMemoryTotal = Long.valueOf(tmMetrics.getMetric("Status.ManagedMemory.Total"));
+		long managedMemoryTotal = Long.valueOf(tmMetrics.getMetric("Status.ManagedMemory.Max"));
 		long managedMemoryAvailable = managedMemoryTotal - managedMemoryUsed;
 
 		final List<TaskManagerMetricsInfo.GarbageCollectorInfo> garbageCollectorInfo = createGarbageCollectorInfo(tmMetrics);

@@ -156,7 +156,7 @@ public class TaskManagerDetailsHandlerTest extends TestLogger {
 		metricStore.add(new MetricDump.CounterDump(tmScope, "Shuffle.Netty.TotalMemory", 20));
 
 		metricStore.add(new MetricDump.CounterDump(tmScope, "ManagedMemory.Used", 22));
-		metricStore.add(new MetricDump.CounterDump(tmScope, "ManagedMemory.Total", 23));
+		metricStore.add(new MetricDump.CounterDump(tmScope, "ManagedMemory.Max", 23));
 	}
 
 	private static TaskManagerInfo createEmptyTaskManagerInfo() {

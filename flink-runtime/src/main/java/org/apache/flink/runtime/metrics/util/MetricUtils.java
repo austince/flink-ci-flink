@@ -71,6 +71,8 @@ public class MetricUtils {
 	static final String METRIC_GROUP_HEAP_NAME = "Heap";
 	static final String METRIC_GROUP_NONHEAP_NAME = "NonHeap";
 
+	static final String METRIC_GROUP_MANAGED_MEMORY = "ManagedMemory";
+
 	private MetricUtils() {
 	}
 
@@ -139,9 +141,9 @@ public class MetricUtils {
 		checkNotNull(metricGroup);
 		checkNotNull(taskExecutor);
 
-		MetricGroup managedMemoryMetricGroup = metricGroup.addGroup("ManagedMemory");
-		managedMemoryMetricGroup.gauge("Used", taskExecutor::getUsedManagedMemory);
-		managedMemoryMetricGroup.gauge("Total", taskExecutor::getTotalManagedMemory);
+		MetricGroup managedMemoryMetricGroup = metricGroup.addGroup(METRIC_GROUP_MANAGED_MEMORY);
+		managedMemoryMetricGroup.gauge(MetricNames.MEMORY_USED, taskExecutor::getUsedManagedMemory);
+		managedMemoryMetricGroup.gauge(MetricNames.MEMORY_MAX, taskExecutor::getTotalManagedMemory);
 	}
 
 	public static RpcService startRemoteMetricsRpcService(Configuration configuration, String hostname) throws Exception {
