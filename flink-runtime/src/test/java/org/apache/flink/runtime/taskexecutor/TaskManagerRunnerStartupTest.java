@@ -31,11 +31,17 @@ import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.scope.ScopeFormats;
+import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
@@ -50,7 +56,14 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
+import static org.hamcrest.collection.IsEmptyCollection.empty;
+import static org.hamcrest.core.Is.is;
+import static org.hamcrest.core.StringStartsWith.startsWith;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
@@ -73,6 +86,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	@Before
 	public void setupTest() {
 		highAvailabilityServices = new TestingHighAvailabilityServices();
+		highAvailabilityServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
 	}
 
 	@After
@@ -159,6 +173,66 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Checks that all expected metrics are initialized.
+	 */
+	@Test
+	public void testMetricInitialization() throws Exception {
+		Configuration cfg = createFlinkConfiguration();
+
+		List<String> registeredMetrics = new ArrayList<>();
+		startTaskManager(
+			cfg,
+			rpcService,
+			highAvailabilityServices,
+			TestingMetricRegistry.builder()
+				.setRegisterConsumer((metric, metricName, group) -> registeredMetrics.add(group.getMetricIdentifier(metricName)))
+				.setScopeFormats(ScopeFormats.fromConfig(cfg))
+				.build());
+
+		Set<String> expectedTaskManagerMetrics = Sets.newHashSet(
+			"Status.JVM.ClassLoader.ClassesLoaded",
+			"Status.JVM.ClassLoader.ClassesUnloaded",
+			"Status.JVM.GarbageCollector.scavenge.Count",
+			"Status.JVM.GarbageCollector.scavenge.Time",
+			"Status.JVM.GarbageCollector.global.Count",
+			"Status.JVM.GarbageCollector.global.Time",
+			"Status.JVM.Memory.Heap.Used",
+			"Status.JVM.Memory.Heap.Committed",
+			"Status.JVM.Memory.Heap.Max",
+			"Status.JVM.Memory.NonHeap.Used",
+			"Status.JVM.Memory.NonHeap.Committed",
+			"Status.JVM.Memory.NonHeap.Max",
+			"Status.JVM.Memory.Direct.Count",
+			"Status.JVM.Memory.Direct.MemoryUsed",
+			"Status.JVM.Memory.Direct.TotalCapacity",
+			"Status.JVM.Memory.Mapped.Count",
+			"Status.JVM.Memory.Mapped.MemoryUsed",
+			"Status.JVM.Memory.Mapped.TotalCapacity",
+			"Status.JVM.Threads.Count",
+			"Status.JVM.CPU.Load",
+			"Status.JVM.CPU.Time",
+			"Status.Network.TotalMemorySegments",
+			"Status.Network.AvailableMemorySegments",
+			"Status.Shuffle.Netty.TotalMemorySegments",
+			"Status.Shuffle.Netty.TotalMemory",
+			"Status.Shuffle.Netty.AvailableMemorySegments",
+			"Status.Shuffle.Netty.AvailableMemory",
+			"Status.Shuffle.Netty.UsedMemorySegments",
+			"Status.Shuffle.Netty.UsedMemory",
+			"Status.ManagedMemory.Used",
+			"Status.ManagedMemory.Max"
+		);
+
+		assertThat(registeredMetrics.size(), is(expectedTaskManagerMetrics.size()));
+		registeredMetrics.forEach(metric -> {
+			assertThat(metric, startsWith(".taskmanager."));
+			String metricSuffix = metric.replaceAll("\\.taskmanager\\.[^.]+\\.", "");
+			expectedTaskManagerMetrics.remove(metricSuffix);
+		});
+		assertThat(expectedTaskManagerMetrics, empty());
+	}
+
 	//-----------------------------------------------------------------------------------------------
 
 	private static Configuration createFlinkConfiguration() {
@@ -170,6 +244,20 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 		RpcService rpcService,
 		HighAvailabilityServices highAvailabilityServices
 	) throws Exception {
+		startTaskManager(
+			configuration,
+			rpcService,
+			highAvailabilityServices,
+			NoOpMetricRegistry.INSTANCE
+		);
+	}
+
+	private static void startTaskManager(
+		Configuration configuration,
+		RpcService rpcService,
+		HighAvailabilityServices highAvailabilityServices,
+		MetricRegistry metricRegistry
+	) throws Exception {
 
 		TaskManagerRunner.startTaskManager(
 			configuration,
@@ -177,7 +265,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 			rpcService,
 			highAvailabilityServices,
 			new TestingHeartbeatServices(),
-			NoOpMetricRegistry.INSTANCE,
+			metricRegistry,
 			new BlobCacheService(
 				configuration,
 				new VoidBlobStore(),
