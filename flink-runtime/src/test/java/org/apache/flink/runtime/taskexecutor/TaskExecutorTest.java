@@ -28,6 +28,8 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.blob.VoidBlobStore;
@@ -67,9 +69,13 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
+import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.metrics.util.InterceptingTaskMetricGroup;
+import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RegistrationResponse.Decline;
@@ -1830,6 +1836,42 @@ public class TaskExecutorTest extends TestLogger {
 		taskExecutorJobServices.close();
 		leaseReleaseLatch.await();
 		closeHookLatch.await();
+	}
+
+	@Test
+	public void testManagedMemoryMetricsInitialization() throws MemoryAllocationException {
+		final int maxMemorySize = 16284;
+		final int numberOfAllocatedPages = 2;
+		final int pageSize = 4096;
+		final Object owner = new Object();
+
+		final MemoryManager memoryManager = MemoryManager.create(maxMemorySize, pageSize);
+		memoryManager.allocatePages(owner, numberOfAllocatedPages);
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskSlotTable(new TestingTaskSlotTable.TestingTaskSlotTableBuilder<Task>()
+				.memoryManagerGetterReturns(memoryManager)
+				.activeSlotsReturns(() -> Arrays.asList(new AllocationID()).iterator())
+				.build())
+			.setManagedMemorySize(maxMemorySize)
+			.build();
+
+		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices);
+
+		final InterceptingTaskMetricGroup managedMemoryMetricGroup = new InterceptingTaskMetricGroup();
+		final InterceptingTaskMetricGroup statusMetricGroup = new InterceptingTaskMetricGroup() {
+			@Override
+			public MetricGroup addGroup(String name) {
+				assertThat(name, is(MetricUtils.METRIC_GROUP_MANAGED_MEMORY));
+				return managedMemoryMetricGroup;
+			}
+		};
+		MetricUtils.instantiateManagedMemoryMetrics(statusMetricGroup, taskExecutor);
+
+		Gauge<Number> usedMetric = (Gauge<Number>) managedMemoryMetricGroup.get(MetricNames.MEMORY_USED);
+		Gauge<Number> maxMetric = (Gauge<Number>) managedMemoryMetricGroup.get(MetricNames.MEMORY_MAX);
+
+		assertThat(usedMetric.getValue().intValue(), is(numberOfAllocatedPages * pageSize));
+		assertThat(maxMetric.getValue().intValue(), is(maxMemorySize));
 	}
 
 	private TaskExecutorLocalStateStoresManager createTaskExecutorLocalStateStoresManager() throws IOException {

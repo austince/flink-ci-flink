@@ -71,7 +71,8 @@ public class MetricUtils {
 	static final String METRIC_GROUP_HEAP_NAME = "Heap";
 	static final String METRIC_GROUP_NONHEAP_NAME = "NonHeap";
 
-	static final String METRIC_GROUP_MANAGED_MEMORY = "ManagedMemory";
+	@VisibleForTesting
+	public static final String METRIC_GROUP_MANAGED_MEMORY = "ManagedMemory";
 
 	private MetricUtils() {
 	}
