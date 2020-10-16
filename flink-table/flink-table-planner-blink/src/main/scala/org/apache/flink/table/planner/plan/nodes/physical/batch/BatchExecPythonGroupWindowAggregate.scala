@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.config.ExecutionConfigOptions
@@ -124,16 +123,13 @@ class BatchExecPythonGroupWindowAggregate(
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
     List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
 
-  override def getInputEdges: util.List[ExecEdge] =
-    List(new ExecEdge(ExecEdge.RequiredShuffle.unknown(), ExecEdge.EdgeBehavior.PIPELINED, 0))
+  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.builder().build())
 
   override def replaceInputNode(
       ordinalInParent: Int,
       newInputNode: ExecNode[BatchPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
-
-  override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {
