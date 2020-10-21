@@ -46,6 +46,11 @@ public abstract class AbstractChannelStateHandle<Info> implements StateObject {
 	private final List<Long> offsets;
 	private final long size;
 
+	/**
+	 * The original subtask index before rescaling recovery.
+	 */
+	private int originalSubtaskIndex;
+
 	AbstractChannelStateHandle(StreamStateHandle delegate, List<Long> offsets, Info info, long size) {
 		this.info = checkNotNull(info);
 		this.delegate = checkNotNull(delegate);
@@ -83,6 +88,14 @@ public abstract class AbstractChannelStateHandle<Info> implements StateObject {
 
 	public Info getInfo() {
 		return info;
+	}
+
+	public void setOriginalSubtaskIndex(int originalSubtaskIndex) {
+		this.originalSubtaskIndex = originalSubtaskIndex;
+	}
+
+	public int getOriginalSubtaskIndex() {
+		return originalSubtaskIndex;
 	}
 
 	@Override

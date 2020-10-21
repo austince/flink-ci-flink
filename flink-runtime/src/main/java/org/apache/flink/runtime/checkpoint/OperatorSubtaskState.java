@@ -31,9 +31,13 @@ import org.apache.flink.runtime.state.StateUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.List;
+import java.util.Objects;
 
+import static java.util.Collections.emptyList;
 import static org.apache.flink.runtime.state.AbstractChannelStateHandle.collectUniqueDelegates;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -83,6 +87,18 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	private final StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState;
 
 	/**
+	 * The subpartitions mappings per partition set when the output operator for a partition was rescaled. The key is
+	 * the partition id and the value contains all subtask indexes of the output operator before rescaling.
+	 */
+	private final VirtualChannelMapping inputChannelMapping;
+
+	/**
+	 * The input channel mappings per input set when the input operator for a gate was rescaled. The key is
+	 * the gate index and the value contains all subtask indexes of the input operator before rescaling.
+	 */
+	private final VirtualChannelMapping outputChannelMapping;
+
+	/**
 	 * The state size. This is also part of the deserialized state handle.
 	 * We store it here in order to not deserialize the state handle when
 	 * gathering stats.
@@ -95,7 +111,9 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 			StateObjectCollection<KeyedStateHandle> managedKeyedState,
 			StateObjectCollection<KeyedStateHandle> rawKeyedState,
 			StateObjectCollection<InputChannelStateHandle> inputChannelState,
-			StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState) {
+			StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState,
+			VirtualChannelMapping inputChannelMapping,
+			VirtualChannelMapping outputChannelMapping) {
 
 		this.managedOperatorState = checkNotNull(managedOperatorState);
 		this.rawOperatorState = checkNotNull(rawOperatorState);
@@ -103,6 +121,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		this.rawKeyedState = checkNotNull(rawKeyedState);
 		this.inputChannelState = checkNotNull(inputChannelState);
 		this.resultSubpartitionState = checkNotNull(resultSubpartitionState);
+		this.inputChannelMapping = inputChannelMapping;
+		this.outputChannelMapping = outputChannelMapping;
 
 		long calculateStateSize = managedOperatorState.getStateSize();
 		calculateStateSize += rawOperatorState.getStateSize();
@@ -120,7 +140,9 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 			StateObjectCollection.empty(),
 			StateObjectCollection.empty(),
 			StateObjectCollection.empty(),
-			StateObjectCollection.empty());
+			StateObjectCollection.empty(),
+			VirtualChannelMapping.NO_MAPPING,
+			VirtualChannelMapping.NO_MAPPING);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -141,14 +163,20 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		return rawKeyedState;
 	}
 
-	
 	public StateObjectCollection<InputChannelStateHandle> getInputChannelState() {
 		return inputChannelState;
 	}
 
-	
 	public StateObjectCollection<ResultSubpartitionStateHandle> getResultSubpartitionState() {
 		return resultSubpartitionState;
+	}
+
+	public VirtualChannelMapping getInputChannelMapping() {
+		return inputChannelMapping;
+	}
+
+	public VirtualChannelMapping getOutputChannelMapping() {
+		return outputChannelMapping;
 	}
 
 	@Override
@@ -276,6 +304,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		private StateObjectCollection<KeyedStateHandle> rawKeyedState = StateObjectCollection.empty();
 		private StateObjectCollection<InputChannelStateHandle> inputChannelState = StateObjectCollection.empty();
 		private StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState = StateObjectCollection.empty();
+		private VirtualChannelMapping inputChannelMappings = VirtualChannelMapping.NO_MAPPING;
+		private VirtualChannelMapping outputChannelMappings = VirtualChannelMapping.NO_MAPPING;
 
 		private Builder() {
 		}
@@ -326,6 +356,16 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 			return this;
 		}
 
+		public Builder setInputChannelMappings(VirtualChannelMapping inputChannelMappings) {
+			this.inputChannelMappings = checkNotNull(inputChannelMappings);
+			return this;
+		}
+
+		public Builder setOutputChannelMappings(VirtualChannelMapping outputChannelMappings) {
+			this.outputChannelMappings = checkNotNull(outputChannelMappings);
+			return this;
+		}
+
 		public OperatorSubtaskState build() {
 			return new OperatorSubtaskState(
 				managedOperatorState,
@@ -333,7 +373,168 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 				managedKeyedState,
 				rawKeyedState,
 				inputChannelState,
-				resultSubpartitionState);
+				resultSubpartitionState,
+				inputChannelMappings,
+				outputChannelMappings);
 		}
+	}
+
+	/**
+	 * Captures ambiguous mappings of old channels to new channels.
+	 *
+	 * <p>For inputs, this mapping implies the following:
+	 * <li>
+	 *     <ul>{@link #oldTaskInstances} is set when there is a rescale on this task potentially leading to different
+	 *     key groups. Upstream task has a corresponding {@link #partitionMappings} where it sends data over
+	 *     virtual channel while specifying the channel index in the VirtualChannelSelector. This subtask then
+	 *     demultiplexes over the virtual subtask index.</ul>
+	 *     <ul>{@link #partitionMappings} is set when there is a downscale of the upstream task. Upstream task has
+	 *     a corresponding {@link #oldTaskInstances} where it sends data over virtual channel while specifying the
+	 *     subtask index in the VirtualChannelSelector. This subtask then demultiplexes over channel indexes.</ul>
+	 * </li>
+	 *
+	 * <p>For outputs, it's vice-versa. The information must be kept in sync but they are used in opposite ways for
+	 * multiplexing/demultiplexing.
+	 *
+	 * <p>Note that in the common rescaling case both information is set and need to be simultaneously used. If the
+	 * input subtask subsumes the state of 3 old subtasks and a channel corresponds to 2 old channels, then there are
+	 * 6 virtual channels to be demultiplexed.
+	 */
+	public static class VirtualChannelMapping implements Serializable {
+		public static final PartitionMapping NO_CHANNEL_MAPPING = new PartitionMapping(emptyList());
+		public static final List<PartitionMapping> NO_PARTITIONS = emptyList();
+		public static final BitSet NO_SUBTASKS = new BitSet();
+		public static final VirtualChannelMapping NO_MAPPING = new VirtualChannelMapping(NO_SUBTASKS, NO_PARTITIONS);
+
+		/**
+		 * Set when several operator instances are merged into one.
+		 */
+		private final BitSet oldTaskInstances;
+
+		/**
+		 * Set when channels are merged because the connected operator has been rescaled.
+		 */
+		private final List<PartitionMapping> partitionMappings;
+
+		public VirtualChannelMapping(BitSet oldTaskInstances, List<PartitionMapping> partitionMappings) {
+			this.oldTaskInstances = oldTaskInstances;
+			this.partitionMappings = partitionMappings;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			final VirtualChannelMapping that = (VirtualChannelMapping) o;
+			return oldTaskInstances.equals(that.oldTaskInstances) &&
+				partitionMappings.equals(that.partitionMappings);
+		}
+
+		public int[] getOldTaskInstances(int defaultSubtask) {
+			return oldTaskInstances.equals(NO_SUBTASKS) ?
+				new int[] {defaultSubtask} :
+				oldTaskInstances.stream().toArray();
+		}
+
+		public PartitionMapping getPartitionMapping(int partitionIndex) {
+			if (partitionMappings.isEmpty()) {
+				return NO_CHANNEL_MAPPING;
+			}
+			return partitionMappings.get(partitionIndex);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(oldTaskInstances, partitionMappings);
+		}
+
+		@Override
+		public String toString() {
+			return "VirtualChannelMapping{" +
+				"oldTaskInstances=" + oldTaskInstances +
+				", partitionMappings=" + partitionMappings +
+				'}';
+		}
+	}
+
+	/**
+	 * Contains the fine-grain channel mappings that occur when a connected operator has been rescaled.
+	 */
+	public static class PartitionMapping implements Serializable {
+
+		/**
+		 * For each new channel (=index), all old channels are set.
+		 */
+		private final List<BitSet> newToOldChannelIndexes;
+
+		/**
+		 * For each old channel (=index), all new channels are set. Lazily calculated to keep
+		 * {@link OperatorSubtaskState} small in terms of serialization cost.
+		 */
+		private transient List<BitSet> oldToNewChannelIndexes;
+
+		public PartitionMapping(List<BitSet> newToOldChannelIndexes) {
+			this.newToOldChannelIndexes = newToOldChannelIndexes;
+		}
+
+		public int[] getNewChannelIndexes(int oldChannelIndex) {
+			if (newToOldChannelIndexes.isEmpty()) {
+				return new int[]{oldChannelIndex};
+			}
+			if (oldToNewChannelIndexes == null) {
+				oldToNewChannelIndexes = invert(newToOldChannelIndexes);
+			}
+			return oldToNewChannelIndexes.get(oldChannelIndex).stream().toArray();
+		}
+
+		public int[] getOldChannelIndexes(int newChannelIndex) {
+			if (newToOldChannelIndexes.isEmpty()) {
+				return new int[]{newChannelIndex};
+			}
+			return newToOldChannelIndexes.get(newChannelIndex).stream().toArray();
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			final PartitionMapping that = (PartitionMapping) o;
+			return newToOldChannelIndexes.equals(that.newToOldChannelIndexes);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(newToOldChannelIndexes);
+		}
+
+		@Override
+		public String toString() {
+			return "PartitionMapping{" +
+				"newToOldChannelIndexes=" + newToOldChannelIndexes +
+				'}';
+		}
+
+		static List<BitSet> invert(List<BitSet> mapping) {
+			final List<BitSet> inverted = new ArrayList<>();
+			for (int index = 0; index < mapping.size(); index++) {
+				final BitSet bitSet = mapping.get(index);
+				for (int invIndex = bitSet.nextSetBit(0); invIndex != -1; invIndex = bitSet.nextSetBit(invIndex + 1)) {
+					while (invIndex >= inverted.size()) {
+						inverted.add(new BitSet());
+					}
+					inverted.get(invIndex).set(index);
+				}
+			}
+			return inverted;
+		}
+
 	}
 }
