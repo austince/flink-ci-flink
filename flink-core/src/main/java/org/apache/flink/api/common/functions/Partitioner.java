@@ -19,6 +19,9 @@
 package org.apache.flink.api.common.functions;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
+
+import java.util.stream.IntStream;
 
 /**
  * Function to implement a custom partition assignment for keys.
@@ -37,4 +40,20 @@ public interface Partitioner<K> extends java.io.Serializable, Function {
 	 * @return The partition index.
 	 */
 	int partition(K key, int numPartitions);
+
+	/**
+	 * Returns all partitions that need to be read to restore the given new partition. The partitioner is then
+	 * applied on the key of the restored record to filter all irrelevant records.
+	 *
+	 * <p>In particular, to create a partition X after rescaling, all partitions returned by this method are fully read
+	 * and the key of each record is then fed into {@link #partition(Object, int)} to check if it belongs to X.
+	 *
+	 * <p>The default implementation states that all partitions need to be scanned and should be overwritten to improve
+	 * performance.
+	 */
+	@PublicEvolving
+	default int[] rescaleIntersections(int newPartition, int oldNumPartitions, int newNumPartitions) {
+		// any old partition may contain a record that should be in the new partition after rescaling
+		return IntStream.range(0, oldNumPartitions).toArray();
+	}
 }

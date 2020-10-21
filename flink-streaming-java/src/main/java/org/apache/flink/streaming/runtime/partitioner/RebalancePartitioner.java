@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.io.network.api.writer.ChannelStateRescaler;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -46,6 +47,16 @@ public class RebalancePartitioner<T> extends StreamPartitioner<T> {
 	public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
 		nextChannelToSendTo = (nextChannelToSendTo + 1) % numberOfChannels;
 		return nextChannelToSendTo;
+	}
+
+	@Override
+	public ChannelStateRescaler getUpstreamChannelStateRescaler() {
+		return ChannelStateRescaler.ROUND_ROBIN;
+	}
+
+	@Override
+	public ChannelStateRescaler getDownstreamChannelStateRescaler() {
+		return ChannelStateRescaler.ROUND_ROBIN;
 	}
 
 	public StreamPartitioner<T> copy() {

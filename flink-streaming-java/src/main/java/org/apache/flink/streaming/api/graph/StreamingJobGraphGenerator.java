@@ -692,6 +692,8 @@ public class StreamingJobGraphGenerator {
 		}
 		// set strategy name so that web interface can show it.
 		jobEdge.setShipStrategyName(partitioner.toString());
+		jobEdge.setDownstreamChannelStateRescaler(partitioner.getUpstreamChannelStateRescaler());
+		jobEdge.setUpstreamChannelStateRescaler(partitioner.getDownstreamChannelStateRescaler());
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("CONNECTED: {} - {} -> {}", partitioner.getClass().getSimpleName(),
