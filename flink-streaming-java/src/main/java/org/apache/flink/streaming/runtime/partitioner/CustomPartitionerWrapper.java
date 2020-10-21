@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.partitioner;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.io.network.api.writer.ChannelStateRescaler;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -53,6 +54,14 @@ public class CustomPartitionerWrapper<K, T> extends StreamPartitioner<T> {
 		}
 
 		return partitioner.partition(key, numberOfChannels);
+	}
+
+	@Override
+	public ChannelStateRescaler getDownstreamChannelStateRescaler() {
+		// fully rely on filtering downstream
+		// note that custom partitioners are not officially supported - the user has to force rescaling
+		// in that case, we assume that the custom partitioner is deterministic
+		return ChannelStateRescaler.BROADCAST;
 	}
 
 	@Override

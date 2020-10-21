@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.io.network.api.writer.ChannelStateRescaler;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -37,6 +38,16 @@ public class BroadcastPartitioner<T> extends StreamPartitioner<T> {
 	@Override
 	public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
 		throw new UnsupportedOperationException("Broadcast partitioner does not support select channels.");
+	}
+
+	@Override
+	public ChannelStateRescaler getUpstreamChannelStateRescaler() {
+		return ChannelStateRescaler.DISCARD_EXTRA_STATE;
+	}
+
+	@Override
+	public ChannelStateRescaler getDownstreamChannelStateRescaler() {
+		return ChannelStateRescaler.ROUND_ROBIN;
 	}
 
 	@Override
