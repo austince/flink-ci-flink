@@ -83,6 +83,18 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	private final StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState;
 
 	/**
+	 * The subpartitions mappings per partition set when the output operator for a partition was rescaled. The key is
+	 * the partition id and the value contains all subtask indexes of the output operator before rescaling.
+	 */
+	private final InflightDataRescalingDescriptor inputRescalingDescriptor;
+
+	/**
+	 * The input channel mappings per input set when the input operator for a gate was rescaled. The key is
+	 * the gate index and the value contains all subtask indexes of the input operator before rescaling.
+	 */
+	private final InflightDataRescalingDescriptor outputRescalingDescriptor;
+
+	/**
 	 * The state size. This is also part of the deserialized state handle.
 	 * We store it here in order to not deserialize the state handle when
 	 * gathering stats.
@@ -95,7 +107,9 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 			StateObjectCollection<KeyedStateHandle> managedKeyedState,
 			StateObjectCollection<KeyedStateHandle> rawKeyedState,
 			StateObjectCollection<InputChannelStateHandle> inputChannelState,
-			StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState) {
+			StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState,
+			InflightDataRescalingDescriptor inputRescalingDescriptor,
+			InflightDataRescalingDescriptor outputRescalingDescriptor) {
 
 		this.managedOperatorState = checkNotNull(managedOperatorState);
 		this.rawOperatorState = checkNotNull(rawOperatorState);
@@ -103,6 +117,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		this.rawKeyedState = checkNotNull(rawKeyedState);
 		this.inputChannelState = checkNotNull(inputChannelState);
 		this.resultSubpartitionState = checkNotNull(resultSubpartitionState);
+		this.inputRescalingDescriptor = checkNotNull(inputRescalingDescriptor);
+		this.outputRescalingDescriptor = checkNotNull(outputRescalingDescriptor);
 
 		long calculateStateSize = managedOperatorState.getStateSize();
 		calculateStateSize += rawOperatorState.getStateSize();
@@ -120,7 +136,9 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 			StateObjectCollection.empty(),
 			StateObjectCollection.empty(),
 			StateObjectCollection.empty(),
-			StateObjectCollection.empty());
+			StateObjectCollection.empty(),
+			InflightDataRescalingDescriptor.NO_RESCALE,
+			InflightDataRescalingDescriptor.NO_RESCALE);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -141,14 +159,20 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		return rawKeyedState;
 	}
 
-	
 	public StateObjectCollection<InputChannelStateHandle> getInputChannelState() {
 		return inputChannelState;
 	}
 
-	
 	public StateObjectCollection<ResultSubpartitionStateHandle> getResultSubpartitionState() {
 		return resultSubpartitionState;
+	}
+
+	public InflightDataRescalingDescriptor getInputRescalingDescriptor() {
+		return inputRescalingDescriptor;
+	}
+
+	public InflightDataRescalingDescriptor getOutputRescalingDescriptor() {
+		return outputRescalingDescriptor;
 	}
 
 	@Override
@@ -225,6 +249,12 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		if (!getResultSubpartitionState().equals(that.getResultSubpartitionState())) {
 			return false;
 		}
+		if (!getInputRescalingDescriptor().equals(that.getInputRescalingDescriptor())) {
+			return false;
+		}
+		if (!getOutputRescalingDescriptor().equals(that.getOutputRescalingDescriptor())) {
+			return false;
+		}
 		return getRawKeyedState().equals(that.getRawKeyedState());
 	}
 
@@ -236,6 +266,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		result = 31 * result + getRawKeyedState().hashCode();
 		result = 31 * result + getInputChannelState().hashCode();
 		result = 31 * result + getResultSubpartitionState().hashCode();
+		result = 31 * result + getInputRescalingDescriptor().hashCode();
+		result = 31 * result + getOutputRescalingDescriptor().hashCode();
 		result = 31 * result + (int) (getStateSize() ^ (getStateSize() >>> 32));
 		return result;
 	}
@@ -276,6 +308,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		private StateObjectCollection<KeyedStateHandle> rawKeyedState = StateObjectCollection.empty();
 		private StateObjectCollection<InputChannelStateHandle> inputChannelState = StateObjectCollection.empty();
 		private StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState = StateObjectCollection.empty();
+		private InflightDataRescalingDescriptor inputChannelMappings = InflightDataRescalingDescriptor.NO_RESCALE;
+		private InflightDataRescalingDescriptor outputChannelMappings = InflightDataRescalingDescriptor.NO_RESCALE;
 
 		private Builder() {
 		}
@@ -326,6 +360,16 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 			return this;
 		}
 
+		public Builder setInputChannelMappings(InflightDataRescalingDescriptor inputChannelMappings) {
+			this.inputChannelMappings = checkNotNull(inputChannelMappings);
+			return this;
+		}
+
+		public Builder setOutputChannelMappings(InflightDataRescalingDescriptor outputChannelMappings) {
+			this.outputChannelMappings = checkNotNull(outputChannelMappings);
+			return this;
+		}
+
 		public OperatorSubtaskState build() {
 			return new OperatorSubtaskState(
 				managedOperatorState,
@@ -333,7 +377,10 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 				managedKeyedState,
 				rawKeyedState,
 				inputChannelState,
-				resultSubpartitionState);
+				resultSubpartitionState,
+				inputChannelMappings,
+				outputChannelMappings);
 		}
 	}
+
 }
