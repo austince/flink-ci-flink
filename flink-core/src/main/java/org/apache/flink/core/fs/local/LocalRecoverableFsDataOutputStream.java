@@ -178,7 +178,11 @@ class LocalRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
 				}
 
 				// source still exists, so no renaming happened yet. do it!
-				Files.move(src.toPath(), dest.toPath(), StandardCopyOption.ATOMIC_MOVE);
+				Files.move(
+						new File(src.getAbsolutePath()).toPath(),
+						new File(dest.getAbsolutePath()).toPath(),
+						StandardCopyOption.ATOMIC_MOVE);
+				// Files.move(src.toPath(), dest.toPath(), StandardCopyOption.ATOMIC_MOVE);
 			}
 			else if (!dest.exists()) {
 				// neither exists - that can be a sign of
