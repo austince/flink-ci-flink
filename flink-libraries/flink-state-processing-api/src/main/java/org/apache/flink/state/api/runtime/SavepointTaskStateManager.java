@@ -20,6 +20,7 @@ package org.apache.flink.state.api.runtime;
 
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
@@ -70,6 +71,16 @@ final class SavepointTaskStateManager implements TaskStateManager {
 	@Override
 	public SequentialChannelStateReader getSequentialChannelStateReader() {
 		return SequentialChannelStateReader.NO_OP;
+	}
+
+	@Override
+	public OperatorSubtaskState.VirtualChannelMapping getInputChannelMapping() {
+		return OperatorSubtaskState.VirtualChannelMapping.NO_MAPPING;
+	}
+
+	@Override
+	public OperatorSubtaskState.VirtualChannelMapping getOutputChannelMapping() {
+		return OperatorSubtaskState.VirtualChannelMapping.NO_MAPPING;
 	}
 
 	@Override

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
@@ -54,6 +55,10 @@ public interface TaskStateManager extends CheckpointListener, AutoCloseable {
 		@Nonnull CheckpointMetrics checkpointMetrics,
 		@Nullable TaskStateSnapshot acknowledgedState,
 		@Nullable TaskStateSnapshot localState);
+
+	OperatorSubtaskState.VirtualChannelMapping getInputChannelMapping();
+
+	OperatorSubtaskState.VirtualChannelMapping getOutputChannelMapping();
 
 	/**
 	 * Returns means to restore previously reported state of an operator running in the owning task.

@@ -18,11 +18,14 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState.VirtualChannelMapping;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -30,6 +33,9 @@ import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+
+import static org.apache.flink.runtime.checkpoint.OperatorSubtaskState.VirtualChannelMapping.NO_MAPPING;
 
 /**
  * This class encapsulates state handles to the snapshots of all operator instances executed within one task. A task
@@ -105,6 +111,20 @@ public class TaskStateSnapshot implements CompositeStateHandle {
 		return false;
 	}
 
+	/**
+	 * Returns the input channel mapping for rescaling with in-flight data or {@link VirtualChannelMapping#NO_MAPPING}.
+	 */
+	public VirtualChannelMapping getInputChannelMapping() {
+		return getMapping(OperatorSubtaskState::getInputChannelMapping);
+	}
+
+	/**
+	 * Returns the output channel mapping for rescaling with in-flight data or {@link VirtualChannelMapping#NO_MAPPING}.
+	 */
+	public VirtualChannelMapping getOutputChannelMapping() {
+		return getMapping(OperatorSubtaskState::getOutputChannelMapping);
+	}
+
 	@Override
 	public void discardState() throws Exception {
 		StateUtil.bestEffortDiscardAllStateObjects(subtaskStatesByOperatorID.values());
@@ -156,5 +176,17 @@ public class TaskStateSnapshot implements CompositeStateHandle {
 		return "TaskOperatorSubtaskStates{" +
 			"subtaskStatesByOperatorID=" + subtaskStatesByOperatorID +
 			'}';
+	}
+
+	/**
+	 * Returns the only valid mapping as ensured by {@link StateAssignmentOperation}.
+	 */
+	private VirtualChannelMapping getMapping(Function<OperatorSubtaskState, VirtualChannelMapping> mappingExtractor) {
+		return Iterators.getOnlyElement(
+			subtaskStatesByOperatorID.values().stream()
+				.map(mappingExtractor)
+				.filter(mapping -> !mapping.equals(NO_MAPPING))
+				.iterator(),
+			NO_MAPPING);
 	}
 }

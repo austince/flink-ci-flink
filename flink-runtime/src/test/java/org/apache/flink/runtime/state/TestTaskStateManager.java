@@ -123,6 +123,16 @@ public class TestTaskStateManager implements TaskStateManager {
 		}
 	}
 
+	@Override
+	public OperatorSubtaskState.VirtualChannelMapping getInputChannelMapping() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public OperatorSubtaskState.VirtualChannelMapping getOutputChannelMapping() {
+		throw new UnsupportedOperationException();
+	}
+
 	@Nonnull
 	@Override
 	public PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID) {

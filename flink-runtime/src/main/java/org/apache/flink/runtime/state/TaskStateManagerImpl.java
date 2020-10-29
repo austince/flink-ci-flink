@@ -23,6 +23,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState.VirtualChannelMapping;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
@@ -119,6 +120,22 @@ public class TaskStateManagerImpl implements TaskStateManager {
 			checkpointId,
 			checkpointMetrics,
 			acknowledgedState);
+	}
+
+	@Override
+	public VirtualChannelMapping getInputChannelMapping() {
+		if (jobManagerTaskRestore == null) {
+			return VirtualChannelMapping.NO_MAPPING;
+		}
+		return jobManagerTaskRestore.getTaskStateSnapshot().getInputChannelMapping();
+	}
+
+	@Override
+	public VirtualChannelMapping getOutputChannelMapping() {
+		if (jobManagerTaskRestore == null) {
+			return VirtualChannelMapping.NO_MAPPING;
+		}
+		return jobManagerTaskRestore.getTaskStateSnapshot().getOutputChannelMapping();
 	}
 
 	@Nonnull
