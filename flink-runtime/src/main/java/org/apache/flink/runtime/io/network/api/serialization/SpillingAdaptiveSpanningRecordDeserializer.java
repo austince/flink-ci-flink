@@ -33,6 +33,8 @@ import static org.apache.flink.runtime.io.network.api.serialization.RecordDeseri
  * @param <T> The type of the record to be deserialized.
  */
 public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> implements RecordDeserializer<T> {
+	public static final int DEFAULT_THRESHOLD_FOR_SPILLING = 5 * 1024 * 1024; // 5 MiBytes
+	public static final int DEFAULT_FILE_BUFFER_SIZE = 2 * 1024 * 1024;
 
 	static final int LENGTH_BYTES = Integer.BYTES;
 
@@ -43,8 +45,15 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 	private Buffer currentBuffer;
 
 	public SpillingAdaptiveSpanningRecordDeserializer(String[] tmpDirectories) {
+		this(tmpDirectories, DEFAULT_THRESHOLD_FOR_SPILLING, DEFAULT_FILE_BUFFER_SIZE);
+	}
+
+	public SpillingAdaptiveSpanningRecordDeserializer(
+			String[] tmpDirectories,
+			int defaultThresholdForSpilling,
+			int defaultFileBufferSize) {
 		this.nonSpanningWrapper = new NonSpanningWrapper();
-		this.spanningWrapper = new SpanningWrapper(tmpDirectories);
+		this.spanningWrapper = new SpanningWrapper(tmpDirectories, defaultThresholdForSpilling, defaultFileBufferSize);
 	}
 
 	@Override

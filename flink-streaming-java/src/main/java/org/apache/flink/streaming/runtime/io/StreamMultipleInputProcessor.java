@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.concurrent.FutureUtils.assertNoException;
@@ -121,6 +122,11 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 			inputFutures[index] = inputProcessors[index].prepareSnapshot(channelStateWriter, checkpointId);
 		}
 		return CompletableFuture.allOf(inputFutures);
+	}
+
+	@Override
+	public void finishRecovery() {
+		Arrays.stream(inputProcessors).forEach(StreamOneInputProcessor::finishRecovery);
 	}
 
 	private int selectNextReadingInputIndex() {

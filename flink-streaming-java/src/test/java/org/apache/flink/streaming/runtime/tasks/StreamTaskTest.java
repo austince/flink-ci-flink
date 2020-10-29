@@ -1308,6 +1308,10 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
+		public void finishRecovery() {
+		}
+
+		@Override
 		public void close() throws IOException {
 		}
 
@@ -1475,6 +1479,10 @@ public class StreamTaskTest extends TestLogger {
 		@Override
 		public CompletableFuture<Void> prepareSnapshot(ChannelStateWriter channelStateWriter, long checkpointId) {
 			return FutureUtils.completedVoidFuture();
+		}
+
+		@Override
+		public void finishRecovery() {
 		}
 
 		@Override

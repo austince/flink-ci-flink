@@ -58,9 +58,6 @@ import static org.apache.flink.util.IOUtils.closeQuietly;
 
 final class SpanningWrapper {
 
-	private static final int DEFAULT_THRESHOLD_FOR_SPILLING = 5 * 1024 * 1024; // 5 MiBytes
-	private static final int DEFAULT_FILE_BUFFER_SIZE = 2 * 1024 * 1024;
-
 	private static final Logger LOG = LoggerFactory.getLogger(SpanningWrapper.class);
 
 	private final byte[] initialBuffer = new byte[1024];
@@ -94,10 +91,6 @@ final class SpanningWrapper {
 	private DataInputViewStreamWrapper spillFileReader;
 
 	private int thresholdForSpilling;
-
-	SpanningWrapper(String[] tempDirs) {
-		this(tempDirs, DEFAULT_THRESHOLD_FOR_SPILLING, DEFAULT_FILE_BUFFER_SIZE);
-	}
 
 	SpanningWrapper(String[] tempDirectories, int threshold, int fileBufferSize) {
 		this.tempDirs = tempDirectories;

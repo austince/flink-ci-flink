@@ -107,6 +107,12 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 			processor2.prepareSnapshot(channelStateWriter, checkpointId));
 	}
 
+	@Override
+	public void finishRecovery() {
+		processor1.finishRecovery();
+		processor2.finishRecovery();
+	}
+
 	private int selectFirstReadingInputIndex() throws IOException {
 		// Note: the first call to nextSelection () on the operator must be made after this operator
 		// is opened to ensure that any changes about the input selection in its open()
