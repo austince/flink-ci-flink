@@ -30,7 +30,10 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.Source;
@@ -41,6 +44,7 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -50,13 +54,18 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
@@ -71,7 +80,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -88,6 +99,7 @@ import java.util.stream.IntStream;
 import static java.util.Collections.singletonList;
 import static org.apache.flink.shaded.guava18.com.google.common.collect.Iterables.getOnlyElement;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.fail;
 
 /**
  * Integration test for performing the unaligned checkpoint.
@@ -136,6 +148,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 	private static final String NUM_LOST = "lost";
 	private static final Logger LOG = LoggerFactory.getLogger(UnalignedCheckpointITCase.class);
 	// keep in sync with FailingMapper in #createDAG
+	private static final int NUM_SHUFFLES = 5;
 	private static final int EXPECTED_FAILURES = 5;
 
 	@Rule
@@ -149,6 +162,8 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		.withTimeout(300, TimeUnit.SECONDS)
 		.build();
 
+	private File checkpointDir;
+
 	@Test
 	public void shouldPerformUnalignedCheckpointOnNonParallelLocalChannel() throws Exception {
 		execute(1, 1, true);
@@ -156,6 +171,11 @@ public class UnalignedCheckpointITCase extends TestLogger {
 
 	@Test
 	public void shouldPerformUnalignedCheckpointOnParallelLocalChannel() throws Exception {
+		execute(5, 5, true);
+	}
+
+	@Test
+	public void shouldRescaleUnalignedCheckpointOnParallelLocalChannel() throws Exception {
 		execute(5, 5, true);
 	}
 
@@ -179,32 +199,78 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		execute(20, 20, true);
 	}
 
-	private void execute(int parallelism, int slotsPerTaskManager, boolean slotSharing) throws Exception {
-		StreamExecutionEnvironment env = createEnv(parallelism, slotsPerTaskManager, slotSharing);
+	@Test
+	public void shouldRescaleUnalignedCheckpointOnNonParallelRemoteChannel() throws Exception {
+		final File checkpointDir = execute(2, 1, false);
+		execute(3, 1, false, checkpointDir, false);
+	}
+
+	private File execute(int parallelism, int slotsPerTaskManager, boolean slotSharing) throws Exception {
+		return execute(parallelism, slotsPerTaskManager, slotSharing, null, true);
+	}
+
+	@Nullable
+	private File execute(
+			int parallelism,
+			int slotsPerTaskManager,
+			boolean slotSharing,
+			@Nullable File checkpoint,
+			boolean generateCheckpoint) throws Exception {
+		StreamExecutionEnvironment env = createEnv(
+			parallelism,
+			slotsPerTaskManager,
+			slotSharing,
+			checkpoint,
+			generateCheckpoint);
 
 		long minCheckpoints = 8;
 		createDAG(env, minCheckpoints, slotSharing);
-		final JobExecutionResult result = env.execute();
+		try {
+			final JobExecutionResult result = env.execute();
 
-		collector.checkThat(result.<Long>getAccumulatorResult(NUM_OUT_OF_ORDER), equalTo(0L));
-		collector.checkThat(result.<Long>getAccumulatorResult(NUM_DUPLICATES), equalTo(0L));
-		collector.checkThat(result.<Long>getAccumulatorResult(NUM_LOST), equalTo(0L));
-		collector.checkThat(result.<Integer>getAccumulatorResult(NUM_FAILURES), equalTo(EXPECTED_FAILURES));
+			collector.checkThat(result.<Long>getAccumulatorResult(NUM_OUT_OF_ORDER), equalTo(0L));
+			collector.checkThat(result.<Long>getAccumulatorResult(NUM_DUPLICATES), equalTo(0L));
+			collector.checkThat(result.<Long>getAccumulatorResult(NUM_LOST), equalTo(0L));
+			collector.checkThat(result.<Integer>getAccumulatorResult(NUM_FAILURES), equalTo(EXPECTED_FAILURES));
+		} catch (Exception e) {
+			if (generateCheckpoint) {
+				return Arrays.stream(checkpointDir.listFiles()[0].listFiles())
+					.filter(f -> f.getName().startsWith("chk"))
+					.findFirst()
+					.orElseThrow(() -> new IllegalStateException("Cannot generate checkpoint"));
+			}
+			throw e;
+		}
+		if (generateCheckpoint) {
+			fail("Could not generate checkpoint");
+		}
+		return null;
 	}
 
 	@Nonnull
-	private LocalStreamEnvironment createEnv(int parallelism, int slotsPerTaskManager, boolean slotSharing) throws IOException {
+	private LocalStreamEnvironment createEnv(
+			int parallelism,
+			int slotsPerTaskManager,
+			boolean slotSharing,
+			@Nullable File checkpoint,
+			boolean generateCheckpoint) throws IOException {
 		Configuration conf = new Configuration();
 		conf.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 		conf.setFloat(TaskManagerOptions.NETWORK_MEMORY_FRACTION, .9f);
 		conf.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4kb"));
-		final int taskManagers = slotSharing ? (parallelism + slotsPerTaskManager - 1) / slotsPerTaskManager : parallelism * 3;
+		final int taskManagers =
+			slotSharing ? (parallelism + slotsPerTaskManager - 1) / slotsPerTaskManager : parallelism * NUM_SHUFFLES;
 		conf.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, taskManagers);
-		final int numBuffers = 3 * slotsPerTaskManager * slotsPerTaskManager * taskManagers * 3;
+		final int numBuffers = 4 * slotsPerTaskManager * slotsPerTaskManager * taskManagers * 3;
 		conf.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse(numBuffers * 4 + "kb"));
 
 		conf.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
-		conf.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, temp.newFolder().toURI().toString());
+		checkpointDir = temp.newFolder();
+		conf.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
+		conf.setString(AkkaOptions.ASK_TIMEOUT, "10 min");
+		if (checkpoint != null) {
+			conf.set(SavepointConfigOptions.SAVEPOINT_PATH, checkpoint.toURI().toString());
+		}
 
 		conf.set(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, 1);
 		conf.set(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE, slotsPerTaskManager);
@@ -213,24 +279,52 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		env.enableCheckpointing(100);
 		env.getCheckpointConfig().setAlignmentTimeout(0);
 		env.setParallelism(parallelism);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(EXPECTED_FAILURES, Time.milliseconds(100)));
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(generateCheckpoint ? EXPECTED_FAILURES / 2 :
+			EXPECTED_FAILURES, Time.milliseconds(100)));
 		env.getCheckpointConfig().enableUnalignedCheckpoints(true);
+		if (generateCheckpoint) {
+			env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+		}
 		return env;
 	}
 
 	private void createDAG(StreamExecutionEnvironment env, long minCheckpoints, boolean slotSharing) {
-		env.fromSource(new LongSource(minCheckpoints, env.getParallelism()), WatermarkStrategy.noWatermarks(), "source")
+		final int parallelism = env.getParallelism();
+		env.fromSource(new LongSource(minCheckpoints, parallelism), WatermarkStrategy.noWatermarks(), "source")
 			.slotSharingGroup(slotSharing ? "default" : "source")
+			.disableChaining()
+			.map(i -> i).name("forward").uid("forward")
+			.slotSharingGroup(slotSharing ? "default" : "forward")
+			.keyBy(i -> i % parallelism * parallelism)
+			.process(new KeyedProcessFunction<Long, Long, Long>() {
+				ValueState<Long> state;
+
+				@Override
+				public void open(Configuration parameters) throws Exception {
+					super.open(parameters);
+					state = getRuntimeContext().getState(new ValueStateDescriptor<>(
+						"keyedState",
+						BasicTypeInfo.LONG_TYPE_INFO));
+				}
+
+				@Override
+				public void processElement(Long value, Context ctx, Collector<Long> out) {
+					out.collect(value);
+				}
+			}).name("keyed").uid("keyed")
 			// shifts records from one partition to another evenly to retain order
 			.partitionCustom(new ShiftingPartitioner(), l -> l)
-			.map(new FailingMapper(state -> state.completedCheckpoints >= minCheckpoints / 4 && state.runNumber == 0
+			.map(new FailingMapper(
+				state -> state.completedCheckpoints >= minCheckpoints / 4 && state.runNumber == 0
 					|| state.completedCheckpoints >= minCheckpoints * 3 / 4 && state.runNumber == 2,
 				state -> state.completedCheckpoints >= minCheckpoints / 2 && state.runNumber == 1,
 				state -> state.runNumber == 3,
 				state -> state.runNumber == 4))
+			.name("failing-map").uid("failing-map")
 			.slotSharingGroup(slotSharing ? "default" : "map")
 			.partitionCustom(new DistributingPartitioner(), l -> l)
 			.addSink(new VerifyingSink(minCheckpoints))
+			.name("sink").uid("sink")
 			.slotSharingGroup(slotSharing ? "default" : "sink");
 	}
 
@@ -450,7 +544,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 
 	static void info(RuntimeContext runtimeContext, String description, Object[] args) {
 		LOG.info(description + " @ {} subtask ({} attempt)",
-				ArrayUtils.addAll(args, runtimeContext.getIndexOfThisSubtask(), runtimeContext.getAttemptNumber()));
+			ArrayUtils.addAll(args, runtimeContext.getIndexOfThisSubtask(), runtimeContext.getAttemptNumber()));
 	}
 
 	private static class VerifyingSink extends RichSinkFunction<Long> implements CheckpointedFunction, CheckpointListener {
@@ -460,7 +554,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		private final LongCounter duplicatesCounter = new LongCounter();
 		private final IntCounter numFailures = new IntCounter();
 		private static final ListStateDescriptor<State> STATE_DESCRIPTOR =
-				new ListStateDescriptor<>("state", State.class);
+			new ListStateDescriptor<>("state", State.class);
 		private ListState<State> stateList;
 		private State state;
 		private final long minCheckpoints;
@@ -584,7 +678,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 
 	private static class FailingMapper extends RichMapFunction<Long, Long> implements CheckpointedFunction, CheckpointListener {
 		private static final ListStateDescriptor<FailingMapperState> FAILING_MAPPER_STATE_DESCRIPTOR =
-				new ListStateDescriptor<>("state", FailingMapperState.class);
+			new ListStateDescriptor<>("state", FailingMapperState.class);
 		private ListState<FailingMapperState> listState;
 		private FailingMapperState state;
 		private final FilterFunction<FailingMapperState> failDuringMap;
