@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -121,6 +122,16 @@ public class TestTaskStateManager implements TaskStateManager {
 		if (waitForReportLatch != null) {
 			waitForReportLatch.trigger();
 		}
+	}
+
+	@Override
+	public InflightDataRescalingDescriptor getInputRescalingDescriptor() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public InflightDataRescalingDescriptor getOutputRescalingDescriptor() {
+		throw new UnsupportedOperationException();
 	}
 
 	@Nonnull
