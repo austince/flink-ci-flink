@@ -40,8 +40,8 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -85,8 +85,8 @@ public class ChannelPersistenceITCase {
 		NetworkBufferPool networkBufferPool = new NetworkBufferPool(4, 1024);
 		try {
 			int numChannels = 1;
-			InputGate gate = buildGate(networkBufferPool, numChannels);
-			reader.readInputData(new InputGate[]{gate});
+			IndexedInputGate gate = buildGate(networkBufferPool, numChannels);
+			reader.readInputData(new IndexedInputGate[]{gate});
 			assertArrayEquals(inputChannelInfoData, collectBytes(() -> gate.pollNext().map(BufferOrEvent::getBuffer)));
 
 			BufferWritingResultPartition resultPartition = buildResultPartition(networkBufferPool, partitionIndex, numChannels);

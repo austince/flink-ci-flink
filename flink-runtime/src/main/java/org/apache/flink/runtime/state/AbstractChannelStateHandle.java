@@ -115,6 +115,15 @@ public abstract class AbstractChannelStateHandle<Info> implements StateObject {
 		return Objects.hash(info, delegate, offsets);
 	}
 
+	@Override
+	public String toString() {
+		return "AbstractChannelStateHandle{" +
+			"info=" + info +
+			", delegate=" + delegate +
+			", offsets=" + offsets +
+			'}';
+	}
+
 	/**
 	 * Describes the underlying content.
 	 */

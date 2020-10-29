@@ -18,7 +18,7 @@ package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 
 import java.io.IOException;
 
@@ -28,7 +28,7 @@ import java.io.IOException;
 @Internal
 public interface SequentialChannelStateReader extends AutoCloseable {
 
-	void readInputData(InputGate[] inputGates) throws IOException, InterruptedException;
+	void readInputData(IndexedInputGate[] inputGates) throws IOException, InterruptedException;
 
 	void readOutputData(ResultPartitionWriter[] writers) throws IOException, InterruptedException;
 
@@ -38,7 +38,7 @@ public interface SequentialChannelStateReader extends AutoCloseable {
 	SequentialChannelStateReader NO_OP = new SequentialChannelStateReader() {
 
 		@Override
-		public void readInputData(InputGate[] inputGates) {
+		public void readInputData(IndexedInputGate[] inputGates) {
 		}
 
 		@Override

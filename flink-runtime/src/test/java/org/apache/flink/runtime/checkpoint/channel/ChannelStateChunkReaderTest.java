@@ -49,7 +49,7 @@ public class ChannelStateChunkReaderTest {
 		TestRecoveredChannelStateHandler handler = new TestRecoveredChannelStateHandler();
 
 		try (FSDataInputStream stream = getStream(serializer, 10)) {
-			new ChannelStateChunkReader(serializer).readChunk(stream, serializer.getHeaderLength(), handler, "channelInfo");
+			new ChannelStateChunkReader(serializer).readChunk(stream, serializer.getHeaderLength(), handler, "channelInfo", 0);
 		} finally {
 			checkState(serializer.failed);
 			checkState(!handler.requestedBuffers.isEmpty());
@@ -63,7 +63,7 @@ public class ChannelStateChunkReaderTest {
 		TestRecoveredChannelStateHandler handler = new TestRecoveredChannelStateHandler();
 
 		try (FSDataInputStream stream = getStream(serializer, 0)) {
-			new ChannelStateChunkReader(serializer).readChunk(stream, serializer.getHeaderLength(), handler, "channelInfo");
+			new ChannelStateChunkReader(serializer).readChunk(stream, serializer.getHeaderLength(), handler, "channelInfo", 0);
 		} finally {
 			assertTrue(handler.requestedBuffers.isEmpty());
 		}
@@ -90,7 +90,7 @@ public class ChannelStateChunkReaderTest {
 		};
 
 		new ChannelStateChunkReader(new ChannelStateSerializerImpl())
-			.readChunk(stream, offset, new TestRecoveredChannelStateHandler(), "channelInfo");
+			.readChunk(stream, offset, new TestRecoveredChannelStateHandler(), "channelInfo", 0);
 	}
 
 	private static class TestRecoveredChannelStateHandler implements RecoveredChannelStateHandler<Object, Object> {
@@ -104,7 +104,7 @@ public class ChannelStateChunkReaderTest {
 		}
 
 		@Override
-		public void recover(Object o, Object o2) {
+		public void recover(Object o, int oldSubtaskIndex, Object o2) {
 		}
 
 		@Override
