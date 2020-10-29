@@ -29,7 +29,6 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
-import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
@@ -104,7 +103,6 @@ import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
 import static org.apache.flink.runtime.scheduler.ExecutionVertexSchedulingRequirementsMapper.getPhysicalSlotResourceProfile;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A single execution of a vertex. While an {@link ExecutionVertex} can be executed multiple times
@@ -726,15 +724,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			LOG.info("Deploying {} (attempt #{}) with attempt id {} to {} with allocation id {}", vertex.getTaskNameWithSubtaskIndex(),
 				attemptNumber, vertex.getCurrentExecutionAttempt().getAttemptId(), getAssignedResourceLocation(), slot.getAllocationId());
-
-			if (taskRestore != null) {
-				checkState(taskRestore.getTaskStateSnapshot().getSubtaskStateMappings().stream().allMatch(entry ->
-					entry.getValue().getInputChannelMappings().stream()
-						.allMatch(mapping -> mapping.equals(OperatorSubtaskState.VirtualChannelMapping.NO_MAPPING)) &&
-						entry.getValue().getOutputChannelMappings().stream()
-							.allMatch(mapping -> mapping.equals(OperatorSubtaskState.VirtualChannelMapping.NO_MAPPING))
-				), "Rescaling from unaligned checkpoint is not yet supported.");
-			}
 
 			final TaskDeploymentDescriptor deployment = TaskDeploymentDescriptorFactory
 				.fromExecutionVertex(vertex, attemptNumber)
