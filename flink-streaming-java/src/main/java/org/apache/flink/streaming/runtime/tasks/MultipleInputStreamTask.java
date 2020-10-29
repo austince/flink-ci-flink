@@ -37,6 +37,7 @@ import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessorFactory
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 import javax.annotation.Nullable;
 
@@ -47,6 +48,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import java.util.function.Function;
 
 /**
  * A {@link StreamTask} for executing a {@link MultipleInputStreamOperator} and supporting
@@ -109,7 +111,11 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 				networkInputLists.add(inputList);
 			}
 		}
-		createInputProcessor(networkInputLists.toArray(new ArrayList[0]), inputs, watermarkGauges);
+		createInputProcessor(
+			networkInputLists.toArray(new ArrayList[0]),
+			inputs,
+			watermarkGauges,
+			(index) -> inEdges.get(index).getPartitioner());
 
 		// wrap watermark gauge since registered metrics must be unique
 		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge::getValue);
@@ -118,7 +124,8 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 	protected void createInputProcessor(
 			List<IndexedInputGate>[] inputGates,
 			InputConfig[] inputs,
-			WatermarkGauge[] inputWatermarkGauges) {
+			WatermarkGauge[] inputWatermarkGauges,
+			Function<Integer, StreamPartitioner<?>> inputPartitionerRetriever) {
 		checkpointBarrierHandler = InputProcessorUtil.createCheckpointBarrierHandler(
 			this,
 			getConfiguration(),
@@ -150,7 +157,10 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			getJobConfiguration(),
 			getExecutionConfig(),
 			getUserCodeClassLoader(),
-			operatorChain);
+			operatorChain,
+			getEnvironment().getTaskStateManager().getInputRescalingDescriptor(),
+			inputPartitionerRetriever,
+			getIndexInSubtaskGroup());
 	}
 
 	@Override

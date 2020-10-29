@@ -34,6 +34,7 @@ import org.apache.flink.streaming.runtime.io.AbstractDataOutput;
 import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
+import org.apache.flink.streaming.runtime.io.RescalingStreamTaskNetworkInput;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInput;
@@ -155,12 +156,16 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 		StatusWatermarkValve statusWatermarkValve = new StatusWatermarkValve(numberOfInputChannels);
 
 		TypeSerializer<IN> inSerializer = configuration.getTypeSerializerIn1(getUserCodeClassLoader());
-		return new StreamTaskNetworkInput<>(
+
+		return RescalingStreamTaskNetworkInput.of(
 			inputGate,
 			inSerializer,
 			getEnvironment().getIOManager(),
 			statusWatermarkValve,
-			0);
+			0,
+			getEnvironment().getTaskStateManager().getInputRescalingDescriptor(),
+			gateIndex -> configuration.getInPhysicalEdges(getUserCodeClassLoader()).get(gateIndex).getPartitioner(),
+			getIndexInSubtaskGroup());
 	}
 
 	/**

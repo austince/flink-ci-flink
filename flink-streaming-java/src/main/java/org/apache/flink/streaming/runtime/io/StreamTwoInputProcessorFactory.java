@@ -24,6 +24,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -36,12 +37,15 @@ import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput;
 import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput.SelectableSortingInputs;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.util.function.ThrowingConsumer;
+
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -65,26 +69,35 @@ public class StreamTwoInputProcessorFactory {
 			Configuration jobConfig,
 			ExecutionConfig executionConfig,
 			ClassLoader userClassloader,
-			Counter numRecordsIn) {
+			Counter numRecordsIn,
+			InflightDataRescalingDescriptor inflightDataRescalingDescriptor,
+			Function<Integer, StreamPartitioner<?>> gatePartitionerRetriever,
+			int subtaskIndex) {
 
 		checkNotNull(endOfInputAware);
 
 		StreamStatusTracker statusTracker = new StreamStatusTracker();
 		taskIOMetricGroup.reuseRecordsInputCounter(numRecordsIn);
 		TypeSerializer<IN1> typeSerializer1 = streamConfig.getTypeSerializerIn(0, userClassloader);
-		StreamTaskInput<IN1> input1 = new StreamTaskNetworkInput<>(
+		StreamTaskInput<IN1> input1 = RescalingStreamTaskNetworkInput.of(
 			checkpointedInputGates[0],
 			typeSerializer1,
 			ioManager,
 			new StatusWatermarkValve(checkpointedInputGates[0].getNumberOfInputChannels()),
-			0);
+			0,
+			inflightDataRescalingDescriptor,
+			gatePartitionerRetriever,
+			subtaskIndex);
 		TypeSerializer<IN2> typeSerializer2 = streamConfig.getTypeSerializerIn(1, userClassloader);
-		StreamTaskInput<IN2> input2 = new StreamTaskNetworkInput<>(
+		StreamTaskInput<IN2> input2 = RescalingStreamTaskNetworkInput.of(
 			checkpointedInputGates[1],
 			typeSerializer2,
 			ioManager,
 			new StatusWatermarkValve(checkpointedInputGates[1].getNumberOfInputChannels()),
-			1);
+			1,
+			inflightDataRescalingDescriptor,
+			gatePartitionerRetriever,
+			subtaskIndex);
 
 		InputSelectable inputSelectable =
 			streamOperator instanceof InputSelectable ? (InputSelectable) streamOperator : null;

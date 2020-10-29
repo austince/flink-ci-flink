@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.EventAnnouncement;
+import org.apache.flink.runtime.io.network.api.VirtualChannelSelector;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
@@ -66,6 +67,8 @@ public class EventSerializer {
 	private static final int END_OF_CHANNEL_STATE_EVENT = 5;
 
 	private static final int ANNOUNCEMENT_EVENT = 6;
+
+	private static final int VIRTUAL_CHANNEL_SELECTOR_EVENT = 7;
 
 	private static final int CHECKPOINT_TYPE_CHECKPOINT = 0;
 
@@ -110,6 +113,15 @@ public class EventSerializer {
 			serializedAnnouncement.put(serializedAnnouncedEvent);
 			serializedAnnouncement.flip();
 			return serializedAnnouncement;
+		}
+		else if (eventClass == VirtualChannelSelector.class) {
+			VirtualChannelSelector selector = (VirtualChannelSelector) event;
+			ByteBuffer buf = ByteBuffer.allocate(12);
+			buf.putInt(VIRTUAL_CHANNEL_SELECTOR_EVENT);
+			buf.putInt(selector.getSubtaskIndex());
+			buf.putInt(selector.getChannelIndex());
+			buf.flip();
+			return buf;
 		}
 		else {
 			try {
@@ -156,6 +168,9 @@ public class EventSerializer {
 				int sequenceNumber = buffer.getInt();
 				AbstractEvent announcedEvent = fromSerializedEvent(buffer, classLoader);
 				return new EventAnnouncement(announcedEvent, sequenceNumber);
+			}
+			else if (type == VIRTUAL_CHANNEL_SELECTOR_EVENT) {
+				return new VirtualChannelSelector(buffer.getInt(), buffer.getInt());
 			}
 			else if (type == OTHER_EVENT) {
 				try {

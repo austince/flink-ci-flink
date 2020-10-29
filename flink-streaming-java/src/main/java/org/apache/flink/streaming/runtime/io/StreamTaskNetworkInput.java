@@ -86,7 +86,7 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 	private RecordDeserializer<DeserializationDelegate<StreamElement>> currentRecordDeserializer = null;
 
 	@SuppressWarnings("unchecked")
-	public StreamTaskNetworkInput(
+	StreamTaskNetworkInput(
 			CheckpointedInputGate checkpointedInputGate,
 			TypeSerializer<?> inputSerializer,
 			IOManager ioManager,
@@ -99,8 +99,7 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 		// Initialize one deserializer per input channel
 		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[checkpointedInputGate.getNumberOfInputChannels()];
 		for (int i = 0; i < recordDeserializers.length; i++) {
-			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<>(
-				ioManager.getSpillingDirectoriesPaths());
+			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<>(ioManager.getSpillingDirectoriesPaths());
 		}
 
 		this.statusWatermarkValve = checkNotNull(statusWatermarkValve);

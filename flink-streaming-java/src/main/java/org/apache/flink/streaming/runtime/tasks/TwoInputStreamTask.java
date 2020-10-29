@@ -24,9 +24,11 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessorFactory;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -43,8 +45,9 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 
 	@Override
 	protected void createInputProcessor(
-		List<IndexedInputGate> inputGates1,
-		List<IndexedInputGate> inputGates2) {
+			List<IndexedInputGate> inputGates1,
+			List<IndexedInputGate> inputGates2,
+			Function<Integer, StreamPartitioner<?>> gatePartitionerRetriever) {
 
 		// create an input instance for each input
 		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedMultipleInputGate(
@@ -74,6 +77,9 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 			getJobConfiguration(),
 			getExecutionConfig(),
 			getUserCodeClassLoader(),
-			setupNumRecordsInCounter(mainOperator));
+			setupNumRecordsInCounter(mainOperator),
+			getEnvironment().getTaskStateManager().getInputRescalingDescriptor(),
+			gatePartitionerRetriever,
+			getIndexInSubtaskGroup());
 	}
 }

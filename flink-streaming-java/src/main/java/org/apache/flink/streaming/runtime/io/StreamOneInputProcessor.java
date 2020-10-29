@@ -42,7 +42,7 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamOneInputProcessor.class);
 
-	private final StreamTaskInput<IN> input;
+	private StreamTaskInput<IN> input;
 	private final DataOutput<IN> output;
 
 	private final BoundedMultiInput endOfInputAware;
@@ -78,6 +78,13 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 			ChannelStateWriter channelStateWriter,
 			long checkpointId) throws IOException {
 		return input.prepareSnapshot(channelStateWriter, checkpointId);
+	}
+
+	@Override
+	public void finishRecovery() {
+		if (input instanceof RescalingStreamTaskNetworkInput) {
+			input = ((RescalingStreamTaskNetworkInput<IN>) input).finishRecovery();
+		}
 	}
 
 	@Override

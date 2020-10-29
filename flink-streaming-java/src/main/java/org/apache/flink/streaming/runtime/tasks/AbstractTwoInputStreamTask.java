@@ -26,9 +26,11 @@ import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * Abstract class for executing a {@link TwoInputStreamOperator}.
@@ -80,7 +82,7 @@ public abstract class AbstractTwoInputStreamTask<IN1, IN2, OUT> extends StreamTa
 			}
 		}
 
-		createInputProcessor(inputList1, inputList2);
+		createInputProcessor(inputList1, inputList2, gateIndex -> inEdges.get(gateIndex).getPartitioner());
 
 		mainOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
 		mainOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_1_WATERMARK, input1WatermarkGauge);
@@ -91,5 +93,6 @@ public abstract class AbstractTwoInputStreamTask<IN1, IN2, OUT> extends StreamTa
 
 	protected abstract void createInputProcessor(
 		List<IndexedInputGate> inputGates1,
-		List<IndexedInputGate> inputGates2) throws Exception;
+		List<IndexedInputGate> inputGates2,
+		Function<Integer, StreamPartitioner<?>> gatePartitioner) throws Exception;
 }
