@@ -33,6 +33,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
@@ -145,9 +146,11 @@ public class SequentialChannelStateReaderImplTest {
 		Map<InputChannelInfo, List<Buffer>> actual = new HashMap<>();
 		for (InputGate gate : gates) {
 			for (Optional<BufferOrEvent> next = gate.pollNext(); next.isPresent(); next = gate.pollNext()) {
-				actual.computeIfAbsent(
-					next.get().getChannelInfo(),
-					unused -> new ArrayList<>()).add(next.get().getBuffer());
+				if (next.get().isBuffer()) {
+					actual.computeIfAbsent(
+						next.get().getChannelInfo(),
+						unused -> new ArrayList<>()).add(next.get().getBuffer());
+				}
 			}
 		}
 		return actual;
@@ -160,7 +163,7 @@ public class SequentialChannelStateReaderImplTest {
 		}
 	}
 
-	private void withInputGates(ThrowingConsumer<InputGate[], Exception> action) throws Exception {
+	private void withInputGates(ThrowingConsumer<IndexedInputGate[], Exception> action) throws Exception {
 		SingleInputGate[] gates = new SingleInputGate[parLevel];
 		final int segmentsToAllocate = parLevel + parLevel * parLevel * buffersPerChannel;
 		NetworkBufferPool networkBufferPool = new NetworkBufferPool(segmentsToAllocate, bufferSize);
