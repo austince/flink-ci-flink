@@ -160,7 +160,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.initializeState(snapshot);
 			harness.open();
 
-			harness.processWatermark(new Watermark(Long.MIN_VALUE));
+			harness.processWatermark(Watermark.UNINITIALIZED);
 
 			harness
 				.processElement(new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3L));
@@ -233,7 +233,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.initializeState(snapshot);
 			harness.open();
 
-			harness.processWatermark(new Watermark(Long.MIN_VALUE));
+			harness.processWatermark(Watermark.UNINITIALIZED);
 
 			harness
 				.processElement(new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3L));
@@ -572,7 +572,7 @@ public class CEPOperatorTest extends TestLogger {
 		try {
 			harness.open();
 
-			harness.processWatermark(new Watermark(Long.MIN_VALUE));
+			harness.processWatermark(Watermark.UNINITIALIZED);
 
 			harness.processElement(new StreamRecord<>(new Event(42, "foobar", 1.0), 2L));
 			harness.processElement(new StreamRecord<Event>(middleEvent1, 2L));
@@ -672,7 +672,7 @@ public class CEPOperatorTest extends TestLogger {
 		try {
 			harness.open();
 
-			harness.processWatermark(new Watermark(Long.MIN_VALUE));
+			harness.processWatermark(Watermark.UNINITIALIZED);
 
 			harness.processElement(new StreamRecord<>(middle2Event1, 6));
 			harness.processElement(new StreamRecord<>(middle1Event3, 7));
@@ -766,7 +766,7 @@ public class CEPOperatorTest extends TestLogger {
 
 			harness.open();
 
-			harness.processWatermark(new Watermark(Long.MIN_VALUE));
+			harness.processWatermark(Watermark.UNINITIALIZED);
 			harness.processElement(new StreamRecord<>(startEvent, 6));
 
 			verifyWatermark(harness.getOutput().poll(), Long.MIN_VALUE);

@@ -43,6 +43,8 @@ public final class Watermark extends StreamElement {
 
 	/** The watermark that signifies end-of-event-time. */
 	public static final Watermark MAX_WATERMARK = new Watermark(Long.MAX_VALUE);
+	/** The watermark that signifies is used before any actual watermark has been generated. */
+	public static final Watermark UNINITIALIZED = new Watermark(Long.MIN_VALUE);
 
 	// ------------------------------------------------------------------------
 
