@@ -154,17 +154,31 @@ class StreamExecRank(
 
     val processFunction = rankStrategy match {
       case AppendFastStrategy =>
-        new AppendOnlyTopNFunction(
-          minIdleStateRetentionTime,
-          maxIdleStateRetentionTime,
-          inputRowTypeInfo,
-          sortKeyComparator,
-          sortKeySelector,
-          rankType,
-          rankRange,
-          generateUpdateBefore,
-          outputRankNumber,
-          cacheSize)
+        if (fieldCollations.size() == 1 && !fieldCollations.get(0).direction.isDescending &&
+            FlinkTypeFactory.isProctimeIndicatorType(sortKeyType)) {
+          new AppendOnlyFirstNFunction(
+            minIdleStateRetentionTime,
+            maxIdleStateRetentionTime,
+            inputRowTypeInfo,
+            sortKeyComparator,
+            sortKeySelector,
+            rankType,
+            rankRange,
+            generateUpdateBefore,
+            outputRankNumber)
+        } else {
+          new AppendOnlyTopNFunction(
+            minIdleStateRetentionTime,
+            maxIdleStateRetentionTime,
+            inputRowTypeInfo,
+            sortKeyComparator,
+            sortKeySelector,
+            rankType,
+            rankRange,
+            generateUpdateBefore,
+            outputRankNumber,
+            cacheSize)
+        }
 
       case UpdateFastStrategy(primaryKeys) =>
         val rowKeySelector = KeySelectorUtil.getRowDataSelector(primaryKeys, inputRowTypeInfo)
