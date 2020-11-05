@@ -233,10 +233,11 @@ public class PartitionPathUtils {
 			String[] fieldNames,
 			DataType[] fieldTypes,
 			int[] selectFields,
+			int metadataArity,
 			List<String> partitionKeys,
 			Path path,
 			String defaultPartValue) {
-		GenericRowData record = new GenericRowData(selectFields.length);
+		GenericRowData record = new GenericRowData(selectFields.length + metadataArity);
 		LinkedHashMap<String, String> partSpec = PartitionPathUtils.extractPartitionSpecFromPath(path);
 		for (int i = 0; i < selectFields.length; i++) {
 			int selectField = selectFields[i];

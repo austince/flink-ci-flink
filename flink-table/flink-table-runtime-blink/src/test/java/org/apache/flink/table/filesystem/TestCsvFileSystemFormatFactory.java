@@ -36,7 +36,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -130,6 +133,16 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 
 		DataType[] types = context.getFormatFieldTypes();
 		return Optional.of(out -> new CsvBulkWriter(types, out));
+	}
+
+	@Override
+	public Map<String, DataType> listReadableMetadata() {
+		return Collections.emptyMap();
+	}
+
+	@Override
+	public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {
+		//TODO: implement
 	}
 
 	private static class CsvBulkWriter implements BulkWriter<RowData> {

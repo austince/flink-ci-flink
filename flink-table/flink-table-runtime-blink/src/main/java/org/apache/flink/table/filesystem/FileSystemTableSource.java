@@ -42,6 +42,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.DynamicTableFactory;
@@ -69,6 +70,7 @@ import java.util.stream.Stream;
  */
 public class FileSystemTableSource extends AbstractFileSystemTable implements
 		ScanTableSource,
+		SupportsReadingMetadata,
 		SupportsProjectionPushDown,
 		SupportsLimitPushDown,
 		SupportsPartitionPushDown,
@@ -285,6 +287,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 	}
 
 	private DataType getProducedDataType() {
+		//TODO: Add the metadataKeys , datatypes here
 		int[] fields = readFields();
 		String[] schemaFieldNames = schema.getFieldNames();
 		DataType[] schemaTypes = schema.getFieldDataTypes();
@@ -294,5 +297,17 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 				.toArray(DataTypes.Field[]::new))
 				.bridgedTo(RowData.class)
 			.notNull();
+	}
+
+	@Override
+	public Map<String, DataType> listReadableMetadata() {
+		//TODO delegate to the format
+		return this.formatFactory.listReadableMetadata();
+
+	}
+
+	@Override
+	public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {
+		this.formatFactory.applyReadableMetadata(metadataKeys, producedDataType);
 	}
 }

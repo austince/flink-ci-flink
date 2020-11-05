@@ -38,8 +38,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -130,6 +132,17 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 		return Optional.empty();
 	}
 
+	@Override
+	public Map<String, DataType> listReadableMetadata() {
+		return Collections.emptyMap();
+	}
+
+	@Override
+	public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {
+		//TODO: implement
+	}
+
+
 	/**
 	 * A {@link JsonInputFormat} is responsible to read {@link RowData} records
 	 * from json format files.
@@ -196,7 +209,7 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 			super.open(split);
 			this.end = false;
 			this.emitted = 0L;
-			this.rowData = PartitionPathUtils.fillPartitionValueForRecord(fieldNames, fieldTypes, selectFields,
+			this.rowData = PartitionPathUtils.fillPartitionValueForRecord(fieldNames, fieldTypes, selectFields, 0,
 				partitionKeys, currentSplit.getPath(), defaultPartValue);
 		}
 

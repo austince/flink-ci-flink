@@ -25,8 +25,10 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
@@ -40,13 +42,18 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.Csv
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.formats.csv.CsvFormatFactory.validateFormatOptions;
 import static org.apache.flink.formats.csv.CsvOptions.ALLOW_COMMENTS;
@@ -64,6 +71,8 @@ import static org.apache.flink.formats.csv.CsvOptions.QUOTE_CHARACTER;
 public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 
 	public static final String IDENTIFIER = "csv";
+	private List<String> metadataKeys = Collections.emptyList();
+	private DataType producedDataType;
 
 	@Override
 	public String factoryIdentifier() {
@@ -119,6 +128,7 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 			context.getPaths(),
 			context.getSchema().getFieldDataTypes(),
 			context.getSchema().getFieldNames(),
+			metadataKeys,
 			csvSchema,
 			formatRowType,
 			context.getProjectFields(),
@@ -199,6 +209,18 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 		return Optional.empty();
 	}
 
+	public Map<String, DataType> listReadableMetadata() {
+		final Map<String, DataType> metadataMap = new LinkedHashMap<>();
+		Stream.of(ReadableMetadata.values()).forEachOrdered(m -> metadataMap.put(m.key, m.dataType));
+		return metadataMap;
+	}
+
+	@Override
+	public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {
+		this.metadataKeys = metadataKeys;
+		this.producedDataType = producedDataType;
+	}
+
 	/**
 	 * InputFormat that reads csv record into {@link RowData}.
 	 */
@@ -215,6 +237,9 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 		private final int[] csvSelectFieldToProjectFieldMapping;
 		private final int[] csvSelectFieldToCsvFieldMapping;
 		private final boolean ignoreParseErrors;
+		private final List<String> metadataKeys;
+		private final MetadataConverter[] metadataConverters;
+		private final DataType[] metadataDataTypes;
 
 		private transient InputStreamReader inputStreamReader;
 		private transient BufferedReader reader;
@@ -229,6 +254,7 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 			Path[] filePaths,
 			DataType[] fieldTypes,
 			String[] fieldNames,
+			List<String> metadataKeys,
 			CsvSchema csvSchema,
 			RowType formatRowType,
 			int[] selectFields,
@@ -241,6 +267,7 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 			super(filePaths, csvSchema);
 			this.fieldTypes = fieldTypes;
 			this.fieldNames = fieldNames;
+			this.metadataKeys = metadataKeys;
 			this.formatRowType = formatRowType;
 			this.partitionKeys = partitionKeys;
 			this.defaultPartValue = defaultPartValue;
@@ -250,6 +277,22 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 			this.csvSelectFieldToProjectFieldMapping = csvSelectFieldToProjectFieldMapping;
 			this.csvSelectFieldToCsvFieldMapping = csvSelectFieldToCsvFieldMapping;
 			this.ignoreParseErrors = ignoreParseErrors;
+			this.metadataConverters = metadataKeys.stream()
+				.map(k ->
+					Stream.of(ReadableMetadata.values())
+						.filter(rm -> rm.key.equals(k))
+						.findFirst()
+						.orElseThrow(IllegalStateException::new))
+				.map(m -> m.converter)
+				.toArray(MetadataConverter[]::new);
+			this.metadataDataTypes = metadataKeys.stream()
+				.map(k ->
+					Stream.of(ReadableMetadata.values())
+					.filter(rm -> rm.key.equals(k))
+					.findFirst()
+					.orElseThrow(IllegalStateException::new))
+				.map(m -> m.dataType)
+				.toArray(DataType[]::new);
 		}
 
 		@Override
@@ -258,7 +301,7 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 			this.end = false;
 			this.inputStreamReader = new InputStreamReader(csvInputStream);
 			this.reader = new BufferedReader(inputStreamReader);
-			this.rowData = PartitionPathUtils.fillPartitionValueForRecord(fieldNames, fieldTypes, selectFields,
+			this.rowData =  PartitionPathUtils.fillPartitionValueForRecord(fieldNames, fieldTypes, selectFields, metadataKeys.size(),
 				partitionKeys, currentSplit.getPath(), defaultPartValue);
 			this.iterator = new CsvMapper()
 				.readerFor(JsonNode.class)
@@ -299,6 +342,11 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 				returnRecord.setField(csvSelectFieldToProjectFieldMapping[i],
 					csvRow.getField(csvSelectFieldToCsvFieldMapping[i]));
 			}
+
+			for (int i = 0; i < metadataConverters.length; i++) {
+				final int fieldIndex = csvSelectFieldToCsvFieldMapping.length + i;
+				returnRecord.setField(fieldIndex, metadataConverters[i].read(currentSplit));
+			}
 			emitted++;
 			return returnRecord;
 		}
@@ -315,5 +363,38 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 				inputStreamReader = null;
 			}
 		}
+	}
+
+// --------------------------------------------------------------------------------------------
+	// Metadata handling
+	// --------------------------------------------------------------------------------------------
+
+	enum ReadableMetadata {
+		PATH(
+			"flink.fs.path",
+			DataTypes.STRING().notNull(),
+			fileInputSplit -> StringData.fromString(fileInputSplit.getPath().toString())
+		),
+		BASENAME(
+			"flink.fs.basename",
+			DataTypes.STRING().notNull(),
+			fileInputSplit -> StringData.fromString(fileInputSplit.getPath().getName())
+		);
+
+		final String key;
+
+		final DataType dataType;
+
+		final MetadataConverter converter;
+
+		ReadableMetadata(String key, DataType dataType, MetadataConverter converter) {
+			this.key = key;
+			this.dataType = dataType;
+			this.converter = converter;
+		}
+	}
+
+	interface MetadataConverter extends Serializable {
+		Object read(FileInputSplit fileInputSplit);
 	}
 }

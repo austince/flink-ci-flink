@@ -45,8 +45,10 @@ import org.apache.avro.io.DatumWriter;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -122,6 +124,16 @@ public class AvroFileSystemFormatFactory implements FileSystemFormatFactory {
 				context.getFormatOptions().get(AVRO_OUTPUT_CODEC)));
 	}
 
+	@Override
+	public Map<String, DataType> listReadableMetadata() {
+		return Collections.emptyMap();
+	}
+
+	@Override
+	public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {
+		//TODO: implement
+	}
+
 	/**
 	 * InputFormat that reads avro record into {@link RowData}.
 	 *
@@ -183,6 +195,7 @@ public class AvroFileSystemFormatFactory implements FileSystemFormatFactory {
 					fieldNames,
 					fieldTypes,
 					selectFields,
+					0,
 					partitionKeys,
 					currentSplit.getPath(),
 					defaultPartValue);
