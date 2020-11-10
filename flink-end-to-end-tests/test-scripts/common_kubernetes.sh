@@ -25,7 +25,7 @@ MINIKUBE_START_RETRIES=3
 MINIKUBE_START_BACKOFF=5
 RESULT_HASH="e682ec6622b5e83f2eb614617d5ab2cf"
 MINIKUBE_VERSION="v1.8.2"
-MINIKUBE_PATH="/usr/local/bin/minikube-$MINIKUBE_VERSION"
+MINIKUBE_PATH=$([ "${OS_TYPE}" != "linux" ] && echo "minikube" || echo "/usr/local/bin/minikube-$MINIKUBE_VERSION")
 
 NON_LINUX_ENV_NOTE="****** Please start/stop minikube manually in non-linux environment. ******"
 
@@ -97,8 +97,9 @@ function start_kubernetes {
             exit 1
         fi
         # Mount Flink dist into minikube virtual machine because we need to mount hostPath as usrlib
-        minikube mount $FLINK_DIR:$FLINK_DIR &
+        $MINIKUBE_PATH mount $FLINK_DIR:$FLINK_DIR &
         export minikube_mount_pid=$!
+        echo "The mounting process is running with pid $minikube_mount_pid"
     else
         setup_kubernetes_for_linux
         if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} start_kubernetes_if_not_running; then
@@ -112,6 +113,7 @@ function start_kubernetes {
 function stop_kubernetes {
     if [[ "${OS_TYPE}" != "linux" ]]; then
         echo "$NON_LINUX_ENV_NOTE"
+        echo "Killing mounting process $minikube_mount_pid"
         kill $minikube_mount_pid 2> /dev/null
     else
         echo "Stopping minikube ..."
@@ -178,21 +180,9 @@ function cleanup {
     stop_kubernetes
 }
 
-function setConsoleLogging {
-    cat >> $FLINK_DIR/conf/log4j.properties <<END
-rootLogger.appenderRef.console.ref = ConsoleAppender
-
-# Log all infos to the console
-appender.console.name = ConsoleAppender
-appender.console.type = CONSOLE
-appender.console.layout.type = PatternLayout
-appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%t] %-60c %x - %m%n
-END
-}
-
 function get_host_machine_address {
     if [[ "${OS_TYPE}" != "linux" ]]; then
-        echo $(minikube ssh "route -n | grep ^0.0.0.0 | awk '{ print \$2 }' | tr -d '[:space:]'")
+        echo $($MINIKUBE_PATH ssh "route -n | grep ^0.0.0.0 | awk '{ print \$2 }' | tr -d '[:space:]'")
     else
         echo "localhost"
     fi
