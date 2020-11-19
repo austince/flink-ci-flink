@@ -128,7 +128,7 @@ public class ExecutionCheckpointingOptions {
 	public static final ConfigOption<Boolean> ENABLE_UNALIGNED =
 		ConfigOptions.key("execution.checkpointing.unaligned")
 			.booleanType()
-			.defaultValue(false)
+			.defaultValue(Boolean.valueOf(System.getProperty("execution.checkpointing.unaligned", "false")))
 			.withDescription(Description.builder()
 				.text("Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure.")
 				.linebreak()
