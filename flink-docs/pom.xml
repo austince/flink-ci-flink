@@ -187,6 +187,7 @@ under the License.
 				<configuration>
 					<systemPropertyVariables>
 						<rootDir>${rootDir}</rootDir>
+						<execution.checkpointing.unaligned>true</execution.checkpointing.unaligned>
 					</systemPropertyVariables>
 				</configuration>
 			</plugin>
