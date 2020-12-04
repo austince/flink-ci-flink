@@ -263,6 +263,12 @@ $ kubectl delete deployment/<cluster-id>
 
 Currently, all Kubernetes version `>= 1.9` are supported.
 
+### Namespaces
+
+[Namespaces in Kubernetes](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) divide cluster resources between multiple users via [resource quotas](https://kubernetes.io/docs/concepts/policy/resource-quotas/).
+Flink on Kubernetes can use namespaces to launch Flink clusters.
+The namespace can be configured via [kubernetes.namespace]({% link deployment/config.md %}#kubernetes-namespace).
+
 ### RBAC
 
 Role-based access control ([RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/)) is a method of regulating access to compute or network resources based on the roles of individual users within an enterprise.
