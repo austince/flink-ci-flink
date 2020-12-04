@@ -176,7 +176,12 @@ $ kubectl port-forward service/<ServiceName> 8081
 
 Please reference the official documentation on [publishing services in Kubernetes](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types) for more information.
 
-### Accessing the Logs
+### Logging
+
+The Kubernetes integration exposes `conf/log4j-console.properties` and `conf/logback-console.xml` as a ConfigMap to the pods.
+Changes to these files will be visible to a newly started cluster.
+
+#### Accessing the Logs
 
 By default, the JobManager and TaskManager will output the logs to the console and `/opt/flink/log` in each pod simultaneously.
 The `STDOUT` and `STDERR` output will only be redirected to the console.
@@ -193,6 +198,14 @@ If the pod is running, you can also use `kubectl exec -it <pod-name> bash` to tu
 Flink will automatically de-allocate idling TaskManagers in order to not waste resources.
 This behaviour can make it harder to access the logs of the respective pods.
 You can increase the time before idling TaskManagers are released by configuring [resourcemanager.taskmanager-timeout]({% link deployment/config.md %}#resourcemanager-taskmanager-timeout) so that you have more time inspecting the log files.
+
+#### Changing the Log Level Dynamically
+
+If you have configured your logger to [detect configuration changes automatically]({% link deployment/advanced/logging.md %}), then you can dynamically adapt the log level by changing the respective ConfigMap (assuming that the cluster id is `my-first-flink-cluster`):
+
+{% highligh bash %}
+$ kubectl edit cm <configmap-name>
+{% endhighlight %}
 
 ### Using Plugins
 
