@@ -188,6 +188,12 @@ $ kubectl logs <pod-name>
 
 If the pod is running, you can also use `kubectl exec -it <pod-name> bash` to tunnel in and view the logs or debug the process.
 
+#### Accessing the Logs of the TaskManagers
+
+Flink will automatically de-allocate idling TaskManagers in order to not waste resources.
+This behaviour can make it harder to access the logs of the respective pods.
+You can increase the time before idling TaskManagers are released by configuring [resourcemanager.taskmanager-timeout]({% link deployment/config.zh.md %}#resourcemanager-taskmanager-timeout) so that you have more time inspecting the log files.
+
 ### Using Plugins
 
 In order to use [plugins]({% link deployment/filesystems/plugins.zh.md %}), you must copy them to the correct location in the Flink JobManager/TaskManager pod.
