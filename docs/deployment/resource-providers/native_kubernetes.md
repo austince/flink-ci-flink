@@ -35,7 +35,7 @@ This *Getting Started* section guides you through setting up a fully functional 
 ### Introduction
 
 Kubernetes is a popular container-orchestration system for automating computer application deployment, scaling, and management.
-Flink's native Kubernetes integration allows to directly deploy Flink on a running Kubernetes cluster.
+Flink's native Kubernetes integration allows you to directly deploy Flink on a running Kubernetes cluster.
 Moreover, Flink is able to dynamically allocate and de-allocate TaskManagers depending on the required resources because it can directly talk to Kubernetes.
 
 ### Preparation
