@@ -40,7 +40,7 @@ Moreover, Flink is able to dynamically allocate and de-allocate TaskManagers dep
 
 ### Preparation
 
-This *Getting Started* section assumes a running Kubernetes cluster fulfilling the following requirements:
+The *Getting Started* section assumes a running Kubernetes cluster fulfilling the following requirements:
 
 - Kubernetes >= 1.9.
 - KubeConfig, which has access to list, create, delete pods and services, configurable via `~/.kube/config`. You can verify permissions by running `kubectl auth can-i <list|create|edit|delete> pods`.
