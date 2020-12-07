@@ -153,8 +153,7 @@ The Kubernetes-specific configuration options are listed on the [configuration p
 
 ### Accessing Flink's Web UI
 
-There are several ways to expose Flink's Web UI and REST endpoint.
-This can be configured using [kubernetes.rest-service.exposed.type]({% link deployment/config.md %}#kubernetes-rest-service-exposed-type).
+Flink's Web UI and REST endpoint can be exposed in several ways via the [kubernetes.rest-service.exposed.type]({% link deployment/config.md %}#kubernetes-rest-service-exposed-type) configuration option.
 
 - **ClusterIP**: Exposes the service on a cluster-internal IP.
   The Service is only reachable within the cluster.
