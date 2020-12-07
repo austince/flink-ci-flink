@@ -165,7 +165,7 @@ $ kubectl port-forward service/<ServiceName> 8081
 {% endhighlight %}
 
 - **NodePort**: Exposes the service on each Node’s IP at a static port (the `NodePort`).
-  `<NodeIP>:<NodePort>` could be used to contact the Job Manager Service.
+  `<NodeIP>:<NodePort>` can be used to contact the Job Manager Service.
   `NodeIP` could be easily replaced with Kubernetes ApiServer address.
   You could find it in your kube config file.
 
