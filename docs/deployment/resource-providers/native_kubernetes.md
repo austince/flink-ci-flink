@@ -196,7 +196,7 @@ If the pod is running, you can also use `kubectl exec -it <pod-name> bash` to tu
 
 Flink will automatically de-allocate idling TaskManagers in order to not waste resources.
 This behaviour can make it harder to access the logs of the respective pods.
-You can increase the time before idling TaskManagers are released by configuring [resourcemanager.taskmanager-timeout]({% link deployment/config.md %}#resourcemanager-taskmanager-timeout) so that you have more time inspecting the log files.
+You can increase the time before idling TaskManagers are released by configuring [resourcemanager.taskmanager-timeout]({% link deployment/config.md %}#resourcemanager-taskmanager-timeout) so that you have more time to inspect the log files.
 
 #### Changing the Log Level Dynamically
 
