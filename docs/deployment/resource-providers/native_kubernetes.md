@@ -102,7 +102,7 @@ local:///opt/flink/usrlib/my-flink-job.jar
 The `kubernetes.cluster-id` option specifies the cluster name and must be unique.
 If you do not specify this option, then Flink will generate a random name.
 
-The configuration `kubernetes.container.image` specifies the image to start the pods with.
+The `kubernetes.container.image` option specifies the image to start the pods with.
 
 Once the application cluster is deployed you can interact with it:
 
