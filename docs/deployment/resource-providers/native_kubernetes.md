@@ -113,7 +113,7 @@ $ ./bin/flink list --target kubernetes-application -Dkubernetes.cluster-id=my-fi
 $ ./bin/flink cancel --target kubernetes-application -Dkubernetes.cluster-id=my-first-application-cluster <jobId>
 {% endhighlight %}
 
-The system will use the configuration in `conf/flink-conf.yaml` and override these values with key-value pairs `-Dkey=value` which are provided to `bin/flink`.
+You can override configurations set in `conf/flink-conf.yaml` by passing key-value pairs `-Dkey=value` to `bin/flink`.
 
 ### Session Mode
 
