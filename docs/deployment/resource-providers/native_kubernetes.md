@@ -149,7 +149,7 @@ $ echo 'stop' | ./bin/kubernetes-session.sh -Dkubernetes.cluster-id=my-first-fli
 
 ### Configuring Flink on Kubernetes
 
-The Kubernetes-specific configurations are listed on the [configuration page]({% link deployment/config.md %}#kubernetes).
+The Kubernetes-specific configuration options are listed on the [configuration page]({% link deployment/config.md %}#kubernetes).
 
 ### Accessing Flink's Web UI
 
