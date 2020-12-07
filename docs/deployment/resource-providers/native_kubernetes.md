@@ -125,7 +125,7 @@ The Session Mode can be run in two modes:
 
 * **attached mode** (`-Dexecution.attached=true`): The `kubernetes-session.sh` stays alive and allows entering commands to control the running Flink cluster.
   For example, `stop` stops the running Session cluster.
-  Type `help` for seeing all the supported commands.
+  Type `help` to list all supported commands.
 
 In order to re-attach to a running Session cluster with the cluster id `my-first-flink-cluster` use the following command:
 
