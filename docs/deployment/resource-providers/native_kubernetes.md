@@ -133,7 +133,7 @@ In order to re-attach to a running Session cluster with the cluster id `my-first
 $ ./bin/kubernetes-session.sh -Dkubernetes.cluster-id=my-first-flink-cluster -Dexecution.attached=true
 {% endhighlight %}
 
-You can override configurations set in `conf/flink-conf.yaml` by passing key-value pairs `-Dkey=value` to `bin/flink`.
+You can override configurations set in `conf/flink-conf.yaml` by passing key-value pairs `-Dkey=value` to `bin/kubernetes-session.sh`.
 
 #### Stop a Running Session Cluster
 
@@ -203,7 +203,7 @@ You can increase the time before idling TaskManagers are released by configuring
 If you have configured your logger to [detect configuration changes automatically]({% link deployment/advanced/logging.md %}), then you can dynamically adapt the log level by changing the respective ConfigMap (assuming that the cluster id is `my-first-flink-cluster`):
 
 {% highligh bash %}
-$ kubectl edit cm <configmap-name>
+$ kubectl edit cm flink-config-my-first-flink-cluster
 {% endhighlight %}
 
 ### Using Plugins

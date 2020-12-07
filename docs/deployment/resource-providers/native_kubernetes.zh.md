@@ -35,12 +35,12 @@ This *Getting Started* section guides you through setting up a fully functional 
 ### Introduction
 
 Kubernetes is a popular container-orchestration system for automating computer application deployment, scaling, and management.
-Flink's native Kubernetes integration allows to directly deploy Flink on a running Kubernetes cluster.
+Flink's native Kubernetes integration allows you to directly deploy Flink on a running Kubernetes cluster.
 Moreover, Flink is able to dynamically allocate and de-allocate TaskManagers depending on the required resources because it can directly talk to Kubernetes.
 
 ### Preparation
 
-This *Getting Started* section assumes a running Kubernetes cluster fulfilling the following requirements:
+The *Getting Started* section assumes a running Kubernetes cluster fulfilling the following requirements:
 
 - Kubernetes >= 1.9.
 - KubeConfig, which has access to list, create, delete pods and services, configurable via `~/.kube/config`. You can verify permissions by running `kubectl auth can-i <list|create|edit|delete> pods`.
@@ -51,7 +51,7 @@ If you have problems setting up a Kubernetes cluster, then take a look at [how t
 
 ### Starting a Flink Session on Kubernetes
 
-Once you have your Kubernetes cluster running and configured your `kubectl` to point to it, you can launch a Flink session cluster via
+Once you have your Kubernetes cluster running and `kubectl` is configured to point to it, you can launch a Flink session cluster via
 
 {% highlight bash %}
 # (1) Start Kubernetes session
@@ -99,10 +99,10 @@ local:///opt/flink/usrlib/my-flink-job.jar
 
 <span class="label label-info">Note</span> `local` is the only supported scheme in application mode.
 
-The configuration `kubernetes.cluster-id` specifies the cluster name and must unique.
+The `kubernetes.cluster-id` option specifies the cluster name and must be unique.
 If you do not specify this option, then Flink will generate a random name.
 
-The configuration `kubernetes.container.image` specifies the image to start the pods with.
+The `kubernetes.container.image` option specifies the image to start the pods with.
 
 Once the application cluster is deployed you can interact with it:
 
@@ -113,7 +113,7 @@ $ ./bin/flink list --target kubernetes-application -Dkubernetes.cluster-id=my-fi
 $ ./bin/flink cancel --target kubernetes-application -Dkubernetes.cluster-id=my-first-application-cluster <jobId>
 {% endhighlight %}
 
-The system will use the configuration in `conf/flink-conf.yaml` and override these values with key-value pairs `-Dkey=value` which are provided to `bin/flink`.
+You can override configurations set in `conf/flink-conf.yaml` by passing key-value pairs `-Dkey=value` to `bin/flink`.
 
 ### Session Mode
 
@@ -123,9 +123,9 @@ The Session Mode can be run in two modes:
 
 * **detached mode** (default): The `kubernetes-session.sh` deploys the Flink cluster on Kubernetes and then terminates.
 
-* **attached mode** (`-Dexecution.attached=true`): The `kubernetes-session.sh` stays alive and allows entering commands controlling the running Flink cluster.
+* **attached mode** (`-Dexecution.attached=true`): The `kubernetes-session.sh` stays alive and allows entering commands to control the running Flink cluster.
   For example, `stop` stops the running Session cluster.
-  Type `help` for seeing all the supported commands.
+  Type `help` to list all supported commands.
 
 In order to re-attach to a running Session cluster with the cluster id `my-first-flink-cluster` use the following command:
 
@@ -133,7 +133,7 @@ In order to re-attach to a running Session cluster with the cluster id `my-first
 $ ./bin/kubernetes-session.sh -Dkubernetes.cluster-id=my-first-flink-cluster -Dexecution.attached=true
 {% endhighlight %}
 
-The system will use the configuration in `conf/flink-conf.yaml` and override these values with key-value pairs `-Dkey=value` which are provided to `bin/kubernetes-session.sh`.
+You can override configurations set in `conf/flink-conf.yaml` by passing key-value pairs `-Dkey=value` to `bin/kubernetes-session.sh`.
 
 #### Stop a Running Session Cluster
 
@@ -149,12 +149,11 @@ $ echo 'stop' | ./bin/kubernetes-session.sh -Dkubernetes.cluster-id=my-first-fli
 
 ### Configuring Flink on Kubernetes
 
-The Kubernetes-specific configurations are listed on the [configuration page]({% link deployment/config.zh.md %}#kubernetes).
+The Kubernetes-specific configuration options are listed on the [configuration page]({% link deployment/config.zh.md %}#kubernetes).
 
 ### Accessing Flink's Web UI
 
-There are several ways to expose Flink's Web UI and REST endpoint.
-This can be configured using [kubernetes.rest-service.exposed.type]({% link deployment/config.zh.md %}#kubernetes-rest-service-exposed-type).
+Flink's Web UI and REST endpoint can be exposed in several ways via the [kubernetes.rest-service.exposed.type]({% link deployment/config.zh.md %}#kubernetes-rest-service-exposed-type) configuration option.
 
 - **ClusterIP**: Exposes the service on a cluster-internal IP.
   The Service is only reachable within the cluster.
@@ -166,9 +165,9 @@ $ kubectl port-forward service/<ServiceName> 8081
 {% endhighlight %}
 
 - **NodePort**: Exposes the service on each Node’s IP at a static port (the `NodePort`).
-  `<NodeIP>:<NodePort>` could be used to contact the Job Manager Service.
-  `NodeIP` could be easily replaced with Kubernetes ApiServer address.
-  You could find it in your kube config file.
+  `<NodeIP>:<NodePort>` can be used to contact the Job Manager Service.
+  `NodeIP` can also be replaced with the Kubernetes ApiServer address.
+  You can find its address in your kube config file.
 
 - **LoadBalancer**: Exposes the service externally using a cloud provider’s load balancer.
   Since the cloud provider and Kubernetes needs some time to prepare the load balancer, you may get a `NodePort` JobManager Web Interface in the client log.
@@ -197,7 +196,7 @@ If the pod is running, you can also use `kubectl exec -it <pod-name> bash` to tu
 
 Flink will automatically de-allocate idling TaskManagers in order to not waste resources.
 This behaviour can make it harder to access the logs of the respective pods.
-You can increase the time before idling TaskManagers are released by configuring [resourcemanager.taskmanager-timeout]({% link deployment/config.zh.md %}#resourcemanager-taskmanager-timeout) so that you have more time inspecting the log files.
+You can increase the time before idling TaskManagers are released by configuring [resourcemanager.taskmanager-timeout]({% link deployment/config.zh.md %}#resourcemanager-taskmanager-timeout) so that you have more time to inspect the log files.
 
 #### Changing the Log Level Dynamically
 
@@ -278,7 +277,7 @@ Currently, all Kubernetes version `>= 1.9` are supported.
 
 ### Namespaces
 
-[Namespaces in Kubernetes](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) divide cluster resources between multiple users via [resource quotas](https://kubernetes.io/docs/concepts/policy/resource-quotas/). 
+[Namespaces in Kubernetes](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) divide cluster resources between multiple users via [resource quotas](https://kubernetes.io/docs/concepts/policy/resource-quotas/).
 Flink on Kubernetes can use namespaces to launch Flink clusters.
 The namespace can be configured via [kubernetes.namespace]({% link deployment/config.zh.md %}#kubernetes-namespace).
 
