@@ -51,7 +51,7 @@ If you have problems setting up a Kubernetes cluster, then take a look at [how t
 
 ### Starting a Flink Session on Kubernetes
 
-Once you have your Kubernetes cluster running and configured your `kubectl` to point to it, you can launch a Flink session cluster via
+Once you have your Kubernetes cluster running and `kubectl` is configured to point to it, you can launch a Flink session cluster via
 
 {% highlight bash %}
 # (1) Start Kubernetes session
