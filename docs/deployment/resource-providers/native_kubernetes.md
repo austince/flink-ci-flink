@@ -99,7 +99,7 @@ local:///opt/flink/usrlib/my-flink-job.jar
 
 <span class="label label-info">Note</span> `local` is the only supported scheme in application mode.
 
-The configuration `kubernetes.cluster-id` specifies the cluster name and must unique.
+The `kubernetes.cluster-id` option specifies the cluster name and must be unique.
 If you do not specify this option, then Flink will generate a random name.
 
 The configuration `kubernetes.container.image` specifies the image to start the pods with.
