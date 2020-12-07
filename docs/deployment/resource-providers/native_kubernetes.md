@@ -123,7 +123,7 @@ The Session Mode can be run in two modes:
 
 * **detached mode** (default): The `kubernetes-session.sh` deploys the Flink cluster on Kubernetes and then terminates.
 
-* **attached mode** (`-Dexecution.attached=true`): The `kubernetes-session.sh` stays alive and allows entering commands controlling the running Flink cluster.
+* **attached mode** (`-Dexecution.attached=true`): The `kubernetes-session.sh` stays alive and allows entering commands to control the running Flink cluster.
   For example, `stop` stops the running Session cluster.
   Type `help` for seeing all the supported commands.
 
