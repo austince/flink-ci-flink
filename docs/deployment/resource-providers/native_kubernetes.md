@@ -133,7 +133,7 @@ In order to re-attach to a running Session cluster with the cluster id `my-first
 $ ./bin/kubernetes-session.sh -Dkubernetes.cluster-id=my-first-flink-cluster -Dexecution.attached=true
 {% endhighlight %}
 
-The system will use the configuration in `conf/flink-conf.yaml` and override these values with key-value pairs `-Dkey=value` which are provided to `bin/kubernetes-session.sh`.
+You can override configurations set in `conf/flink-conf.yaml` by passing key-value pairs `-Dkey=value` to `bin/flink`.
 
 #### Stop a Running Session Cluster
 
