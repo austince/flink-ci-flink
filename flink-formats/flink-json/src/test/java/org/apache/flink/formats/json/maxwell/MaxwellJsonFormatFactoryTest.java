@@ -67,7 +67,11 @@ public class MaxwellJsonFormatFactoryTest extends TestLogger {
     public void testSeDeSchema() {
         final MaxwellJsonDeserializationSchema expectedDeser =
                 new MaxwellJsonDeserializationSchema(
-                        ROW_TYPE, InternalTypeInfo.of(ROW_TYPE), true, TimestampFormat.ISO_8601);
+                        ROW_TYPE,
+                        InternalTypeInfo.of(ROW_TYPE),
+                        true,
+                        TimestampFormat.ISO_8601,
+                        false);
 
         final MaxwellJsonSerializationSchema expectedSer =
                 new MaxwellJsonSerializationSchema(
@@ -139,6 +143,20 @@ public class MaxwellJsonFormatFactoryTest extends TestLogger {
                         new ValidationException(
                                 "Unsupported value 'invalid' for option map-null-key.mode. Supported values are [LITERAL, FAIL, DROP].")));
         createTableSink(tableOptions);
+    }
+
+    @Test
+    public void testInvalidOptionForAllowUnescapedControlChars() {
+        thrown.expect(
+                containsCause(
+                        new IllegalArgumentException(
+                                "Unrecognized option for boolean: abc. Expected either true or false(case insensitive)")));
+
+        final Map<String, String> options =
+                getModifiedOptions(
+                        opts -> opts.put("maxwell-json.allow-unescaped-control-chars", "abc"));
+
+        createTableSource(options);
     }
 
     // ------------------------------------------------------------------------

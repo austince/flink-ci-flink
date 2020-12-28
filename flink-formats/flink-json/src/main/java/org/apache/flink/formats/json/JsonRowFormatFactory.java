@@ -79,6 +79,14 @@ public class JsonRowFormatFactory extends TableFormatFactoryBase<Row>
                                 schema.ignoreParseErrors();
                             }
                         });
+        descriptorProperties
+                .getOptionalBoolean(JsonValidator.FORMAT_ALLOW_UNESCAPED_CONTROL_CHARS)
+                .ifPresent(
+                        flag -> {
+                            if (flag) {
+                                schema.allowUnescapedControlChars();
+                            }
+                        });
         return schema.build();
     }
 

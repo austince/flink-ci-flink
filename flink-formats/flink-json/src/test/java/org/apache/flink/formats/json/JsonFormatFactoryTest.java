@@ -143,6 +143,20 @@ public class JsonFormatFactoryTest extends TestLogger {
         testSchemaDeserializationSchema(tableOptions);
     }
 
+    @Test
+    public void testInvalidOptionForAllowUnescapedControlChars() {
+        final Map<String, String> tableOptions =
+                getModifyOptions(
+                        options -> options.put("json.allow-unescaped-control-chars", "abc"));
+
+        thrown.expect(ValidationException.class);
+        thrown.expect(
+                containsCause(
+                        new IllegalArgumentException(
+                                "Unrecognized option for boolean: abc. Expected either true or false(case insensitive)")));
+        testSchemaDeserializationSchema(tableOptions);
+    }
+
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
@@ -154,7 +168,8 @@ public class JsonFormatFactoryTest extends TestLogger {
                         InternalTypeInfo.of(ROW_TYPE),
                         false,
                         true,
-                        TimestampFormat.ISO_8601);
+                        TimestampFormat.ISO_8601,
+                        false);
 
         final DynamicTableSource actualSource = createTableSource(options);
         assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;

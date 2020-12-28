@@ -40,6 +40,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.formats.json.JsonOptions.ALLOW_UNESCAPED_CONTROL_CHARS;
 import static org.apache.flink.formats.json.JsonOptions.FAIL_ON_MISSING_FIELD;
 import static org.apache.flink.formats.json.JsonOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.JsonOptions.MAP_NULL_KEY_LITERAL;
@@ -65,6 +66,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
         final boolean failOnMissingField = formatOptions.get(FAIL_ON_MISSING_FIELD);
         final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
         TimestampFormat timestampOption = JsonOptions.getTimestampFormat(formatOptions);
+        final boolean allowUnescapedControlChars = formatOptions.get(ALLOW_UNESCAPED_CONTROL_CHARS);
 
         return new DecodingFormat<DeserializationSchema<RowData>>() {
             @Override
@@ -78,7 +80,8 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
                         rowDataTypeInfo,
                         failOnMissingField,
                         ignoreParseErrors,
-                        timestampOption);
+                        timestampOption,
+                        allowUnescapedControlChars);
             }
 
             @Override

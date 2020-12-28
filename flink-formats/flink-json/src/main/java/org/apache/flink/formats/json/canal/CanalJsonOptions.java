@@ -49,6 +49,9 @@ public class CanalJsonOptions {
                     .withDescription(
                             "Only read changelog rows which match the specific table (by comparing the \"table\" meta field in the record).");
 
+    public static final ConfigOption<Boolean> ALLOW_UNESCAPED_CONTROL_CHARS =
+            JsonOptions.ALLOW_UNESCAPED_CONTROL_CHARS;
+
     // --------------------------------------------------------------------------------------------
     // Validation
     // --------------------------------------------------------------------------------------------

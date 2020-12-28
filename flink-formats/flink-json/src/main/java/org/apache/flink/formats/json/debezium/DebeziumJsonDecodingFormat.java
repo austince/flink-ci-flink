@@ -61,12 +61,18 @@ public class DebeziumJsonDecodingFormat implements DecodingFormat<Deserializatio
 
     private final TimestampFormat timestampFormat;
 
+    private final boolean allowUnescapedControlChars;
+
     public DebeziumJsonDecodingFormat(
-            boolean schemaInclude, boolean ignoreParseErrors, TimestampFormat timestampFormat) {
+            boolean schemaInclude,
+            boolean ignoreParseErrors,
+            TimestampFormat timestampFormat,
+            boolean allowUnescapedControlChars) {
         this.schemaInclude = schemaInclude;
         this.ignoreParseErrors = ignoreParseErrors;
         this.timestampFormat = timestampFormat;
         this.metadataKeys = Collections.emptyList();
+        this.allowUnescapedControlChars = allowUnescapedControlChars;
     }
 
     @Override
@@ -100,7 +106,8 @@ public class DebeziumJsonDecodingFormat implements DecodingFormat<Deserializatio
                 producedTypeInfo,
                 schemaInclude,
                 ignoreParseErrors,
-                timestampFormat);
+                timestampFormat,
+                allowUnescapedControlChars);
     }
 
     @Override

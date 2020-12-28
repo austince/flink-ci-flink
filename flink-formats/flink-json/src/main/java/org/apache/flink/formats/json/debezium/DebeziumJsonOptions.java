@@ -48,6 +48,9 @@ public class DebeziumJsonOptions {
     public static final ConfigOption<String> JSON_MAP_NULL_KEY_LITERAL =
             JsonOptions.MAP_NULL_KEY_LITERAL;
 
+    public static final ConfigOption<Boolean> ALLOW_UNESCAPED_CONTROL_CHARS =
+            JsonOptions.ALLOW_UNESCAPED_CONTROL_CHARS;
+
     // --------------------------------------------------------------------------------------------
     // Validation
     // --------------------------------------------------------------------------------------------

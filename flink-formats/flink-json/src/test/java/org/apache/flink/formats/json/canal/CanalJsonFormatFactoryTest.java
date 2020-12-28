@@ -79,6 +79,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
                                 PHYSICAL_DATA_TYPE, Collections.emptyList(), ROW_TYPE_INFO)
                         .setIgnoreParseErrors(false)
                         .setTimestampFormat(TimestampFormat.SQL)
+                        .setAllowUnescapedControlChars(false)
                         .build();
         DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
         assertEquals(expectedDeser, actualDeser);
@@ -100,6 +101,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
         options.put("canal-json.table.include", "mytable");
         options.put("canal-json.map-null-key.mode", "LITERAL");
         options.put("canal-json.map-null-key.literal", "nullKey");
+        options.put("canal-json.allow-unescaped-control-chars", "true");
 
         // test Deser
         CanalJsonDeserializationSchema expectedDeser =
@@ -109,6 +111,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
                         .setTimestampFormat(TimestampFormat.ISO_8601)
                         .setDatabase("mydb")
                         .setTable("mytable")
+                        .setAllowUnescapedControlChars(true)
                         .build();
         DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
         assertEquals(expectedDeser, actualDeser);
@@ -162,6 +165,20 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
                         new ValidationException(
                                 "Unsupported value 'invalid' for option map-null-key.mode. Supported values are [LITERAL, FAIL, DROP].")));
         createSerializationSchema(tableOptions);
+    }
+
+    @Test
+    public void testAllowUnescapedControlChars() {
+        thrown.expect(
+                containsCause(
+                        new IllegalArgumentException(
+                                "Unrecognized option for boolean: abc. Expected either true or false(case insensitive)")));
+
+        final Map<String, String> options =
+                getModifiedOptions(
+                        opts -> opts.put("canal-json.allow-unescaped-control-chars", "abc"));
+
+        createDeserializationSchema(options);
     }
 
     // ------------------------------------------------------------------------

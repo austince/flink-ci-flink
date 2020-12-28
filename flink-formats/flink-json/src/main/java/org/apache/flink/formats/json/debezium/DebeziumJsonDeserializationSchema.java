@@ -94,7 +94,8 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
             TypeInformation<RowData> producedTypeInfo,
             boolean schemaInclude,
             boolean ignoreParseErrors,
-            TimestampFormat timestampFormat) {
+            TimestampFormat timestampFormat,
+            boolean allowUnescapedControlChars) {
         final RowType jsonRowType =
                 createJsonRowType(physicalDataType, requestedMetadata, schemaInclude);
         this.jsonDeserializer =
@@ -106,7 +107,8 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
                         false, // ignoreParseErrors already contains the functionality of
                         // failOnMissingField
                         ignoreParseErrors,
-                        timestampFormat);
+                        timestampFormat,
+                        allowUnescapedControlChars);
         this.hasMetadata = requestedMetadata.size() > 0;
         this.metadataConverters =
                 createMetadataConverters(jsonRowType, requestedMetadata, schemaInclude);

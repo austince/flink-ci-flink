@@ -115,7 +115,8 @@ public class DebeziumJsonSerDeSchemaTest {
                         InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
                         false,
                         false,
-                        TimestampFormat.ISO_8601);
+                        TimestampFormat.ISO_8601,
+                        false);
         SimpleCollector collector = new SimpleCollector();
         deserializationSchema.deserialize(null, collector);
         deserializationSchema.deserialize(new byte[] {}, collector);
@@ -189,7 +190,8 @@ public class DebeziumJsonSerDeSchemaTest {
                         InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
                         schemaInclude,
                         false,
-                        TimestampFormat.ISO_8601);
+                        TimestampFormat.ISO_8601,
+                        false);
 
         SimpleCollector collector = new SimpleCollector();
         for (String line : lines) {
@@ -312,7 +314,8 @@ public class DebeziumJsonSerDeSchemaTest {
                         InternalTypeInfo.of(producedDataType.getLogicalType()),
                         schemaInclude,
                         false,
-                        TimestampFormat.ISO_8601);
+                        TimestampFormat.ISO_8601,
+                        false);
 
         final SimpleCollector collector = new SimpleCollector();
         deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);

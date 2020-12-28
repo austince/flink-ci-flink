@@ -292,6 +292,13 @@ Format 参数
       <td>String</td>
       <td>仅读取指定表的 changelog 记录（通过对比 Canal 记录中的 "table" 元数据字段）。</td>
     </tr>
+    <tr>
+      <td><h5>canal-json.allow-unescaped-control-chars</h5></td>
+      <td>选填</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>是否允许数据中存在未转义的控制字符（值小于32的ASCII字符，包括制表符和换行符），若不允许，解析时会抛出异常`Illegal unquoted character...`</td>
+    </tr>
     </tbody>
 </table>
 

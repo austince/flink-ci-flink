@@ -43,6 +43,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.ALLOW_UNESCAPED_CONTROL_CHARS;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.JSON_MAP_NULL_KEY_LITERAL;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.JSON_MAP_NULL_KEY_MODE;
@@ -67,6 +68,7 @@ public class MaxwellJsonFormatFactory
 
         final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
         TimestampFormat timestampFormatOption = JsonOptions.getTimestampFormat(formatOptions);
+        final boolean allowUnescapedControlChars = formatOptions.get(ALLOW_UNESCAPED_CONTROL_CHARS);
 
         return new DecodingFormat<DeserializationSchema<RowData>>() {
             @Override
@@ -76,7 +78,11 @@ public class MaxwellJsonFormatFactory
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new MaxwellJsonDeserializationSchema(
-                        rowType, rowDataTypeInfo, ignoreParseErrors, timestampFormatOption);
+                        rowType,
+                        rowDataTypeInfo,
+                        ignoreParseErrors,
+                        timestampFormatOption,
+                        allowUnescapedControlChars);
             }
 
             @Override

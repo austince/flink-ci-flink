@@ -63,7 +63,11 @@ public class MaxwellJsonSerDerTest {
         List<String> lines = readLines("maxwell-data.txt");
         MaxwellJsonDeserializationSchema deserializationSchema =
                 new MaxwellJsonDeserializationSchema(
-                        SCHEMA, InternalTypeInfo.of(SCHEMA), false, TimestampFormat.ISO_8601);
+                        SCHEMA,
+                        InternalTypeInfo.of(SCHEMA),
+                        false,
+                        TimestampFormat.ISO_8601,
+                        false);
 
         SimpleCollector collector = new SimpleCollector();
         for (String line : lines) {

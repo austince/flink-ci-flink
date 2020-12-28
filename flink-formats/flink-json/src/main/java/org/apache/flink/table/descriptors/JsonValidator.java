@@ -30,6 +30,8 @@ public class JsonValidator extends FormatDescriptorValidator {
     public static final String FORMAT_JSON_SCHEMA = "format.json-schema";
     public static final String FORMAT_FAIL_ON_MISSING_FIELD = "format.fail-on-missing-field";
     public static final String FORMAT_IGNORE_PARSE_ERRORS = "format.ignore-parse-errors";
+    public static final String FORMAT_ALLOW_UNESCAPED_CONTROL_CHARS =
+            "format.allow-unescaped-control-chars";
 
     @Override
     public void validate(DescriptorProperties properties) {
@@ -56,6 +58,7 @@ public class JsonValidator extends FormatDescriptorValidator {
 
         properties.validateBoolean(FORMAT_FAIL_ON_MISSING_FIELD, true);
         properties.validateBoolean(FORMAT_IGNORE_PARSE_ERRORS, true);
+        properties.validateBoolean(FORMAT_ALLOW_UNESCAPED_CONTROL_CHARS, true);
         boolean failOnMissingField =
                 properties.getOptionalBoolean(FORMAT_FAIL_ON_MISSING_FIELD).orElse(false);
         boolean ignoreParseErrors =

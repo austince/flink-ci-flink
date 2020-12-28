@@ -282,6 +282,7 @@ public class JsonRowDeserializationSchemaTest {
         JsonRowDeserializationSchema ignoreErrorsSchema =
                 new JsonRowDeserializationSchema.Builder(spec.rowTypeInformation)
                         .ignoreParseErrors()
+                        .allowUnescapedControlChars()
                         .build();
         Row expected;
         if (spec.expected != null) {
@@ -393,7 +394,10 @@ public class JsonRowDeserializationSchemaTest {
                                             new String[] {"id", "factor"},
                                             Types.INT,
                                             Types.BIG_DEC))
-                            .expect(Row.of(1, new BigDecimal("799.929496989092949698"))));
+                            .expect(Row.of(1, new BigDecimal("799.929496989092949698"))),
+                    TestSpec.json("{\"id\":\"\tstring field\"}")
+                            .typeInfo(Types.ROW_NAMED(new String[] {"id"}, Types.STRING))
+                            .expect(Row.of("	string field")));
 
     private static Map<String, Integer> createHashMap(
             String k1, Integer v1, String k2, Integer v2) {

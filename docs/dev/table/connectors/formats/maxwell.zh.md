@@ -187,6 +187,13 @@ Format Options
       <td>String</td>
       <td>Specify string literal to replace null key when <code>'maxwell-json.map-null-key.mode'</code> is LITERAL.</td>
     </tr>
+    <tr>
+      <td><h5>maxwell-json.allow-unescaped-control-chars</h5></td>
+      <td>选填</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>是否允许数据中存在未转义的控制字符（值小于32的ASCII字符，包括制表符和换行符），若不允许，解析时会抛出异常`Illegal unquoted character...`</td>
+    </tr>
     </tbody>
 </table>
 

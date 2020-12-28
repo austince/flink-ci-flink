@@ -187,6 +187,13 @@ Format Options
       <td>String</td>
       <td>Specify string literal to replace null key when <code>'maxwell-json.map-null-key.mode'</code> is LITERAL.</td>
     </tr>
+    <tr>
+      <td><h5>maxwell-json.allow-unescaped-control-chars</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Whether parser will allow JSON strings to contain unescaped control characters(ASCII characters with value less than 32, including tab and line feed characters) or not.</td>
+    </tr>
     </tbody>
 </table>
 

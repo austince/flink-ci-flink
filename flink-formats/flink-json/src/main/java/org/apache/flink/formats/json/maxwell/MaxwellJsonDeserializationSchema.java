@@ -70,7 +70,8 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
             RowType rowType,
             TypeInformation<RowData> resultTypeInfo,
             boolean ignoreParseErrors,
-            TimestampFormat timestampFormatOption) {
+            TimestampFormat timestampFormatOption,
+            boolean allowUnescapedControlChars) {
         this.resultTypeInfo = resultTypeInfo;
         this.ignoreParseErrors = ignoreParseErrors;
         this.fieldCount = rowType.getFieldCount();
@@ -83,7 +84,8 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
                         false, // ignoreParseErrors already contains the functionality of
                         // failOnMissingField
                         ignoreParseErrors,
-                        timestampFormatOption);
+                        timestampFormatOption,
+                        allowUnescapedControlChars);
     }
 
     @Override

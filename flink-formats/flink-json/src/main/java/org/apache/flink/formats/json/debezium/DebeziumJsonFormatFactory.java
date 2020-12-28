@@ -41,6 +41,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.formats.json.debezium.DebeziumJsonOptions.ALLOW_UNESCAPED_CONTROL_CHARS;
 import static org.apache.flink.formats.json.debezium.DebeziumJsonOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.debezium.DebeziumJsonOptions.JSON_MAP_NULL_KEY_LITERAL;
 import static org.apache.flink.formats.json.debezium.DebeziumJsonOptions.JSON_MAP_NULL_KEY_MODE;
@@ -71,7 +72,10 @@ public class DebeziumJsonFormatFactory
 
         final TimestampFormat timestampFormat = JsonOptions.getTimestampFormat(formatOptions);
 
-        return new DebeziumJsonDecodingFormat(schemaInclude, ignoreParseErrors, timestampFormat);
+        final boolean allowUnescapedControlChars = formatOptions.get(ALLOW_UNESCAPED_CONTROL_CHARS);
+
+        return new DebeziumJsonDecodingFormat(
+                schemaInclude, ignoreParseErrors, timestampFormat, allowUnescapedControlChars);
     }
 
     @Override
@@ -125,6 +129,7 @@ public class DebeziumJsonFormatFactory
         options.add(TIMESTAMP_FORMAT);
         options.add(JSON_MAP_NULL_KEY_MODE);
         options.add(JSON_MAP_NULL_KEY_LITERAL);
+        options.add(ALLOW_UNESCAPED_CONTROL_CHARS);
         return options;
     }
 }

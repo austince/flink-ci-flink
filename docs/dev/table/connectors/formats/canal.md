@@ -294,6 +294,13 @@ Format Options
       <td>String</td>
       <td>Only read changelog rows which match the specific table (by comparing the "table" meta field in the Canal record).</td>
     </tr>
+    <tr>
+      <td><h5>canal-json.allow-unescaped-control-chars</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Whether parser will allow JSON strings to contain unescaped control characters(ASCII characters with value less than 32, including tab and line feed characters) or not.</td>
+    </tr> 
     </tbody>
 </table>
 

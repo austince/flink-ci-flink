@@ -63,16 +63,20 @@ public class CanalJsonDecodingFormat implements DecodingFormat<DeserializationSc
 
     private final TimestampFormat timestampFormat;
 
+    private final boolean allowUnescapedControlChars;
+
     public CanalJsonDecodingFormat(
             String database,
             String table,
             boolean ignoreParseErrors,
-            TimestampFormat timestampFormat) {
+            TimestampFormat timestampFormat,
+            boolean allowUnescapedControlChars) {
         this.database = database;
         this.table = table;
         this.ignoreParseErrors = ignoreParseErrors;
         this.timestampFormat = timestampFormat;
         this.metadataKeys = Collections.emptyList();
+        this.allowUnescapedControlChars = allowUnescapedControlChars;
     }
 
     @Override
@@ -101,6 +105,7 @@ public class CanalJsonDecodingFormat implements DecodingFormat<DeserializationSc
                 .setTable(table)
                 .setIgnoreParseErrors(ignoreParseErrors)
                 .setTimestampFormat(timestampFormat)
+                .setAllowUnescapedControlChars(allowUnescapedControlChars)
                 .build();
     }
 

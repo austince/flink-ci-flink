@@ -360,6 +360,13 @@ Flink 提供了 `debezium-avro-confluent` 和 `debezium-json` 两种 format 来�
       <td>String</td>
       <td>当 <code>'debezium-json.map-null-key.mode'</code> 是 LITERAL 的时候，指定字符串常量替换 Map 中的空 key 值。</td>
     </tr>
+    <tr>
+      <td><h5>debezium-json.allow-unescaped-control-chars</h5></td>
+      <td>选填</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>是否允许数据中存在未转义的控制字符（值小于32的ASCII字符，包括制表符和换行符），若不允许，解析时会抛出异常`Illegal unquoted character...`</td>
+    </tr>
     </tbody>
 </table>
 

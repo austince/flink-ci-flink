@@ -32,6 +32,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.Row;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.json.JsonReadFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -97,7 +98,10 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
     private final boolean ignoreParseErrors;
 
     private JsonRowDeserializationSchema(
-            TypeInformation<Row> typeInfo, boolean failOnMissingField, boolean ignoreParseErrors) {
+            TypeInformation<Row> typeInfo,
+            boolean failOnMissingField,
+            boolean ignoreParseErrors,
+            boolean allowUnescapedControlChars) {
         checkNotNull(typeInfo, "Type information");
         checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
         if (ignoreParseErrors && failOnMissingField) {
@@ -114,18 +118,22 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
         if (hasDecimalType) {
             objectMapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
         }
+        if (allowUnescapedControlChars) {
+            objectMapper.configure(
+                    JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature(), true);
+        }
     }
 
     /** @deprecated Use the provided {@link Builder} instead. */
     @Deprecated
     public JsonRowDeserializationSchema(TypeInformation<Row> typeInfo) {
-        this(typeInfo, false, false);
+        this(typeInfo, false, false, false);
     }
 
     /** @deprecated Use the provided {@link Builder} instead. */
     @Deprecated
     public JsonRowDeserializationSchema(String jsonSchema) {
-        this(JsonRowSchemaConverter.convert(checkNotNull(jsonSchema)), false, false);
+        this(JsonRowSchemaConverter.convert(checkNotNull(jsonSchema)), false, false, false);
     }
 
     /** @deprecated Use the provided {@link Builder} instead. */
@@ -166,6 +174,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
         private final RowTypeInfo typeInfo;
         private boolean failOnMissingField = false;
         private boolean ignoreParseErrors = false;
+        private boolean allowUnescapedControlChars = false;
 
         /**
          * Creates a JSON deserialization schema for the given type information.
@@ -208,9 +217,19 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
             return this;
         }
 
+        /**
+         * Configures schema to allow unescaped control chars.
+         *
+         * <p>By default, an exception will be thrown when existing unescaped control chars in json.
+         */
+        public Builder allowUnescapedControlChars() {
+            this.allowUnescapedControlChars = true;
+            return this;
+        }
+
         public JsonRowDeserializationSchema build() {
             return new JsonRowDeserializationSchema(
-                    typeInfo, failOnMissingField, ignoreParseErrors);
+                    typeInfo, failOnMissingField, ignoreParseErrors, allowUnescapedControlChars);
         }
     }
 

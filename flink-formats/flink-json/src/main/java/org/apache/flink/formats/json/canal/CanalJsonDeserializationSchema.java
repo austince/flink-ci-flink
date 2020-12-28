@@ -94,7 +94,8 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
             @Nullable String database,
             @Nullable String table,
             boolean ignoreParseErrors,
-            TimestampFormat timestampFormat) {
+            TimestampFormat timestampFormat,
+            boolean allowUnescapedControlChars) {
         final RowType jsonRowType = createJsonRowType(physicalDataType, requestedMetadata);
         this.jsonDeserializer =
                 new JsonRowDataDeserializationSchema(
@@ -105,7 +106,8 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                         false, // ignoreParseErrors already contains the functionality of
                         // failOnMissingField
                         ignoreParseErrors,
-                        timestampFormat);
+                        timestampFormat,
+                        allowUnescapedControlChars);
         this.hasMetadata = requestedMetadata.size() > 0;
         this.metadataConverters = createMetadataConverters(jsonRowType, requestedMetadata);
         this.producedTypeInfo = producedTypeInfo;
@@ -137,6 +139,7 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
         private String table = null;
         private boolean ignoreParseErrors = false;
         private TimestampFormat timestampFormat = TimestampFormat.SQL;
+        private boolean allowUnescapedControlChars = false;
 
         private Builder(
                 DataType physicalDataType,
@@ -167,6 +170,11 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
             return this;
         }
 
+        public Builder setAllowUnescapedControlChars(boolean allowUnescapedControlChars) {
+            this.allowUnescapedControlChars = allowUnescapedControlChars;
+            return this;
+        }
+
         public CanalJsonDeserializationSchema build() {
             return new CanalJsonDeserializationSchema(
                     physicalDataType,
@@ -175,7 +183,8 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                     database,
                     table,
                     ignoreParseErrors,
-                    timestampFormat);
+                    timestampFormat,
+                    allowUnescapedControlChars);
         }
     }
 

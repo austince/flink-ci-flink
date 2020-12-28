@@ -41,6 +41,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.formats.json.canal.CanalJsonOptions.ALLOW_UNESCAPED_CONTROL_CHARS;
 import static org.apache.flink.formats.json.canal.CanalJsonOptions.DATABASE_INCLUDE;
 import static org.apache.flink.formats.json.canal.CanalJsonOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.canal.CanalJsonOptions.JSON_MAP_NULL_KEY_LITERAL;
@@ -69,8 +70,10 @@ public class CanalJsonFormatFactory
         final String table = formatOptions.getOptional(TABLE_INCLUDE).orElse(null);
         final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
         final TimestampFormat timestampFormat = JsonOptions.getTimestampFormat(formatOptions);
+        final boolean allowUnescapedControlChars = formatOptions.get(ALLOW_UNESCAPED_CONTROL_CHARS);
 
-        return new CanalJsonDecodingFormat(database, table, ignoreParseErrors, timestampFormat);
+        return new CanalJsonDecodingFormat(
+                database, table, ignoreParseErrors, timestampFormat, allowUnescapedControlChars);
     }
 
     @Override
@@ -124,6 +127,7 @@ public class CanalJsonFormatFactory
         options.add(TABLE_INCLUDE);
         options.add(JSON_MAP_NULL_KEY_MODE);
         options.add(JSON_MAP_NULL_KEY_LITERAL);
+        options.add(ALLOW_UNESCAPED_CONTROL_CHARS);
         return options;
     }
 }

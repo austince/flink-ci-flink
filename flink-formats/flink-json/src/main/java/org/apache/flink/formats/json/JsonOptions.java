@@ -73,6 +73,15 @@ public class JsonOptions {
                                     + " Option ISO-8601 will parse input timestamp in \"yyyy-MM-ddTHH:mm:ss.s{precision}\" format and output timestamp in the same format."
                                     + " Option SQL will parse input timestamp in \"yyyy-MM-dd HH:mm:ss.s{precision}\" format and output timestamp in the same format.");
 
+    public static final ConfigOption<Boolean> ALLOW_UNESCAPED_CONTROL_CHARS =
+            ConfigOptions.key("allow-unescaped-control-chars")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Optional flag to determines whether parser will allow JSON strings to contain unescaped control characters "
+                                    + "(ASCII characters with value less than 32, including tab and line feed characters) or not, false by default"
+                                    + "If set false, an exception is thrown if such a character is encountered.");
+
     // --------------------------------------------------------------------------------------------
     // Option enumerations
     // --------------------------------------------------------------------------------------------

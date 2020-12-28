@@ -75,7 +75,8 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
                         InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
                         false,
                         true,
-                        TimestampFormat.ISO_8601);
+                        TimestampFormat.ISO_8601,
+                        false);
 
         final Map<String, String> options = getAllOptions();
 
@@ -134,7 +135,8 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
                         InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
                         true,
                         true,
-                        TimestampFormat.ISO_8601);
+                        TimestampFormat.ISO_8601,
+                        false);
         final DynamicTableSource actualSource = createTableSource(options);
         TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
                 (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
@@ -184,6 +186,20 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
                         new ValidationException(
                                 "Unsupported value 'invalid' for option map-null-key.mode. Supported values are [LITERAL, FAIL, DROP].")));
         createTableSink(tableOptions);
+    }
+
+    @Test
+    public void testInvalidOptionForAllowUnescapedControlChars() {
+        thrown.expect(
+                containsCause(
+                        new IllegalArgumentException(
+                                "Unrecognized option for boolean: abc. Expected either true or false(case insensitive)")));
+
+        final Map<String, String> options =
+                getModifiedOptions(
+                        opts -> opts.put("debezium-json.allow-unescaped-control-chars", "abc"));
+
+        createTableSource(options);
     }
 
     // ------------------------------------------------------------------------
