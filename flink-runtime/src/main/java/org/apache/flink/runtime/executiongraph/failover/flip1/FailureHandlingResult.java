@@ -17,9 +17,13 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -38,6 +42,12 @@ public class FailureHandlingResult {
     /** Delay before the restarting can be conducted. */
     private final long restartDelayMS;
 
+    /**
+     * The ExecutionVertexID refering to the ExecutionVertex the failure is originating from or
+     * {@code null} if it's a global failure.
+     */
+    @Nullable private final ExecutionVertexID failingExecutionVertexId;
+
     /** Reason why the failure is not recoverable. */
     private final Throwable error;
 
@@ -47,27 +57,43 @@ public class FailureHandlingResult {
     /**
      * Creates a result of a set of tasks to restart to recover from the failure.
      *
+     * @param failingExecutionVertexId the {@link ExecutionVertexID} refering to the {@link
+     *     ExecutionVertex} the failure is originating from. Passing {@code null} as a value
+     *     indicates that the failure was issued by Flink itself.
+     * @param cause the exception that caused this failure.
      * @param verticesToRestart containing task vertices to restart to recover from the failure
      * @param restartDelayMS indicate a delay before conducting the restart
      */
     private FailureHandlingResult(
-            Set<ExecutionVertexID> verticesToRestart, long restartDelayMS, boolean globalFailure) {
+            @Nullable ExecutionVertexID failingExecutionVertexId,
+            Throwable cause,
+            Set<ExecutionVertexID> verticesToRestart,
+            long restartDelayMS,
+            boolean globalFailure) {
         checkState(restartDelayMS >= 0);
 
         this.verticesToRestart = Collections.unmodifiableSet(checkNotNull(verticesToRestart));
         this.restartDelayMS = restartDelayMS;
-        this.error = null;
+        this.failingExecutionVertexId = failingExecutionVertexId;
+        this.error = cause;
         this.globalFailure = globalFailure;
     }
 
     /**
      * Creates a result that the failure is not recoverable and no restarting should be conducted.
      *
+     * @param failingExecutionVertexId the {@link ExecutionVertexID} refering to the {@link
+     *     ExecutionVertex} the failure is originating from. Passing {@code null} as a value
+     *     indicates that the failure was issued by Flink itself.
      * @param error reason why the failure is not recoverable
      */
-    private FailureHandlingResult(Throwable error, boolean globalFailure) {
+    private FailureHandlingResult(
+            @Nullable ExecutionVertexID failingExecutionVertexId,
+            Throwable error,
+            boolean globalFailure) {
         this.verticesToRestart = null;
         this.restartDelayMS = -1;
+        this.failingExecutionVertexId = failingExecutionVertexId;
         this.error = checkNotNull(error);
         this.globalFailure = globalFailure;
     }
@@ -101,16 +127,23 @@ public class FailureHandlingResult {
     }
 
     /**
+     * Returns an {@code Optional} with the {@link ExecutionVertexID} of the task causing this
+     * failure or an empty {@code Optional} if it's a global failure.
+     *
+     * @return The {@code ExecutionVertexID} of the causing task or an empty {@code Optional} if
+     *     it's a global failure.
+     */
+    public Optional<ExecutionVertexID> getExecutionVertexIdOfFailedTask() {
+        return Optional.ofNullable(failingExecutionVertexId);
+    }
+
+    /**
      * Returns reason why the restarting cannot be conducted.
      *
      * @return reason why the restarting cannot be conducted
      */
     public Throwable getError() {
-        if (canRestart()) {
-            throw new IllegalStateException("Cannot get error when the restarting is accepted.");
-        } else {
-            return error;
-        }
+        return error;
     }
 
     /**
@@ -119,7 +152,7 @@ public class FailureHandlingResult {
      * @return whether the restarting can be conducted
      */
     public boolean canRestart() {
-        return error == null;
+        return verticesToRestart != null;
     }
 
     /**
@@ -136,13 +169,21 @@ public class FailureHandlingResult {
      * <p>The result can be flagged to be from a global failure triggered by the scheduler, rather
      * than from the failure of an individual task.
      *
+     * @param failingExecutionVertexId the {@link ExecutionVertexID} refering to the {@link
+     *     ExecutionVertex} the failure is originating from. Passing {@code null} as a value
+     *     indicates that the failure was issued by Flink itself.
      * @param verticesToRestart containing task vertices to restart to recover from the failure
      * @param restartDelayMS indicate a delay before conducting the restart
      * @return result of a set of tasks to restart to recover from the failure
      */
     public static FailureHandlingResult restartable(
-            Set<ExecutionVertexID> verticesToRestart, long restartDelayMS, boolean globalFailure) {
-        return new FailureHandlingResult(verticesToRestart, restartDelayMS, globalFailure);
+            @Nullable ExecutionVertexID failingExecutionVertexId,
+            Throwable cause,
+            Set<ExecutionVertexID> verticesToRestart,
+            long restartDelayMS,
+            boolean globalFailure) {
+        return new FailureHandlingResult(
+                failingExecutionVertexId, cause, verticesToRestart, restartDelayMS, globalFailure);
     }
 
     /**
@@ -151,10 +192,16 @@ public class FailureHandlingResult {
      * <p>The result can be flagged to be from a global failure triggered by the scheduler, rather
      * than from the failure of an individual task.
      *
+     * @param failingExecutionVertexId the {@link ExecutionVertexID} refering to the {@link
+     *     ExecutionVertex} the failure is originating from. Passing {@code null} as a value
+     *     indicates that the failure was issued by Flink itself.
      * @param error reason why the failure is not recoverable
      * @return result indicating the failure is not recoverable
      */
-    public static FailureHandlingResult unrecoverable(Throwable error, boolean globalFailure) {
-        return new FailureHandlingResult(error, globalFailure);
+    public static FailureHandlingResult unrecoverable(
+            @Nullable ExecutionVertexID failingExecutionVertexId,
+            Throwable error,
+            boolean globalFailure) {
+        return new FailureHandlingResult(failingExecutionVertexId, error, globalFailure);
     }
 }

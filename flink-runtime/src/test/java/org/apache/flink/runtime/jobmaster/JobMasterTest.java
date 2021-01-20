@@ -1146,7 +1146,8 @@ public class JobMasterTest extends TestLogger {
                             new TaskExecutionState(
                                     inputSplitJobGraph.getJobID(),
                                     initialAttemptId,
-                                    ExecutionState.FAILED))
+                                    ExecutionState.FAILED,
+                                    new Exception("Expected failure cause")))
                     .get();
 
             // wait until the job has been recovered

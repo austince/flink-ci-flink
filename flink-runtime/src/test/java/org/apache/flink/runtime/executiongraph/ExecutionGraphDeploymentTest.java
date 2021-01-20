@@ -276,8 +276,9 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
                     new ArrayList<>(
                             scheduler.getExecutionGraph().getRegisteredExecutions().values());
 
+            Exception failureCause = new Exception("Expected failure cause");
             for (Execution e : executions) {
-                e.markFailed(null);
+                e.markFailed(failureCause);
             }
 
             assertEquals(0, scheduler.getExecutionGraph().getRegisteredExecutions().size());
@@ -302,8 +303,9 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
                     new ArrayList<>(
                             scheduler.getExecutionGraph().getRegisteredExecutions().values());
 
+            Exception failureCause = new Exception("Expected failure cause");
             for (Execution e : executions) {
-                e.fail(null);
+                e.fail(failureCause);
             }
 
             assertEquals(0, scheduler.getExecutionGraph().getRegisteredExecutions().size());
@@ -367,7 +369,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
                         graph.getJobID(),
                         execution2.getAttemptId(),
                         ExecutionState.FAILED,
-                        null,
+                        new Exception("Expected failure cause"),
                         accumulatorSnapshot2,
                         ioMetrics2);
 

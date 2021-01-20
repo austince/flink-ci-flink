@@ -45,6 +45,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionDeploymentListener;
@@ -56,6 +57,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
+import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingResult;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -107,6 +109,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -164,6 +167,8 @@ public abstract class SchedulerBase implements SchedulerNG {
     private final Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap;
 
     private final ComponentMainThreadExecutor mainThreadExecutor;
+
+    private final List<ErrorInfo> taskFailureHistory = new ArrayList<>();
 
     public SchedulerBase(
             final Logger log,
@@ -522,6 +527,7 @@ public abstract class SchedulerBase implements SchedulerNG {
     protected void failJob(Throwable cause) {
         incrementVersionsOfAllVertices();
         executionGraph.failJob(cause);
+        getTerminationFuture().thenRun(() -> archiveGlobalFailure(cause));
     }
 
     protected final SchedulingTopology getSchedulingTopology() {
@@ -639,6 +645,33 @@ public abstract class SchedulerBase implements SchedulerNG {
     @Override
     public CompletableFuture<Void> getTerminationFuture() {
         return executionGraph.getTerminationFuture().thenApply(FunctionUtils.nullFn());
+    }
+
+    protected void archiveGlobalFailure(Throwable failure) {
+        taskFailureHistory.add(
+                new ErrorInfo(failure, executionGraph.getStatusTimestamp(JobStatus.FAILED)));
+        log.debug("Archive global failure.", failure);
+    }
+
+    protected void archiveFromFailureHandlingResult(FailureHandlingResult failureHandlingResult) {
+        Optional<Execution> executionOptional =
+                failureHandlingResult
+                        .getExecutionVertexIdOfFailedTask()
+                        .map(this::getExecutionVertex)
+                        .map(ExecutionVertex::getCurrentExecutionAttempt);
+
+        executionOptional.ifPresent(
+                execution ->
+                        execution
+                                .getFailureInfo()
+                                .ifPresent(
+                                        failureInfo -> {
+                                            taskFailureHistory.add(failureInfo);
+                                            log.debug(
+                                                    "Archive local failure causing attempt {} to fail: {}",
+                                                    execution.getAttemptId(),
+                                                    failureInfo.getExceptionAsString());
+                                        }));
     }
 
     @Override
@@ -786,6 +819,11 @@ public abstract class SchedulerBase implements SchedulerNG {
 
     protected void notifyPartitionDataAvailableInternal(
             IntermediateResultPartitionID resultPartitionId) {}
+
+    @VisibleForTesting
+    protected List<ErrorInfo> getExceptionHistory() {
+        return taskFailureHistory;
+    }
 
     @Override
     public ArchivedExecutionGraph requestJob() {

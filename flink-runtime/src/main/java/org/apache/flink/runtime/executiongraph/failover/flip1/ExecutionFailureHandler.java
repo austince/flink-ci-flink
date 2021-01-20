@@ -26,6 +26,8 @@ import org.apache.flink.runtime.throwable.ThrowableClassifier;
 import org.apache.flink.runtime.throwable.ThrowableType;
 import org.apache.flink.util.IterableUtils;
 
+import javax.annotation.Nullable;
+
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -78,7 +80,10 @@ public class ExecutionFailureHandler {
     public FailureHandlingResult getFailureHandlingResult(
             ExecutionVertexID failedTask, Throwable cause) {
         return handleFailure(
-                cause, failoverStrategy.getTasksNeedingRestart(failedTask, cause), false);
+                failedTask,
+                cause,
+                failoverStrategy.getTasksNeedingRestart(failedTask, cause),
+                false);
     }
 
     /**
@@ -91,6 +96,7 @@ public class ExecutionFailureHandler {
      */
     public FailureHandlingResult getGlobalFailureHandlingResult(final Throwable cause) {
         return handleFailure(
+                null,
                 cause,
                 IterableUtils.toStream(schedulingTopology.getVertices())
                         .map(SchedulingExecutionVertex::getId)
@@ -99,13 +105,16 @@ public class ExecutionFailureHandler {
     }
 
     private FailureHandlingResult handleFailure(
+            @Nullable final ExecutionVertexID failingExecutionVertexId,
             final Throwable cause,
             final Set<ExecutionVertexID> verticesToRestart,
             final boolean globalFailure) {
 
         if (isUnrecoverableError(cause)) {
             return FailureHandlingResult.unrecoverable(
-                    new JobException("The failure is not recoverable", cause), globalFailure);
+                    failingExecutionVertexId,
+                    new JobException("The failure is not recoverable", cause),
+                    globalFailure);
         }
 
         restartBackoffTimeStrategy.notifyFailure(cause);
@@ -113,9 +122,14 @@ public class ExecutionFailureHandler {
             numberOfRestarts++;
 
             return FailureHandlingResult.restartable(
-                    verticesToRestart, restartBackoffTimeStrategy.getBackoffTime(), globalFailure);
+                    failingExecutionVertexId,
+                    cause,
+                    verticesToRestart,
+                    restartBackoffTimeStrategy.getBackoffTime(),
+                    globalFailure);
         } else {
             return FailureHandlingResult.unrecoverable(
+                    failingExecutionVertexId,
                     new JobException(
                             "Recovery is suppressed by " + restartBackoffTimeStrategy, cause),
                     globalFailure);

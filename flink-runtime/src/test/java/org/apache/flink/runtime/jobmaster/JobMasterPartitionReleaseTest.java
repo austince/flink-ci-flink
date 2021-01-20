@@ -130,18 +130,23 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
     @Test
     public void testPartitionReleaseOrPromotionOnJobSuccess() throws Exception {
         testPartitionReleaseOrPromotionOnJobTermination(
-                TestSetup::getReleaseOrPromotePartitionsTargetResourceId, ExecutionState.FINISHED);
+                TestSetup::getReleaseOrPromotePartitionsTargetResourceId,
+                ExecutionState.FINISHED,
+                null);
     }
 
     @Test
     public void testPartitionReleaseOrPromotionOnJobFailure() throws Exception {
         testPartitionReleaseOrPromotionOnJobTermination(
-                TestSetup::getReleasePartitionsTargetResourceId, ExecutionState.FAILED);
+                TestSetup::getReleasePartitionsTargetResourceId,
+                ExecutionState.FAILED,
+                new Exception("Expected failure cause"));
     }
 
     private void testPartitionReleaseOrPromotionOnJobTermination(
             Function<TestSetup, CompletableFuture<ResourceID>> taskExecutorCallSelector,
-            ExecutionState finalExecutionState)
+            ExecutionState finalExecutionState,
+            Throwable cause)
             throws Exception {
         final CompletableFuture<TaskDeploymentDescriptor> taskDeploymentDescriptorFuture =
                 new CompletableFuture<>();
@@ -166,7 +171,8 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
                     new TaskExecutionState(
                             taskDeploymentDescriptor.getJobId(),
                             taskDeploymentDescriptor.getExecutionAttemptId(),
-                            finalExecutionState));
+                            finalExecutionState,
+                            cause));
 
             assertThat(
                     taskExecutorCallSelector.apply(testSetup).get(),

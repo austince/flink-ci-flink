@@ -23,6 +23,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
 
 import java.io.Serializable;
@@ -58,6 +59,8 @@ public class TaskExecutionState implements Serializable {
      * @param jobID the ID of the job the task belongs to
      * @param executionId the ID of the task execution whose state is to be reported
      * @param executionState the execution state to be reported
+     * @throws IllegalArgumentException if the new {@code executionState} is {@code FAILED} but no
+     *     {@code error} is provided.
      */
     public TaskExecutionState(
             JobID jobID, ExecutionAttemptID executionId, ExecutionState executionState) {
@@ -70,6 +73,8 @@ public class TaskExecutionState implements Serializable {
      * @param jobID the ID of the job the task belongs to
      * @param executionId the ID of the task execution whose state is to be reported
      * @param executionState the execution state to be reported
+     * @throws IllegalArgumentException if the new {@code executionState} is {@code FAILED} but no
+     *     {@code error} is provided.
      */
     public TaskExecutionState(
             JobID jobID,
@@ -88,6 +93,8 @@ public class TaskExecutionState implements Serializable {
      * @param executionState the execution state to be reported
      * @param error an optional error
      * @param accumulators The flink and user-defined accumulators which may be null.
+     * @throws IllegalArgumentException if the new {@code executionState} is {@code FAILED} but no
+     *     {@code error} is provided.
      */
     public TaskExecutionState(
             JobID jobID,
@@ -100,6 +107,10 @@ public class TaskExecutionState implements Serializable {
         if (jobID == null || executionId == null || executionState == null) {
             throw new NullPointerException();
         }
+
+        Preconditions.checkArgument(
+                executionState != ExecutionState.FAILED || error != null,
+                "A FAILED execution state should always provide a cause.");
 
         this.jobID = jobID;
         this.executionId = executionId;
