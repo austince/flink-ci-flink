@@ -646,6 +646,10 @@ public class SingleInputGate extends IndexedInputGate {
                 }
 
                 final InputChannel inputChannel = inputChannelOpt.get();
+                if (inputChannel.isReleased()) {
+                    return Optional.empty();
+                }
+
                 Optional<BufferAndAvailability> bufferAndAvailabilityOpt =
                         inputChannel.getNextBuffer();
 
