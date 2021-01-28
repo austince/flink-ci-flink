@@ -443,6 +443,8 @@ object FlinkBatchRuleSets {
     */
   val PHYSICAL_REWRITE: RuleSet = RuleSets.ofList(
     EnforceLocalHashAggRule.INSTANCE,
-    EnforceLocalSortAggRule.INSTANCE
+    EnforceLocalSortAggRule.INSTANCE,
+    PushLocalAggWithoutSortIntoTableSourceScanRule.INSTANCE,
+    PushLocalAggWithSortIntoTableSourceScanRule.INSTANCE
   )
 }
