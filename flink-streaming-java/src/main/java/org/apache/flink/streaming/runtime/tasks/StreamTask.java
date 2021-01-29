@@ -220,6 +220,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     private final ExecutorService channelIOExecutor;
 
     private Long syncSavepointId = null;
+    private Long activeSyncSavepointId = null;
 
     private long latestAsyncCheckpointStartDelayNanos;
 
@@ -408,6 +409,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                 syncSavepointId == null,
                 "at most one stop-with-savepoint checkpoint at a time is allowed");
         syncSavepointId = checkpointId;
+        activeSyncSavepointId = checkpointId;
+        operatorChain.setIsStoppingBySyncSavepoint(true);
     }
 
     @VisibleForTesting
@@ -987,6 +990,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                             if (advanceToEndOfTime) {
                                 advanceToEndOfEventTime();
                             }
+                        } else if (activeSyncSavepointId != null
+                                && activeSyncSavepointId < checkpointMetaData.getCheckpointId()) {
+                            activeSyncSavepointId = null;
+                            operatorChain.setIsStoppingBySyncSavepoint(false);
                         }
 
                         subtaskCheckpointCoordinator.checkpointState(
