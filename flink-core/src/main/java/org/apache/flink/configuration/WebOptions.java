@@ -156,6 +156,48 @@ public class WebOptions {
                     .withDeprecatedKeys("jobmanager.web.backpressure.delay-between-samples")
                     .withDescription("This config option is no longer used");
 
+    /** Time, in milliseconds, after which cached stats are cleaned up if not accessed. */
+    public static final ConfigOption<Integer> FLAMEGRAPH_CLEANUP_INTERVAL =
+            key("web.flamegraph.cleanup-interval")
+                    .intType()
+                    .defaultValue(10 * 60 * 1000)
+                    .withDescription(
+                            "Time, in milliseconds, after which cached stats are cleaned up if not accessed.");
+
+    /**
+     * Time, in milliseconds, after which available stats are deprecated and need to be refreshed
+     * (by resampling).
+     */
+    public static final ConfigOption<Integer> FLAMEGRAPH_REFRESH_INTERVAL =
+            key("web.flamegraph.refresh-interval")
+                    .intType()
+                    .defaultValue(60 * 1000)
+                    .withDescription(
+                            "Time, in milliseconds, after which available stats are deprecated and need to be refreshed"
+                                    + " (by resampling).");
+
+    /** Number of samples to take to build a FlameGraph. */
+    public static final ConfigOption<Integer> FLAMEGRAPH_NUM_SAMPLES =
+            key("web.flamegraph.num-samples")
+                    .intType()
+                    .defaultValue(100)
+                    .withDescription("Number of samples to take to build a FlameGraph.");
+
+    /** Delay between samples to build a FlameGraph in milliseconds. */
+    public static final ConfigOption<Integer> FLAMEGRAPH_DELAY =
+            key("web.flamegraph.delay-between-samples")
+                    .intType()
+                    .defaultValue(50)
+                    .withDescription(
+                            "Delay between samples to build a FlameGraph in milliseconds.");
+
+    /** Maximum depth of stack traces used to create FlameGraphs. */
+    public static final ConfigOption<Integer> FLAMEGRAPH_STACK_TRACE_DEPTH =
+            key("web.flamegraph.stack-depth")
+                    .intType()
+                    .defaultValue(100)
+                    .withDescription("Maximum depth of stack traces used to create FlameGraphs.");
+
     /** Timeout for asynchronous operations by the web monitor in milliseconds. */
     public static final ConfigOption<Long> TIMEOUT =
             key("web.timeout")

@@ -22,6 +22,9 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -52,6 +55,7 @@ import org.apache.flink.runtime.rest.handler.job.JobPlanHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexAccumulatorsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexBackPressureHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexDetailsHandler;
+import org.apache.flink.runtime.rest.handler.job.JobVertexFlameGraphHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexTaskManagersHandler;
 import org.apache.flink.runtime.rest.handler.job.JobsOverviewHandler;
 import org.apache.flink.runtime.rest.handler.job.SubtaskCurrentAttemptDetailsHandler;
@@ -100,6 +104,7 @@ import org.apache.flink.runtime.rest.messages.JobPlanHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexBackPressureHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexDetailsHeaders;
+import org.apache.flink.runtime.rest.messages.JobVertexFlameGraphHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexTaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.SubtasksAllAccumulatorsHeaders;
@@ -133,6 +138,9 @@ import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.runtime.webmonitor.threadinfo.OperatorThreadInfoStats;
+import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoOperatorTracker;
+import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoRequestCoordinator;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FileUtils;
@@ -144,6 +152,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -155,6 +164,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 /**
  * Rest endpoint which serves the web frontend REST calls.
@@ -179,6 +189,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
     private final LeaderElectionService leaderElectionService;
 
     private final FatalErrorHandler fatalErrorHandler;
+    private final ThreadInfoOperatorTracker<OperatorThreadInfoStats> threadInfoOperatorTracker;
 
     private boolean hasWebUI = false;
 
@@ -216,6 +227,49 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
         this.leaderElectionService = Preconditions.checkNotNull(leaderElectionService);
         this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
+
+        this.threadInfoOperatorTracker = initializeThreadInfoTracker(executor);
+    }
+
+    private ThreadInfoOperatorTracker<OperatorThreadInfoStats> initializeThreadInfoTracker(
+            ScheduledExecutorService executor) {
+        final Duration akkaTimeout;
+        try {
+            akkaTimeout = AkkaUtils.getTimeout(clusterConfiguration);
+        } catch (NumberFormatException e) {
+            throw new IllegalConfigurationException(AkkaUtils.formatDurationParsingErrorMessage());
+        }
+
+        final int flameGraphCleanUpInterval =
+                clusterConfiguration.getInteger(WebOptions.FLAMEGRAPH_CLEANUP_INTERVAL);
+        final ThreadInfoRequestCoordinator threadInfoRequestCoordinator =
+                new ThreadInfoRequestCoordinator(executor, akkaTimeout.toMillis());
+        final ThreadInfoOperatorTracker<OperatorThreadInfoStats> threadInfoOperatorTracker =
+                ThreadInfoOperatorTracker.newBuilder(
+                                resourceManagerRetriever, Function.identity(), executor)
+                        .setCoordinator(threadInfoRequestCoordinator)
+                        .setCleanUpInterval(flameGraphCleanUpInterval)
+                        .setNumSamples(
+                                clusterConfiguration.getInteger(WebOptions.FLAMEGRAPH_NUM_SAMPLES))
+                        .setStatsRefreshInterval(
+                                clusterConfiguration.getInteger(
+                                        WebOptions.FLAMEGRAPH_REFRESH_INTERVAL))
+                        .setDelayBetweenSamples(
+                                Time.milliseconds(
+                                        clusterConfiguration.getInteger(
+                                                WebOptions.FLAMEGRAPH_DELAY)))
+                        .setMaxThreadInfoDepth(
+                                clusterConfiguration.getInteger(
+                                        WebOptions.FLAMEGRAPH_STACK_TRACE_DEPTH))
+                        .build();
+
+        executor.scheduleWithFixedDelay(
+                threadInfoOperatorTracker::cleanUpOperatorStatsCache,
+                flameGraphCleanUpInterval,
+                flameGraphCleanUpInterval,
+                TimeUnit.MILLISECONDS);
+
+        return threadInfoOperatorTracker;
     }
 
     @Override
@@ -506,13 +560,23 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 rescalingHandlers
                 .new RescalingStatusHandler(leaderRetriever, timeout, responseHeaders);
 
-        JobVertexBackPressureHandler jobVertexBackPressureHandler =
+        final JobVertexBackPressureHandler jobVertexBackPressureHandler =
                 new JobVertexBackPressureHandler(
                         leaderRetriever,
                         timeout,
                         responseHeaders,
                         JobVertexBackPressureHeaders.getInstance(),
                         metricFetcher);
+
+        final JobVertexFlameGraphHandler jobVertexFlameGraphHandler =
+                new JobVertexFlameGraphHandler(
+                        leaderRetriever,
+                        timeout,
+                        responseHeaders,
+                        JobVertexFlameGraphHeaders.getInstance(),
+                        executionGraphCache,
+                        executor,
+                        threadInfoOperatorTracker);
 
         final JobCancellationHandler jobCancelTerminationHandler =
                 new JobCancellationHandler(
@@ -698,6 +762,11 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 Tuple2.of(
                         jobVertexBackPressureHandler.getMessageHeaders(),
                         jobVertexBackPressureHandler));
+        handlers.add(
+                Tuple2.of(
+                        jobVertexFlameGraphHandler.getMessageHeaders(),
+                        jobVertexFlameGraphHandler));
+
         handlers.add(
                 Tuple2.of(
                         jobCancelTerminationHandler.getMessageHeaders(),
