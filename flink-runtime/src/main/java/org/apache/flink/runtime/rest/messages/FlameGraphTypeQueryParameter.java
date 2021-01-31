@@ -19,23 +19,38 @@
 package org.apache.flink.runtime.rest.messages;
 
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 
-/** Message parameters for job vertex REST handlers. */
-public class JobVertexMessageParameters extends JobMessageParameters {
+/** Termination mode query parameter. */
+public class FlameGraphTypeQueryParameter
+        extends MessageQueryParameter<FlameGraphTypeQueryParameter.Type> {
 
-    public final JobVertexIdPathParameter jobVertexIdPathParameter = new JobVertexIdPathParameter();
-    public final FlameGraphTypeQueryParameter flameGraphTypeQueryParameter =
-            new FlameGraphTypeQueryParameter();
+    private static final String key = "type";
 
-    @Override
-    public Collection<MessagePathParameter<?>> getPathParameters() {
-        return Arrays.asList(jobPathParameter, jobVertexIdPathParameter);
+    public FlameGraphTypeQueryParameter() {
+        super(key, MessageParameterRequisiteness.OPTIONAL);
     }
 
     @Override
-    public Collection<MessageQueryParameter<?>> getQueryParameters() {
-        return Collections.singleton(flameGraphTypeQueryParameter);
+    public Type convertStringToValue(String value) {
+        return Type.valueOf(value.toUpperCase());
+    }
+
+    @Override
+    public String convertValueToString(Type value) {
+        return value.name().toLowerCase();
+    }
+
+    @Override
+    public String getDescription() {
+        return "String value that specifies the Flame Graph type. Supported options are: \""
+                + Arrays.toString(Type.values())
+                + "\".";
+    }
+
+    /** Termination mode. */
+    public enum Type {
+        FULL,
+        ON_CPU,
+        OFF_CPU
     }
 }
