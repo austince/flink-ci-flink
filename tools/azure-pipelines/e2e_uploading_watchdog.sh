@@ -20,6 +20,7 @@
 # c) N minutes before the end of the execution time, it will start uploading the current output as azure artifacts
 
 COMMAND=$1
+STAGE=$2
 
 HERE="`dirname \"$0\"`"             # relative
 HERE="`( cd \"$HERE\" && pwd )`"    # absolutized and normalized
@@ -32,8 +33,7 @@ OUTPUT_FILE=/tmp/_e2e_watchdog.output
 # every 5 minutes, so we should ideally get 2 uploads and then the operation gets killed)
 START_LOG_UPLOAD_SECONDS_FROM_END=$((11*60))
 
-DEFINED_TIMEOUT_MINUTES=`cat $HERE/jobs-template.yml | grep "timeoutInMinutes" | tail -n 1 | cut -d ":" -f 2 | tr -d '[:space:]'`
-DEFINED_TIMEOUT_SECONDS=$(($DEFINED_TIMEOUT_MINUTES*60))
+DEFINED_TIMEOUT_SECONDS=$(($SYSTEM_JOBTIMEOUT*60))
 
 echo "Running command '$COMMAND' with a timeout of $DEFINED_TIMEOUT_MINUTES minutes."
 
@@ -55,7 +55,7 @@ function log_upload_watchdog {
 	INDEX=0
 	while true; do
 		cp $OUTPUT_FILE "$OUTPUT_FILE.$INDEX"
-		echo "##vso[artifact.upload containerfolder=e2e-timeout-logs;artifactname=log_upload_watchdog.output;]$OUTPUT_FILE.$INDEX"
+		echo "##vso[artifact.upload containerfolder=$STAGE-timeout-logs;artifactname=log_upload_watchdog.output;]$OUTPUT_FILE.$INDEX"
 		INDEX=$(($INDEX+1))
 		sleep 300
 	done
@@ -65,7 +65,7 @@ warning_watchdog &
 log_upload_watchdog &
 
 # ts from moreutils prepends the time to each line
-( $COMMAND & PID=$! ; wait $PID ) | ts | tee $OUTPUT_FILE
+( $COMMAND $STAGE & PID=$! ; wait $PID ) | ts | tee $OUTPUT_FILE
 TEST_EXIT_CODE=${PIPESTATUS[0]}
 
 # properly forward exit code

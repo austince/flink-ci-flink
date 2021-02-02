@@ -143,8 +143,9 @@ jobs:
   - script: |
       source ./tools/azure-pipelines/debug_files_utils.sh
       prepare_debug_files $(module)
+      sudo apt-get install -y bc moreutils
       
-      ${{parameters.environment}} ./tools/ci/test_controller.sh $(module) ; TEST_EXIT_CODE=$?
+      ${{parameters.environment}} ./tools/azure-pipelines/e2e_uploading_watchdog.sh ./tools/ci/test_controller.sh $(module) ; TEST_EXIT_CODE=$?
     
       compress_debug_files
       exit $TEST_EXIT_CODE
@@ -224,7 +225,7 @@ jobs:
     - script: ${{parameters.environment}} ./tools/ci/compile.sh
       displayName: Build Flink
       condition: not(eq(variables['SKIP'], '1'))
-    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/e2e_uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh
+    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/e2e_uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh e2e.
       timeoutInMinutes: 250
       displayName: Run e2e tests
       env:
