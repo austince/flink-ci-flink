@@ -57,9 +57,9 @@ function log_upload_watchdog {
 	INDEX=0
 	while true; do
 		cp $OUTPUT_FILE "$OUTPUT_FILE.$INDEX"
-		echo "##vso[artifact.upload containerfolder=$STAGE-timeout-logs;artifactname=log_upload_watchdog.output;]$OUTPUT_FILE.$INDEX"
+		echo "##vso[task.uploadfile]$OUTPUT_FILE.$INDEX"
         print_stacktraces | tee "jps-traces.$INDEX"
-		echo "##vso[artifact.upload containerfolder=$STAGE-timeout-logs;artifactname=jps-traces;]jps-traces.$INDEX"
+		echo "##vso[task.uploadfile]jps-traces.$INDEX"
 		INDEX=$(($INDEX+1))
 		sleep 300
 	done
