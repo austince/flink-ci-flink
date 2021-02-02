@@ -28,6 +28,8 @@ if [ -z "$HERE" ] ; then
 	exit 1
 fi
 
+source "${HERE}/../ci/controller_utils.sh"
+
 OUTPUT_FILE=/tmp/_e2e_watchdog.output
 # Start uploading 11 minutes before the timeout imposed by Azure (11 minutes because the upload happens 
 # every 5 minutes, so we should ideally get 2 uploads and then the operation gets killed)
@@ -56,6 +58,8 @@ function log_upload_watchdog {
 	while true; do
 		cp $OUTPUT_FILE "$OUTPUT_FILE.$INDEX"
 		echo "##vso[artifact.upload containerfolder=$STAGE-timeout-logs;artifactname=log_upload_watchdog.output;]$OUTPUT_FILE.$INDEX"
+        print_stacktraces | tee "jps-traces.$INDEX"
+		echo "##vso[artifact.upload containerfolder=$STAGE-timeout-logs;artifactname=jps-traces;]jps-traces.$INDEX"
 		INDEX=$(($INDEX+1))
 		sleep 300
 	done
