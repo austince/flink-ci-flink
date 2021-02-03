@@ -79,6 +79,8 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -419,7 +421,7 @@ public class SchedulerTestingUtils {
                 new TestExecutionSlotAllocatorFactory();
         private JobStatusListener jobStatusListener =
                 (ignoredA, ignoredB, ignoredC, ignoredD) -> {};
-        private List<FailureListener> failureListeners = new ArrayList<>();
+        private Set<FailureListener> failureListeners = new HashSet<>();
 
         public DefaultSchedulerBuilder(
                 final JobGraph jobGraph, ComponentMainThreadExecutor mainThreadExecutor) {
@@ -534,7 +536,7 @@ public class SchedulerTestingUtils {
         }
 
         public DefaultSchedulerBuilder setFailureListenerFactory(
-                List<FailureListener> failureListeners) {
+                Set<FailureListener> failureListeners) {
             this.failureListeners = failureListeners;
             return this;
         }
