@@ -143,11 +143,12 @@ jobs:
   - script: |
       source ./tools/azure-pipelines/debug_files_utils.sh
       prepare_debug_files $(module)
-      sudo apt-get install -y bc moreutils
+      sudo apt-get install -y moreutils
       
-      ${{parameters.environment}} ./tools/azure-pipelines/e2e_uploading_watchdog.sh ./tools/ci/test_controller.sh $(module) ; TEST_EXIT_CODE=$?
+      ${{parameters.environment}} ./tools/azure-pipelines/uploading_watchdog.sh ./tools/ci/test_controller.sh $(module) ; TEST_EXIT_CODE=$?
     
       compress_debug_files
+  	  echo "##vso[task.uploadfile]$(DEBUG_FILES_OUTPUT_DIR)"
       exit $TEST_EXIT_CODE
     displayName: Test - $(module)
     env:
@@ -219,13 +220,17 @@ jobs:
         ./tools/azure-pipelines/free_disk_space.sh
 
         echo "Installing required software"
-        sudo apt-get install -y bc moreutils
+        sudo apt-get install -y moreutils
       displayName: Prepare E2E run
       condition: not(eq(variables['SKIP'], '1'))
     - script: ${{parameters.environment}} ./tools/ci/compile.sh
       displayName: Build Flink
       condition: not(eq(variables['SKIP'], '1'))
-    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/e2e_uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh e2e.
+    - script: |
+        prepare_debug_files e2e
+        ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh e2e
+        compress_debug_files
+        echo "##vso[task.uploadfile]$(DEBUG_FILES_OUTPUT_DIR)"
       timeoutInMinutes: 250
       displayName: Run e2e tests
       env:

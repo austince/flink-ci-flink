@@ -19,8 +19,7 @@
 # b) It prints a warning if the test has reached 80% of it's execution time
 # c) N minutes before the end of the execution time, it will start uploading the current output as azure artifacts
 
-COMMAND=$1
-STAGE=$2
+COMMAND=$@
 
 HERE="`dirname \"$0\"`"             # relative
 HERE="`( cd \"$HERE\" && pwd )`"    # absolutized and normalized
@@ -30,10 +29,10 @@ fi
 
 source "${HERE}/../ci/controller_utils.sh"
 
-OUTPUT_FILE=/tmp/_e2e_watchdog.output
 # Start uploading 11 minutes before the timeout imposed by Azure (11 minutes because the upload happens 
 # every 5 minutes, so we should ideally get 2 uploads and then the operation gets killed)
 START_LOG_UPLOAD_SECONDS_FROM_END=$((11*60))
+KILL_SECONDS_FROM_END=$((1*60))
 
 DEFINED_TIMEOUT_SECONDS=$(($SYSTEM_JOBTIMEOUT*60))
 
@@ -43,33 +42,41 @@ function warning_watchdog {
 	SLEEP_TIME=$(echo "scale=0; $DEFINED_TIMEOUT_SECONDS*0.8/1" | bc)
 	sleep $SLEEP_TIME
 	echo "=========================================================================================="
-	echo "=== WARNING: This E2E Run took already 80% of the allocated time budget of $DEFINED_TIMEOUT_MINUTES minutes ==="
+	echo "=== WARNING: This task took already 80% of the allocated time budget of $DEFINED_TIMEOUT_MINUTES minutes ==="
 	echo "=========================================================================================="
 }
 
 function log_upload_watchdog {
 	SLEEP_TIME=$(($DEFINED_TIMEOUT_SECONDS-$START_LOG_UPLOAD_SECONDS_FROM_END))
 	sleep $SLEEP_TIME
-	echo "======================================================================================================"
-	echo "=== WARNING: This E2E Run will time out in the next few minutes. Starting to upload the log output ==="
-	echo "======================================================================================================"
+	echo "==================================================================================================="
+	echo "=== WARNING: This task will time out in the next few minutes. Starting to upload the log output ==="
+	echo "==================================================================================================="
 
 	INDEX=0
 	while true; do
-		cp $OUTPUT_FILE "$OUTPUT_FILE.$INDEX"
-		echo "##vso[task.uploadfile]$OUTPUT_FILE.$INDEX"
-        print_stacktraces | tee "jps-traces.$INDEX"
-		echo "##vso[task.uploadfile]jps-traces.$INDEX"
+        print_stacktraces | tee "$DEBUG_FILES_OUTPUT_DIR/jps-traces.$INDEX"
 		INDEX=$(($INDEX+1))
 		sleep 300
 	done
 }
 
+function timeout {
+	SLEEP_TIME=$(($DEFINED_TIMEOUT_SECONDS-$KILL_SECONDS_FROM_END))
+	sleep $SLEEP_TIME
+	echo "============================="
+	echo "=== WARNING: Killing task ==="
+	echo "============================="
+
+	exit 42
+}
+
 warning_watchdog &
 log_upload_watchdog &
+timeout &
 
 # ts from moreutils prepends the time to each line
-( $COMMAND $STAGE & PID=$! ; wait $PID ) | ts | tee $OUTPUT_FILE
+( $COMMAND & PID=$! ; wait $PID ) | ts | tee $DEBUG_FILES_OUTPUT_DIR/watchdog.output
 TEST_EXIT_CODE=${PIPESTATUS[0]}
 
 # properly forward exit code
