@@ -31,7 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A test {@link TestCheckpointBarrierHandler} that records the history of checkpoint triggering.
+ * A {@link CheckpointBarrierHandler} for testing that records the history of checkpoint triggering.
  */
 public class TestCheckpointBarrierHandler extends CheckpointBarrierHandler {
     private final List<CheckpointBarrier> triggeredCheckpoints = new ArrayList<>();
