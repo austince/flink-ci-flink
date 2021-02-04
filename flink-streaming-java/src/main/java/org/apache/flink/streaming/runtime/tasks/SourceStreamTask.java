@@ -135,7 +135,7 @@ public class SourceStreamTask<
                 .getIOMetricGroup()
                 .gauge(
                         MetricNames.CHECKPOINT_START_DELAY_TIME,
-                        this::getAsyncCheckpointStartDelayNanos);
+                        this::getCheckpointStartDelayNanos);
     }
 
     @Override

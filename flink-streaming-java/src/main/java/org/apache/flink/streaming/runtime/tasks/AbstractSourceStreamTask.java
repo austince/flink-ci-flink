@@ -32,7 +32,7 @@ import javax.annotation.Nullable;
 public abstract class AbstractSourceStreamTask<OUT, OP extends StreamOperator<OUT>>
         extends StreamTask<OUT, OP> {
 
-    protected long latestAsyncCheckpointStartDelayNanos;
+    protected long latestCheckpointStartDelayNanos;
 
     protected AbstractSourceStreamTask(Environment env) throws Exception {
         super(env);
@@ -77,14 +77,13 @@ public abstract class AbstractSourceStreamTask<OUT, OP extends StreamOperator<OU
             boolean advanceToEndOfEventTime)
             throws Exception {
 
+        latestCheckpointStartDelayNanos =
+                1_000_000
+                        * Math.max(
+                                0, System.currentTimeMillis() - checkpointMetaData.getTimestamp());
+
         FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
         try {
-            latestAsyncCheckpointStartDelayNanos =
-                    1_000_000
-                            * Math.max(
-                                    0,
-                                    System.currentTimeMillis() - checkpointMetaData.getTimestamp());
-
             // No alignment if we inject a checkpoint
             CheckpointMetricsBuilder checkpointMetrics =
                     new CheckpointMetricsBuilder()
@@ -128,7 +127,7 @@ public abstract class AbstractSourceStreamTask<OUT, OP extends StreamOperator<OU
         }
     }
 
-    protected long getAsyncCheckpointStartDelayNanos() {
-        return latestAsyncCheckpointStartDelayNanos;
+    protected long getCheckpointStartDelayNanos() {
+        return latestCheckpointStartDelayNanos;
     }
 }
