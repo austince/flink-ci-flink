@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.runtime.tasks.AbstractSourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceFactory;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -37,7 +38,8 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import java.util.function.BiConsumer;
 
 /** A settable testing {@link StreamTask}. */
-public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamTask<OUT, OP> {
+public class MockStreamTask<OUT, OP extends StreamOperator<OUT>>
+        extends AbstractSourceStreamTask<OUT, OP> {
 
     private final Object checkpointLock;
     private final StreamConfig config;

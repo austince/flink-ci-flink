@@ -28,6 +28,8 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 
 import javax.annotation.Nullable;
 
+import java.util.concurrent.CompletableFuture;
+
 /** Base class for source stream tasks which need to trigger a new checkpoint. */
 public abstract class AbstractSourceStreamTask<OUT, OP extends StreamOperator<OUT>>
         extends StreamTask<OUT, OP> {
@@ -71,10 +73,11 @@ public abstract class AbstractSourceStreamTask<OUT, OP extends StreamOperator<OU
     }
 
     @Override
-    protected boolean triggerCheckpoint(
+    protected void triggerCheckpoint(
             CheckpointMetaData checkpointMetaData,
             CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime)
+            boolean advanceToEndOfEventTime,
+            CompletableFuture<Boolean> resultFuture)
             throws Exception {
 
         latestCheckpointStartDelayNanos =
@@ -102,7 +105,7 @@ public abstract class AbstractSourceStreamTask<OUT, OP extends StreamOperator<OU
             if (!success) {
                 declineCheckpoint(checkpointMetaData.getCheckpointId());
             }
-            return success;
+            resultFuture.complete(success);
         } catch (Exception e) {
             // propagate exceptions only if the task is still in "running" state
             if (isRunning) {
@@ -120,7 +123,7 @@ public abstract class AbstractSourceStreamTask<OUT, OP extends StreamOperator<OU
                         checkpointMetaData.getCheckpointId(),
                         getName(),
                         e);
-                return false;
+                resultFuture.complete(false);
             }
         } finally {
             FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();

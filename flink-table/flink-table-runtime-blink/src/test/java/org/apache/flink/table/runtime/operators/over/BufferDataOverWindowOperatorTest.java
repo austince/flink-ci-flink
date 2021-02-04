@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.AbstractSourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.table.data.GenericRowData;
@@ -201,7 +202,7 @@ public class BufferDataOverWindowOperatorTest {
                         .setMemoryManager(memoryManager)
                         .build();
         StreamTask<Object, StreamOperator<Object>> task =
-                new StreamTask<Object, StreamOperator<Object>>(env) {
+                new AbstractSourceStreamTask<Object, StreamOperator<Object>>(env) {
                     @Override
                     protected void init() {}
                 };

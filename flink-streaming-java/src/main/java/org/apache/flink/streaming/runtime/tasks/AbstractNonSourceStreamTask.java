@@ -28,6 +28,8 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 
 import javax.annotation.Nullable;
 
+import java.util.concurrent.CompletableFuture;
+
 /** Base class for non-source tasks which need to trigger {@link CheckpointBarrierHandler}. */
 public abstract class AbstractNonSourceStreamTask<OUT, OP extends StreamOperator<OUT>>
         extends StreamTask<OUT, OP> {
@@ -72,10 +74,11 @@ public abstract class AbstractNonSourceStreamTask<OUT, OP extends StreamOperator
     protected abstract CheckpointBarrierHandler getCheckpointBarrierHandler();
 
     @Override
-    protected boolean triggerCheckpoint(
+    protected void triggerCheckpoint(
             CheckpointMetaData checkpointMetaData,
             CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime)
+            boolean advanceToEndOfEventTime,
+            CompletableFuture<Boolean> resultFuture)
             throws Exception {
 
         FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
@@ -83,7 +86,7 @@ public abstract class AbstractNonSourceStreamTask<OUT, OP extends StreamOperator
         try {
             CheckpointBarrierHandler checkpointBarrierHandler = getCheckpointBarrierHandler();
             if (checkpointBarrierHandler == null) {
-                return false;
+                resultFuture.complete(false);
             }
 
             boolean success =
@@ -92,13 +95,13 @@ public abstract class AbstractNonSourceStreamTask<OUT, OP extends StreamOperator
             if (!success) {
                 declineCheckpoint(checkpointMetaData.getCheckpointId());
             }
-            return success;
+            resultFuture.complete(success);
         } catch (Exception e) {
             if (isRunning) {
                 throw new Exception(
                         "Could not perform checkpoint "
                                 + checkpointMetaData.getCheckpointId()
-                                + " for task "
+                                + " for operator "
                                 + getName()
                                 + '.',
                         e);
@@ -109,7 +112,7 @@ public abstract class AbstractNonSourceStreamTask<OUT, OP extends StreamOperator
                         checkpointMetaData.getCheckpointId(),
                         getName(),
                         e);
-                return false;
+                resultFuture.complete(false);
             }
         } finally {
             FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();

@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -112,10 +113,11 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
      * trigger it for each checkpoint.
      */
     @Override
-    protected boolean triggerCheckpoint(
+    protected void triggerCheckpoint(
             CheckpointMetaData checkpointMetaData,
             CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime)
+            boolean advanceToEndOfEventTime,
+            CompletableFuture<Boolean> resultFuture)
             throws Exception {
 
         try {
@@ -138,8 +140,9 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
                 declineCheckpoint(checkpointMetaData.getCheckpointId());
             }
 
-            return success;
+            resultFuture.complete(success);
         } catch (Exception e) {
+            LOG.info("Failed to trigger checkpoint", e);
             // propagate exceptions only if the task is still in "running" state
             if (isRunning) {
                 throw new Exception(
@@ -156,7 +159,7 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
                         checkpointMetaData.getCheckpointId(),
                         getName(),
                         e);
-                return false;
+                resultFuture.complete(false);
             }
         }
     }

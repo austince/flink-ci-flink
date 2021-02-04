@@ -105,7 +105,7 @@ public class StreamTaskExecutionDecorationTest {
         mailbox = new TaskMailboxImpl();
         decorator = new CountingStreamTaskActionExecutor();
         task =
-                new StreamTask<Object, StreamOperator<Object>>(
+                new AbstractSourceStreamTask<Object, StreamOperator<Object>>(
                         new DeclineDummyEnvironment(),
                         null,
                         FatalExitExceptionHandler.INSTANCE,

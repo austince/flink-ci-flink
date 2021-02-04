@@ -876,15 +876,19 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         mainMailboxExecutor.execute(
                 () -> {
                     try {
-                        result.complete(
-                                triggerCheckpoint(
-                                        checkpointMetaData,
-                                        checkpointOptions,
-                                        advanceToEndOfEventTime));
+                        triggerCheckpoint(
+                                checkpointMetaData,
+                                checkpointOptions,
+                                advanceToEndOfEventTime,
+                                result);
                     } catch (Exception ex) {
                         // Report the failure both via the Future result but also to the mailbox
                         result.completeExceptionally(ex);
                         throw ex;
+                    }
+
+                    if (result.isCompletedExceptionally()) {
+                        result.get();
                     }
                 },
                 "checkpoint %s with %s",
@@ -893,13 +897,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         return result;
     }
 
-    protected boolean triggerCheckpoint(
+    protected abstract void triggerCheckpoint(
             CheckpointMetaData checkpointMetaData,
             CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime)
-            throws Exception {
-        return false;
-    }
+            boolean advanceToEndOfEventTime,
+            CompletableFuture<Boolean> resultFuture)
+            throws Exception;
 
     @Override
     public void triggerCheckpointOnBarrier(

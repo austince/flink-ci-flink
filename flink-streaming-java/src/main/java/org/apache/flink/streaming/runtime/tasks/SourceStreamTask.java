@@ -133,9 +133,7 @@ public class SourceStreamTask<
         getEnvironment()
                 .getMetricGroup()
                 .getIOMetricGroup()
-                .gauge(
-                        MetricNames.CHECKPOINT_START_DELAY_TIME,
-                        this::getCheckpointStartDelayNanos);
+                .gauge(MetricNames.CHECKPOINT_START_DELAY_TIME, this::getCheckpointStartDelayNanos);
     }
 
     @Override

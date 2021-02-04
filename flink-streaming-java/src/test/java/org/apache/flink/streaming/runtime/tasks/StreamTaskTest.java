@@ -423,7 +423,7 @@ public class StreamTaskTest extends TestLogger {
      * if {@link StreamTask#getCancelables()} are closed properly.
      */
     public static class CancelFailingTask
-            extends StreamTask<String, AbstractStreamOperator<String>> {
+            extends AbstractSourceStreamTask<String, AbstractStreamOperator<String>> {
 
         public CancelFailingTask(Environment env) throws Exception {
             super(env);
@@ -535,7 +535,7 @@ public class StreamTaskTest extends TestLogger {
 
     /** A task that throws {@link CancelTaskException}. */
     public static class CancelThrowingTask
-            extends StreamTask<String, AbstractStreamOperator<String>> {
+            extends AbstractSourceStreamTask<String, AbstractStreamOperator<String>> {
 
         public CancelThrowingTask(Environment env) throws Exception {
             super(env);

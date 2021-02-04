@@ -212,7 +212,7 @@ public class StreamTaskSystemExitTest extends TestLogger {
 
     /** StreamTask emulating system exit behavior from different callback functions. */
     public static class SystemExitStreamTask
-            extends StreamTask<String, AbstractStreamOperator<String>> {
+            extends AbstractSourceStreamTask<String, AbstractStreamOperator<String>> {
         private final ExitPoint exitPoint;
 
         public SystemExitStreamTask(Environment env) throws Exception {

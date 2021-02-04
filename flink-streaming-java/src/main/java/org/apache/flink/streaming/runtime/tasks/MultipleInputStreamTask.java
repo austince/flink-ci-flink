@@ -48,7 +48,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -177,56 +176,45 @@ public class MultipleInputStreamTask<OUT>
     }
 
     @Override
-    public Future<Boolean> triggerCheckpointAsync(
+    public void triggerCheckpoint(
             CheckpointMetaData metadata,
             CheckpointOptions options,
-            boolean advanceToEndOfEventTime) {
+            boolean advanceToEndOfEventTime,
+            CompletableFuture<Boolean> resultFuture)
+            throws Exception {
+        try {
+            /*
+             * Contrary to {@link SourceStreamTask}, we are not using here
+             * {@link StreamTask#latestAsyncCheckpointStartDelayNanos} to measure the start delay
+             * metric, but we will be using {@link CheckpointBarrierHandler#getCheckpointStartDelayNanos()}
+             * instead.
+             */
+            pendingCheckpointCompletedFutures.put(metadata.getCheckpointId(), resultFuture);
+            checkPendingCheckpointCompletedFuturesSize();
 
-        CompletableFuture<Boolean> resultFuture = new CompletableFuture<>();
-        mainMailboxExecutor.execute(
-                () -> {
-                    try {
-                        /*
-                         * Contrary to {@link SourceStreamTask}, we are not using here
-                         * {@link StreamTask#latestAsyncCheckpointStartDelayNanos} to measure the start delay
-                         * metric, but we will be using {@link CheckpointBarrierHandler#getCheckpointStartDelayNanos()}
-                         * instead.
-                         */
-                        pendingCheckpointCompletedFutures.put(
-                                metadata.getCheckpointId(), resultFuture);
-                        checkPendingCheckpointCompletedFuturesSize();
+            // The chained source input would never marked as EndOfPartition in
+            // CheckpointBarrierHandler. Therefore, if we indeed chained some sources,
+            // we should always start the checkpoint aligned from the source inputs.
+            //
+            // If we do not chained with sources, then we should be a normal non-source
+            // task, in which case all the precedent tasks must be finished and we
+            // notify CheckpointBarrierHandler.
+            if (operatorChain.getSourceTaskInputs().size() > 0) {
+                triggerSourcesCheckpoint(
+                        new CheckpointBarrier(
+                                metadata.getCheckpointId(), metadata.getTimestamp(), options));
+            } else {
+                checkState(
+                        getCheckpointBarrierHandler() != null,
+                        "Trigger checkpoint to non-source task without checkpoint barrier handler");
+                getCheckpointBarrierHandler().triggerCheckpoint(metadata, options);
+            }
 
-                        // The chained source input would never marked as EndOfPartition in
-                        // CheckpointBarrierHandler. Therefore, if we indeed chained some sources,
-                        // we should always start the checkpoint aligned from the source inputs.
-                        //
-                        // If we do not chained with sources, then we should be a normal non-source
-                        // task, in which case all the precedent tasks must be finished and we
-                        // notify CheckpointBarrierHandler.
-                        if (operatorChain.getSourceTaskInputs().size() > 0) {
-                            triggerSourcesCheckpoint(
-                                    new CheckpointBarrier(
-                                            metadata.getCheckpointId(),
-                                            metadata.getTimestamp(),
-                                            options));
-                        } else {
-                            checkState(
-                                    getCheckpointBarrierHandler() != null,
-                                    "Trigger checkpoint to non-source task without checkpoint barrier handler");
-                            getCheckpointBarrierHandler().triggerCheckpoint(metadata, options);
-                        }
-
-                    } catch (Exception ex) {
-                        // Report the failure both via the Future result but also to the mailbox
-                        pendingCheckpointCompletedFutures.remove(metadata.getCheckpointId());
-                        resultFuture.completeExceptionally(ex);
-                        throw ex;
-                    }
-                },
-                "checkpoint %s with %s",
-                metadata,
-                options);
-        return resultFuture;
+        } catch (Exception ex) {
+            // Report the failure both via the Future result but also to the mailbox
+            pendingCheckpointCompletedFutures.remove(metadata.getCheckpointId());
+            resultFuture.completeExceptionally(ex);
+        }
     }
 
     private void checkPendingCheckpointCompletedFuturesSize() {
