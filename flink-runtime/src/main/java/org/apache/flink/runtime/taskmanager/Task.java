@@ -835,10 +835,9 @@ public class Task
                                 break;
                             }
                         } else {
-                            if (transitionState(current, ExecutionState.FAILED, t)) {
+                            if (transitionToFailedStateAndSetFailureCause(current, t)) {
                                 // proper failure of the task. record the exception as the root
                                 // cause
-                                failureCause = t;
                                 cancelInvokable(invokable);
 
                                 break;
@@ -853,7 +852,7 @@ public class Task
                         break;
                     }
                     // unexpected state, go to failed
-                    else if (transitionState(current, ExecutionState.FAILED, t)) {
+                    else if (transitionToFailedStateAndSetFailureCause(current, t)) {
                         LOG.error(
                                 "Unexpected state in task {} ({}) during an exception: {}.",
                                 taskNameWithSubtask,
@@ -1023,17 +1022,40 @@ public class Task
     }
 
     /**
+     * Try to transition to FAILED state from a given state and sets the {@code failureCause}.
+     *
+     * @param currentState of the execution
+     * @param cause the {@link Throwable} causing the failure
+     * @return true if the transition was successful, otherwise false
+     * @throws NullPointerException if no {@code cause} is provided
+     */
+    private boolean transitionToFailedStateAndSetFailureCause(
+            ExecutionState currentState, Throwable cause) {
+        Preconditions.checkNotNull(cause, "No cause is given when transitioning to FAILED state.");
+        if (transitionState(currentState, ExecutionState.FAILED, cause)) {
+            failureCause = cause;
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Try to transition the execution state from the current state to the new state.
      *
      * @param currentState of the execution
      * @param newState of the execution
      * @param cause of the transition change or null
      * @return true if the transition was successful, otherwise false
+     * @throws IllegalArgumentException if {@code FAILED} is passed as a {@code newState} but no
+     *     {@code cause} is provided.
      */
     private boolean transitionState(
             ExecutionState currentState, ExecutionState newState, Throwable cause) {
         if (STATE_UPDATER.compareAndSet(this, currentState, newState)) {
             if (cause == null) {
+                Preconditions.checkArgument(
+                        newState != ExecutionState.FAILED,
+                        "A failed state transition should always provide a failure cause.");
                 LOG.info(
                         "{} ({}) switched from {} to {}.",
                         taskNameWithSubtask,
