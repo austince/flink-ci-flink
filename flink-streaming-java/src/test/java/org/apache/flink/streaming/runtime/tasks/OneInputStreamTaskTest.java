@@ -33,6 +33,7 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
@@ -577,7 +578,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
-                        CheckpointableOneInputStreamTask::new,
+                        OneInputStreamTask::new,
                         BasicTypeInfo.STRING_TYPE_INFO,
                         BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -609,12 +610,10 @@ public class OneInputStreamTaskTest extends TestLogger {
         CheckpointMetaData checkpointMetaData =
                 new CheckpointMetaData(checkpointId, checkpointTimestamp);
 
-        streamTask
-                .triggerCheckpointAsync(
-                        checkpointMetaData,
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
-                        false)
-                .get();
+        streamTask.triggerCheckpointOnBarrier(
+                checkpointMetaData,
+                CheckpointOptions.forCheckpointWithDefaultLocation(),
+                new CheckpointMetricsBuilder(1, 1));
 
         // since no state was set, there shouldn't be restore calls
         assertEquals(0, TestingStreamOperator.numberRestoreCalls);

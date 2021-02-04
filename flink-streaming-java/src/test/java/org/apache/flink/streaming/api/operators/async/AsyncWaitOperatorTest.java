@@ -28,6 +28,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -51,7 +52,6 @@ import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.CheckpointableOneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -486,7 +486,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
     public void testStateSnapshotAndRestore() throws Exception {
         final OneInputStreamTaskTestHarness<Integer, Integer> testHarness =
                 new OneInputStreamTaskTestHarness<>(
-                        CheckpointableOneInputStreamTask::new,
+                        OneInputStreamTask::new,
                         1,
                         1,
                         BasicTypeInfo.INT_TYPE_INFO,
@@ -526,8 +526,10 @@ public class AsyncWaitOperatorTest extends TestLogger {
         final CheckpointMetaData checkpointMetaData =
                 new CheckpointMetaData(checkpointId, checkpointTimestamp);
 
-        task.triggerCheckpointAsync(
-                checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation(), false);
+        task.triggerCheckpointOnBarrier(
+                checkpointMetaData,
+                CheckpointOptions.forCheckpointWithDefaultLocation(),
+                new CheckpointMetricsBuilder(1, 1));
 
         taskStateManagerMock.getWaitForReportLatch().await();
 
@@ -543,7 +545,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
         final OneInputStreamTaskTestHarness<Integer, Integer> restoredTaskHarness =
                 new OneInputStreamTaskTestHarness<>(
-                        CheckpointableOneInputStreamTask::new,
+                        OneInputStreamTask::new,
                         BasicTypeInfo.INT_TYPE_INFO,
                         BasicTypeInfo.INT_TYPE_INFO);
 
@@ -567,12 +569,10 @@ public class AsyncWaitOperatorTest extends TestLogger {
         restoredTaskHarness.processElement(new StreamRecord<>(7, initialTime + 7));
 
         // trigger the checkpoint while processing stream elements
-        restoredTask
-                .triggerCheckpointAsync(
-                        new CheckpointMetaData(checkpointId, checkpointTimestamp),
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
-                        false)
-                .get();
+        restoredTask.triggerCheckpointOnBarrier(
+                new CheckpointMetaData(checkpointId, checkpointTimestamp),
+                CheckpointOptions.forCheckpointWithDefaultLocation(),
+                new CheckpointMetricsBuilder(1, 1));
 
         restoredTaskHarness.processElement(new StreamRecord<>(8, initialTime + 8));
 

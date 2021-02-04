@@ -31,6 +31,7 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -124,7 +125,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
-                        CheckpointableOneInputStreamTask::new,
+                        OneInputStreamTask::new,
                         BasicTypeInfo.STRING_TYPE_INFO,
                         BasicTypeInfo.STRING_TYPE_INFO);
         testHarness.setupOutputForSingletonOperatorChain();
@@ -227,11 +228,10 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
         final OneInputStreamTask<String, String> task = testHarness.getTask();
 
-        task.triggerCheckpointAsync(
-                        new CheckpointMetaData(42, 17),
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
-                        false)
-                .get();
+        task.triggerCheckpointOnBarrier(
+                new CheckpointMetaData(42, 17),
+                CheckpointOptions.forCheckpointWithDefaultLocation(),
+                new CheckpointMetricsBuilder(1, 1));
 
         testHarness.processElement(new StreamRecord<>("Wohoo", 0));
 
@@ -261,7 +261,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
     public void testCancelFullyAsyncCheckpoints() throws Exception {
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
-                        CheckpointableOneInputStreamTask::new,
+                        OneInputStreamTask::new,
                         BasicTypeInfo.STRING_TYPE_INFO,
                         BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -349,11 +349,10 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
         final OneInputStreamTask<String, String> task = testHarness.getTask();
 
-        task.triggerCheckpointAsync(
-                        new CheckpointMetaData(42, 17),
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
-                        false)
-                .get();
+        task.triggerCheckpointOnBarrier(
+                new CheckpointMetaData(42, 17),
+                CheckpointOptions.forCheckpointWithDefaultLocation(),
+                new CheckpointMetricsBuilder(1, 1));
 
         testHarness.processElement(new StreamRecord<>("Wohoo", 0));
         blockerCheckpointStreamFactory.getWaiterLatch().await();

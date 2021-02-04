@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 
 import javax.annotation.concurrent.NotThreadSafe;
@@ -42,6 +43,15 @@ public class CheckpointMetricsBuilder {
     private long checkpointStartDelayNanos = -1L;
     private boolean unalignedCheckpoint = false;
     private long totalBytesPersisted = -1L;
+
+    @VisibleForTesting
+    public CheckpointMetricsBuilder(
+            long bytesProcessedDuringAlignment, long alignmentDurationNanos) {
+        setBytesProcessedDuringAlignment(bytesProcessedDuringAlignment);
+        setAlignmentDurationNanos(alignmentDurationNanos);
+    }
+
+    public CheckpointMetricsBuilder() {}
 
     public CheckpointMetricsBuilder setBytesProcessedDuringAlignment(
             long bytesProcessedDuringAlignment) {

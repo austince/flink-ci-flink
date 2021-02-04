@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -38,7 +39,6 @@ import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.CheckpointableOneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
@@ -115,7 +115,7 @@ public class StatefulOperatorChainedTaskTest {
         File localRootDir = temporaryFolder.newFolder();
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
-                        CheckpointableOneInputStreamTask::new,
+                        OneInputStreamTask::new,
                         1,
                         1,
                         BasicTypeInfo.STRING_TYPE_INFO,
@@ -182,12 +182,10 @@ public class StatefulOperatorChainedTaskTest {
 
         testHarness.getTaskStateManager().setWaitForReportLatch(new OneShotLatch());
 
-        while (!streamTask
-                .triggerCheckpointAsync(
-                        checkpointMetaData,
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
-                        false)
-                .get()) {}
+        streamTask.triggerCheckpointOnBarrier(
+                checkpointMetaData,
+                CheckpointOptions.forCheckpointWithDefaultLocation(),
+                new CheckpointMetricsBuilder(1, 1));
 
         testHarness.getTaskStateManager().getWaitForReportLatch().await();
         long reportedCheckpointId = testHarness.getTaskStateManager().getReportedCheckpointId();
