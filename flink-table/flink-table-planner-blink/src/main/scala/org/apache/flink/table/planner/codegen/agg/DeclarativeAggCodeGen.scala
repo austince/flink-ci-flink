@@ -76,7 +76,12 @@ class DeclarativeAggCodeGen(
     }.map(_.accept(rexNodeGen)).map(exprCodegen.generateExpression).map(_.nullTerm)
   }
 
-  private val argIndexes = aggInfo.argIndexes
+  private val argIndexes = if (aggInfo.argIndexes != null) {
+    aggInfo.argIndexes
+  } else {
+    Array()
+  }
+
   private val argTypes = {
     val types = inputTypes ++ constants.map(t => FlinkTypeFactory.toLogicalType(t.getType))
     argIndexes.map(types(_))
