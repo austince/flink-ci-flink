@@ -21,6 +21,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
@@ -73,6 +74,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -107,7 +109,10 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         StreamExecutionEnvironment env = settings.createEnvironment(checkpointDir);
 
         settings.dagCreator.create(
-                env, settings.minCheckpoints, settings.slotSharing, settings.expectedFailures - 1);
+                env,
+                settings.minCheckpoints,
+                settings.slotSharing,
+                settings.expectedFailures - settings.failuresAfterSourceFinishes);
         try {
             final JobExecutionResult result = env.execute();
 
@@ -133,7 +138,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                                 (file, attr) ->
                                         attr.isDirectory()
                                                 && file.getFileName().toString().startsWith("chk"))
-                        .findFirst()
+                        .min(Comparator.comparing(Path::toString))
                         .map(Path::toFile)
                         .orElseThrow(
                                 () -> new IllegalStateException("Cannot generate checkpoint", e));
@@ -144,6 +149,12 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             fail("Could not generate checkpoint");
         }
         return null;
+    }
+
+    protected static int getNumBuffers(int parallelism, int numShuffles) {
+        // p + 1 buffer on output side + input side including recovery (=local channels count fully)
+        int buffersPerSubtask = parallelism + 1 + 2 * BUFFER_PER_CHANNEL * parallelism;
+        return buffersPerSubtask * parallelism * numShuffles;
     }
 
     /** A source that generates longs in a fixed number of splits. */
@@ -208,7 +219,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             enum PollingState {
                 THROTTLING,
                 PUMPING,
-                FINISHING;
+                FINISHING
             }
 
             public LongSourceReader(final long minCheckpoints, int expectedRestarts) {
@@ -474,7 +485,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
         private static class EnumeratorVersionedSerializer
                 implements SimpleVersionedSerializer<EnumeratorState> {
-            private SplitVersionedSerializer splitVersionedSerializer =
+            private final SplitVersionedSerializer splitVersionedSerializer =
                     new SplitVersionedSerializer();
 
             @Override
@@ -545,14 +556,14 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                 StreamExecutionEnvironment environment,
                 int minCheckpoints,
                 boolean slotSharing,
-                int expectedFailures);
+                int expectedFailuresUntilSourceFinishes);
     }
 
     /** Builder-like interface for all relevant unaligned settings. */
     protected static class UnalignedSettings {
         private int parallelism;
         private int slotsPerTaskManager = 1;
-        private int minCheckpoints = 10;
+        private final int minCheckpoints = 10;
         private boolean slotSharing = true;
         @Nullable private File restoreCheckpoint;
         private boolean generateCheckpoint = false;
@@ -561,6 +572,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         private int expectedFailures = 0;
         private final DagCreator dagCreator;
         private int alignmentTimeout = 0;
+        private int failuresAfterSourceFinishes = 0;
 
         public UnalignedSettings(DagCreator dagCreator) {
             this.dagCreator = dagCreator;
@@ -608,6 +620,11 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
         public UnalignedSettings setAlignmentTimeout(int alignmentTimeout) {
             this.alignmentTimeout = alignmentTimeout;
+            return this;
+        }
+
+        public UnalignedSettings setFailuresAfterSourceFinishes(int failuresAfterSourceFinishes) {
+            this.failuresAfterSourceFinishes = failuresAfterSourceFinishes;
             return this;
         }
 
@@ -679,6 +696,22 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                     + ", dagCreator="
                     + dagCreator
                     + '}';
+        }
+    }
+
+    /** Shifts the partitions one up. */
+    protected static class ShiftingPartitioner implements Partitioner<Long> {
+        @Override
+        public int partition(Long key, int numPartitions) {
+            return (int) ((withoutHeader(key) + 1) % numPartitions);
+        }
+    }
+
+    /** Distributes chunks of the size of numPartitions in a round robin fashion. */
+    protected static class ChunkDistributingPartitioner implements Partitioner<Long> {
+        @Override
+        public int partition(Long key, int numPartitions) {
+            return (int) ((withoutHeader(key) / numPartitions) % numPartitions);
         }
     }
 
@@ -819,6 +852,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         private ListState<State> stateList;
         protected transient State state;
         protected final long minCheckpoints;
+        protected boolean backpressure;
 
         protected VerifyingSinkBase(long minCheckpoints) {
             this.minCheckpoints = minCheckpoints;
@@ -843,9 +877,9 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                                     new ListStateDescriptor<>(
                                             "state", (Class<State>) state.getClass()));
             this.state = getOnlyElement(stateList.get(), state);
+            backpressure = false;
             LOG.info(
-                    "Init state {} @ {} subtask ({} attempt)",
-                    this.state,
+                    "Inducing backpressure=false @ {} subtask ({} attempt)",
                     getRuntimeContext().getIndexOfThisSubtask(),
                     getRuntimeContext().getAttemptNumber());
         }
@@ -854,11 +888,6 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            LOG.info(
-                    "Snapshot state {} @ {} subtask ({} attempt)",
-                    state,
-                    getRuntimeContext().getIndexOfThisSubtask(),
-                    getRuntimeContext().getAttemptNumber());
             stateList.clear();
             stateList.add(state);
         }
@@ -866,6 +895,12 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         @Override
         public void notifyCheckpointComplete(long checkpointId) {
             state.completedCheckpoints++;
+            backpressure = state.completedCheckpoints < minCheckpoints;
+            LOG.info(
+                    "Inducing backpressure={} @ {} subtask ({} attempt)",
+                    backpressure,
+                    getRuntimeContext().getIndexOfThisSubtask(),
+                    getRuntimeContext().getAttemptNumber());
         }
 
         @Override

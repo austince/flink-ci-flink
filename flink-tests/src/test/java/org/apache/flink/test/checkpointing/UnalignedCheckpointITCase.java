@@ -19,7 +19,6 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -145,6 +144,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 .setNumBuffers(getNumBuffers(parallelism, numShuffles))
                 .setSlotsPerTaskManager(slotsPerTaskManager)
                 .setExpectedFailures(5)
+                .setFailuresAfterSourceFinishes(1)
                 .setAlignmentTimeout(timeout);
     }
 
@@ -156,7 +156,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 .setNumSlots(parallelism * numShuffles)
                 .setNumBuffers(getNumBuffers(parallelism, numShuffles))
                 .setSlotsPerTaskManager(parallelism)
-                .setExpectedFailures(5);
+                .setExpectedFailures(5)
+                .setFailuresAfterSourceFinishes(1);
     }
 
     private static UnalignedSettings createUnionSettings(int parallelism) {
@@ -167,19 +168,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 .setNumSlots(parallelism * numShuffles)
                 .setNumBuffers(getNumBuffers(parallelism, numShuffles))
                 .setSlotsPerTaskManager(parallelism)
-                .setExpectedFailures(5);
-    }
-
-    private static int getNumBuffers(int parallelism, int numShuffles) {
-        int buffersPerSubtask =
-                parallelism
-                        + 1
-                        + // output side
-                        2
-                                * BUFFER_PER_CHANNEL
-                                * parallelism; // input side including recovery (=local channels
-        // count fully)
-        return buffersPerSubtask * parallelism * numShuffles;
+                .setExpectedFailures(5)
+                .setFailuresAfterSourceFinishes(1);
     }
 
     private final UnalignedSettings settings;
@@ -303,28 +293,11 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 .slotSharingGroup(slotSharing ? "default" : "sink");
     }
 
-    /** Shifts the partitions one up. */
-    protected static class ShiftingPartitioner implements Partitioner<Long> {
-        @Override
-        public int partition(Long key, int numPartitions) {
-            return (int) ((withoutHeader(key) + 1) % numPartitions);
-        }
-    }
-
-    /** Distributes chunks of the size of numPartitions in a round robin fashion. */
-    protected static class ChunkDistributingPartitioner implements Partitioner<Long> {
-        @Override
-        public int partition(Long key, int numPartitions) {
-            return (int) ((withoutHeader(key) / numPartitions) % numPartitions);
-        }
-    }
-
     /**
      * A sink that checks if the members arrive in the expected order without any missing values.
      */
     protected static class StrictOrderVerifyingSink
             extends VerifyingSinkBase<StrictOrderVerifyingSink.State> {
-        protected boolean backpressure;
         private boolean firstOutOfOrder = true;
         private boolean firstDuplicate = true;
         private boolean firstLostValue = true;
@@ -341,22 +314,6 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         @Override
         public void initializeState(FunctionInitializationContext context) throws Exception {
             super.initializeState(context);
-            backpressure = false;
-            LOG.info(
-                    "Inducing backpressure=false @ {} subtask ({} attempt)",
-                    getRuntimeContext().getIndexOfThisSubtask(),
-                    getRuntimeContext().getAttemptNumber());
-        }
-
-        @Override
-        public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            super.snapshotState(context);
-            backpressure = state.completedCheckpoints < minCheckpoints;
-            LOG.info(
-                    "Inducing backpressure={} @ {} subtask ({} attempt)",
-                    backpressure,
-                    getRuntimeContext().getIndexOfThisSubtask(),
-                    getRuntimeContext().getAttemptNumber());
         }
 
         @Override
@@ -439,7 +396,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
             stateList =
                     context.getOperatorStateStore()
                             .getListState(new ListStateDescriptor<>("state", State.class));
-            this.state = getOnlyElement(stateList.get(), new State());
+            state = getOnlyElement(stateList.get(), new State());
         }
 
         @Override
@@ -495,7 +452,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         private ListState<BitSet> stateList;
 
         public CountingMapFunction(int numSources) {
-            this.withdrawnCount = numSources - 1;
+            withdrawnCount = numSources - 1;
         }
 
         @Override
@@ -524,7 +481,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                             .getListState(
                                     new ListStateDescriptor<>(
                                             "state", new GenericTypeInfo<>(BitSet.class)));
-            this.seenRecords = getOnlyElement(stateList.get(), new BitSet());
+            seenRecords = getOnlyElement(stateList.get(), new BitSet());
         }
     }
 }
