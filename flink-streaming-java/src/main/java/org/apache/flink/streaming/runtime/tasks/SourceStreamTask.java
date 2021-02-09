@@ -179,18 +179,30 @@ public class SourceStreamTask<
     }
 
     @Override
+    protected void cleanUpInvoke() throws Exception {
+        if (isFailing()) {
+            interruptSourceThread();
+        }
+        super.cleanUpInvoke();
+    }
+
+    @Override
     protected void cancelTask() {
         try {
             if (mainOperator != null) {
                 mainOperator.cancel();
             }
         } finally {
-            if (sourceThread.isAlive()) {
-                sourceThread.interrupt();
-            } else if (!sourceThread.getCompletionFuture().isDone()) {
-                // source thread didn't start
-                sourceThread.getCompletionFuture().complete(null);
-            }
+            interruptSourceThread();
+        }
+    }
+
+    private void interruptSourceThread() {
+        if (sourceThread.isAlive()) {
+            sourceThread.interrupt();
+        } else if (!sourceThread.getCompletionFuture().isDone()) {
+            // source thread didn't start
+            sourceThread.getCompletionFuture().complete(null);
         }
     }
 
