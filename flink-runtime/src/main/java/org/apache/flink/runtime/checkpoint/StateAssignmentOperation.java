@@ -461,6 +461,7 @@ public class StateAssignmentOperation {
                 final Map<Integer, Set<Integer>> mapping =
                         mapper.getNewToOldSubtasksMapping(
                                 inputOperatorState.size(), stateAssignment.newParallelism);
+                stateAssignment.mayHaveAmbiguousSubtasks |= mapper.isAmbiguous();
                 stateAssignment.inputSubtaskMappings =
                         checkSubtaskMapping(stateAssignment.inputSubtaskMappings, mapping);
 
@@ -515,7 +516,10 @@ public class StateAssignmentOperation {
                                         !operatorIDAndState.getKey().equals(statefulOperatorID))
                         .filter(
                                 operatorState ->
-                                        operatorState.getValue().getSubtaskStates().values()
+                                        operatorState
+                                                .getValue()
+                                                .getSubtaskStates()
+                                                .values()
                                                 .stream()
                                                 .anyMatch(
                                                         operatorSubtaskState ->

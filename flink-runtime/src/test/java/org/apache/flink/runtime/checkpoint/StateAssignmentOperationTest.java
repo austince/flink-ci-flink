@@ -60,6 +60,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
@@ -74,6 +75,8 @@ import static org.junit.Assert.assertThat;
 
 /** Tests to verify state assignment operation. */
 public class StateAssignmentOperationTest extends TestLogger {
+
+    private static final int MAX_P = 256;
 
     @Test
     public void testRepartitionSplitDistributeStates() {
@@ -480,23 +483,23 @@ public class StateAssignmentOperationTest extends TestLogger {
 
         assertEquals(
                 new InflightDataRescalingDescriptor(
-                        set(0, 2), singletonMap(0, mapping(set(0, 1), set(1, 2)))),
+                        set(0, 2), singletonMap(0, mapping(set(0, 1), set(1, 2))), emptySet()),
                 getAssignedState(vertices.get(operatorIds.get(0)), operatorIds.get(0), 0)
                         .getOutputRescalingDescriptor());
         assertEquals(
                 new InflightDataRescalingDescriptor(
-                        set(1), singletonMap(0, mapping(set(0, 1), set(1, 2)))),
+                        set(1), singletonMap(0, mapping(set(0, 1), set(1, 2))), emptySet()),
                 getAssignedState(vertices.get(operatorIds.get(0)), operatorIds.get(0), 1)
                         .getOutputRescalingDescriptor());
 
         assertEquals(
                 new InflightDataRescalingDescriptor(
-                        set(0, 1), singletonMap(0, mapping(set(0, 2), set(1)))),
+                        set(0, 1), singletonMap(0, mapping(set(0, 2), set(1))), set(0, 1)),
                 getAssignedState(vertices.get(operatorIds.get(1)), operatorIds.get(1), 0)
                         .getInputRescalingDescriptor());
         assertEquals(
                 new InflightDataRescalingDescriptor(
-                        set(1, 2), singletonMap(0, mapping(set(0, 2), set(1)))),
+                        set(1, 2), singletonMap(0, mapping(set(0, 2), set(1))), set(0, 1)),
                 getAssignedState(vertices.get(operatorIds.get(1)), operatorIds.get(1), 1)
                         .getInputRescalingDescriptor());
     }
@@ -573,7 +576,7 @@ public class StateAssignmentOperationTest extends TestLogger {
                                 Function.identity(),
                                 operatorID -> {
                                     OperatorState state =
-                                            new OperatorState(operatorID, numSubTasks, numSubTasks);
+                                            new OperatorState(operatorID, numSubTasks, MAX_P);
                                     for (int i = 0; i < numSubTasks; i++) {
                                         state.putState(
                                                 i,

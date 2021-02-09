@@ -27,6 +27,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StateObject;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,8 +36,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyMap;
-import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor.NO_MAPPINGS;
-import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor.NO_SUBTASKS;
+import static java.util.Collections.singleton;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -72,6 +72,11 @@ class TaskStateAssignment {
      * was rescaled.
      */
     final Map<Integer, TaskStateAssignment> downstreamAssignments;
+    /**
+     * If channel data cannot be safely divided into subtasks (several new subtask indexes are
+     * associated with the same old subtask index). Mostly used for range partitioners.
+     */
+    boolean mayHaveAmbiguousSubtasks;
 
     public TaskStateAssignment(
             ExecutionJobVertex executionJobVertex, Map<OperatorID, OperatorState> oldState) {
@@ -106,13 +111,17 @@ class TaskStateAssignment {
                         || !subRawKeyedState.containsKey(instanceID),
                 "If an operator has no managed key state, it should also not have a raw keyed state.");
 
+        final StateObjectCollection<InputChannelStateHandle> inputState =
+                getState(instanceID, inputChannelStates);
+        final StateObjectCollection<ResultSubpartitionStateHandle> outputState =
+                getState(instanceID, resultSubpartitionStates);
         return OperatorSubtaskState.builder()
                 .setManagedOperatorState(getState(instanceID, subManagedOperatorState))
                 .setRawOperatorState(getState(instanceID, subRawOperatorState))
                 .setManagedKeyedState(getState(instanceID, subManagedKeyedState))
                 .setRawKeyedState(getState(instanceID, subRawKeyedState))
-                .setInputChannelState(getState(instanceID, inputChannelStates))
-                .setResultSubpartitionState(getState(instanceID, resultSubpartitionStates))
+                .setInputChannelState(inputState)
+                .setResultSubpartitionState(outputState)
                 .setInputRescalingDescriptor(
                         inputOperatorID.equals(instanceID.getOperatorId())
                                 ? createRescalingDescriptor(
@@ -142,21 +151,36 @@ class TaskStateAssignment {
         }
 
         final Set<Integer> oldTaskInstances =
-                subtaskMappings.isEmpty()
-                        ? NO_SUBTASKS
-                        : subtaskMappings.get(instanceID.getSubtaskId());
+                subtaskMappings.getOrDefault(
+                        instanceID.getSubtaskId(), singleton(instanceID.getSubtaskId()));
         final Map<Integer, RescaledChannelsMapping> rescaledChannelsMappings =
-                assignments.isEmpty()
-                        ? NO_MAPPINGS
-                        : assignments.entrySet().stream()
-                                .collect(
-                                        Collectors.toMap(
-                                                Map.Entry::getKey,
-                                                assignment ->
-                                                        new RescaledChannelsMapping(
-                                                                mappingRetriever.apply(
-                                                                        assignment.getValue()))));
-        return new InflightDataRescalingDescriptor(oldTaskInstances, rescaledChannelsMappings);
+                assignments.entrySet().stream()
+                        .collect(
+                                Collectors.toMap(
+                                        Map.Entry::getKey,
+                                        assignment ->
+                                                new RescaledChannelsMapping(
+                                                        mappingRetriever.apply(
+                                                                assignment.getValue()))));
+
+        return new InflightDataRescalingDescriptor(
+                oldTaskInstances,
+                rescaledChannelsMappings,
+                getAmbiguousSubtaskIndexes(subtaskMappings));
+    }
+
+    private Set<Integer> getAmbiguousSubtaskIndexes(Map<Integer, Set<Integer>> subtaskMappings) {
+        if (!mayHaveAmbiguousSubtasks) {
+            return Collections.emptySet();
+        }
+        final Map<Integer, Set<Integer>> newToOldTaskInstances =
+                RescaledChannelsMapping.invert(subtaskMappings);
+        final Set<Integer> ambiguousTaskIndexes =
+                newToOldTaskInstances.entrySet().stream()
+                        .filter(oldTaskIndexes -> oldTaskIndexes.getValue().size() > 1)
+                        .map(Map.Entry::getKey)
+                        .collect(Collectors.toSet());
+        return ambiguousTaskIndexes;
     }
 
     private <T extends StateObject> StateObjectCollection<T> getState(

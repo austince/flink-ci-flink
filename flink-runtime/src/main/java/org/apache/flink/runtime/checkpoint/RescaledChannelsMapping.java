@@ -24,12 +24,13 @@ import java.util.Map;
 import java.util.Set;
 
 import static java.util.Collections.emptyMap;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Contains the fine-grain channel mappings that occur when a connected operator has been rescaled.
  */
 public class RescaledChannelsMapping implements Serializable {
-    public static final RescaledChannelsMapping NO_CHANNEL_MAPPING =
+    static final RescaledChannelsMapping NO_CHANNEL_MAPPING =
             new RescaledChannelsMapping(emptyMap());
 
     private static final long serialVersionUID = -8719670050630674631L;
@@ -44,7 +45,7 @@ public class RescaledChannelsMapping implements Serializable {
     private transient Map<Integer, Set<Integer>> oldToNewChannelIndexes;
 
     public RescaledChannelsMapping(Map<Integer, Set<Integer>> newToOldChannelIndexes) {
-        this.newToOldChannelIndexes = newToOldChannelIndexes;
+        this.newToOldChannelIndexes = checkNotNull(newToOldChannelIndexes);
     }
 
     public int[] getNewChannelIndexes(int oldChannelIndex) {

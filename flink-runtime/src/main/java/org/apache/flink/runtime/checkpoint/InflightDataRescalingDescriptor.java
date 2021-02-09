@@ -55,10 +55,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * old channels, then there are 6 virtual channels to be demultiplexed.
  */
 public class InflightDataRescalingDescriptor implements Serializable {
-    public static final Set<Integer> NO_SUBTASKS = emptySet();
-    public static final Map<Integer, RescaledChannelsMapping> NO_MAPPINGS = emptyMap();
     public static final InflightDataRescalingDescriptor NO_RESCALE =
-            new InflightDataRescalingDescriptor(NO_SUBTASKS, NO_MAPPINGS);
+            new InflightDataRescalingDescriptor(emptySet(), emptyMap(), emptySet());
 
     private static final long serialVersionUID = -3396674344669796295L;
 
@@ -71,22 +69,29 @@ public class InflightDataRescalingDescriptor implements Serializable {
      */
     private final Map<Integer, RescaledChannelsMapping> rescaledChannelsMappings;
 
+    /** All channels where upstream duplicates data (only valid for downstream mappings). */
+    private final Set<Integer> ambiguousSubtaskIndexes;
+
     public InflightDataRescalingDescriptor(
             Set<Integer> oldSubtaskIndexes,
-            Map<Integer, RescaledChannelsMapping> rescaledChannelsMappings) {
+            Map<Integer, RescaledChannelsMapping> rescaledChannelsMappings,
+            Set<Integer> ambiguousSubtaskIndexes) {
         this.oldSubtaskIndexes = checkNotNull(oldSubtaskIndexes);
         this.rescaledChannelsMappings = checkNotNull(rescaledChannelsMappings);
+        this.ambiguousSubtaskIndexes = checkNotNull(ambiguousSubtaskIndexes);
     }
 
-    public int[] getOldSubtaskIndexes(int defaultSubtask) {
-        return oldSubtaskIndexes.equals(NO_SUBTASKS)
-                ? new int[] {defaultSubtask}
-                : oldSubtaskIndexes.stream().mapToInt(Integer::intValue).toArray();
+    public int[] getOldSubtaskIndexes() {
+        return oldSubtaskIndexes.stream().mapToInt(Integer::intValue).toArray();
     }
 
     public RescaledChannelsMapping getChannelMapping(int gateOrPartitionIndex) {
         return rescaledChannelsMappings.getOrDefault(
                 gateOrPartitionIndex, RescaledChannelsMapping.NO_CHANNEL_MAPPING);
+    }
+
+    public boolean isAmbiguous(int oldSubtaskIndex) {
+        return ambiguousSubtaskIndexes.contains(oldSubtaskIndex);
     }
 
     @Override
@@ -97,13 +102,26 @@ public class InflightDataRescalingDescriptor implements Serializable {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        final InflightDataRescalingDescriptor that = (InflightDataRescalingDescriptor) o;
-        return oldSubtaskIndexes.equals(that.oldSubtaskIndexes)
-                && rescaledChannelsMappings.equals(that.rescaledChannelsMappings);
+        InflightDataRescalingDescriptor that = (InflightDataRescalingDescriptor) o;
+        return Objects.equals(oldSubtaskIndexes, that.oldSubtaskIndexes)
+                && Objects.equals(rescaledChannelsMappings, that.rescaledChannelsMappings)
+                && Objects.equals(ambiguousSubtaskIndexes, that.ambiguousSubtaskIndexes);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(oldSubtaskIndexes, rescaledChannelsMappings);
+        return Objects.hash(oldSubtaskIndexes, rescaledChannelsMappings, ambiguousSubtaskIndexes);
+    }
+
+    @Override
+    public String toString() {
+        return "InflightDataRescalingDescriptor{"
+                + "oldSubtaskIndexes="
+                + oldSubtaskIndexes
+                + ", rescaledChannelsMappings="
+                + rescaledChannelsMappings
+                + ", ambiguousSubtaskIndexes="
+                + ambiguousSubtaskIndexes
+                + '}';
     }
 }

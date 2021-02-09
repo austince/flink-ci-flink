@@ -87,12 +87,19 @@ public enum SubtaskStateMapper {
     /**
      * Replicates the state to all subtasks. This rescaling causes a huge overhead and completely
      * relies on filtering the data downstream.
+     *
+     * <p>This strategy should only be used as a fallback.
      */
     FULL {
         @Override
         public Set<Integer> getOldSubtasks(
                 int newSubtaskIndex, int oldNumberOfSubtasks, int newNumberOfSubtasks) {
             return IntStream.range(0, oldNumberOfSubtasks).boxed().collect(Collectors.toSet());
+        }
+
+        @Override
+        public boolean isAmbiguous() {
+            return true;
         }
     },
 
@@ -133,6 +140,11 @@ public enum SubtaskStateMapper {
                     KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
                             maxParallelism, oldNumberOfSubtasks, newRange.getEndKeyGroup());
             return IntStream.range(start, end + 1).boxed().collect(Collectors.toSet());
+        }
+
+        @Override
+        public boolean isAmbiguous() {
+            return true;
         }
     },
 
@@ -200,5 +212,9 @@ public enum SubtaskStateMapper {
                                 channelIndex ->
                                         getOldSubtasks(
                                                 channelIndex, oldParallelism, newParallelism)));
+    }
+
+    public boolean isAmbiguous() {
+        return false;
     }
 }
