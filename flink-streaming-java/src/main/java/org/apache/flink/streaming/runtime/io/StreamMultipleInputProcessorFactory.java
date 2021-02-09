@@ -20,12 +20,14 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -39,7 +41,9 @@ import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput;
 import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput.SelectableSortingInputs;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
+import org.apache.flink.streaming.runtime.io.recovery.RescalingStreamTaskNetworkInput;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
@@ -50,6 +54,7 @@ import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.api.graph.StreamConfig.requiresSorting;
@@ -77,7 +82,10 @@ public class StreamMultipleInputProcessorFactory {
             Configuration jobConfig,
             ExecutionConfig executionConfig,
             ClassLoader userClassloader,
-            OperatorChain<?, ?> operatorChain) {
+            OperatorChain<?, ?> operatorChain,
+            InflightDataRescalingDescriptor inflightDataRescalingDescriptor,
+            Function<Integer, StreamPartitioner<?>> gatePartitioners,
+            TaskInfo taskInfo) {
         checkNotNull(operatorChain);
 
         List<Input> operatorInputs = mainOperator.getInputs();
@@ -101,14 +109,17 @@ public class StreamMultipleInputProcessorFactory {
                 StreamConfig.NetworkInputConfig networkInput =
                         (StreamConfig.NetworkInputConfig) configuredInput;
                 inputs[i] =
-                        new StreamTaskNetworkInput<>(
+                        RescalingStreamTaskNetworkInput.create(
                                 checkpointedInputGates[networkInput.getInputGateIndex()],
                                 networkInput.getTypeSerializer(),
                                 ioManager,
                                 new StatusWatermarkValve(
                                         checkpointedInputGates[networkInput.getInputGateIndex()]
                                                 .getNumberOfInputChannels()),
-                                i);
+                                i,
+                                inflightDataRescalingDescriptor,
+                                gatePartitioners,
+                                taskInfo);
             } else if (configuredInput instanceof StreamConfig.SourceInputConfig) {
                 StreamConfig.SourceInputConfig sourceInput =
                         (StreamConfig.SourceInputConfig) configuredInput;
@@ -236,7 +247,7 @@ public class StreamMultipleInputProcessorFactory {
         private final StreamStatus[] streamStatuses;
 
         private MultiStreamStreamStatusTracker(int numberOfInputs) {
-            this.streamStatuses = new StreamStatus[numberOfInputs];
+            streamStatuses = new StreamStatus[numberOfInputs];
             Arrays.fill(streamStatuses, StreamStatus.ACTIVE);
         }
 

@@ -52,7 +52,7 @@ public abstract class AbstractStreamTaskNetworkInput<
         implements StreamTaskInput<T> {
     protected final CheckpointedInputGate checkpointedInputGate;
     protected final DeserializationDelegate<StreamElement> deserializationDelegate;
-    protected final TypeSerializer<?> inputSerializer;
+    protected final TypeSerializer<T> inputSerializer;
     protected final Map<InputChannelInfo, R> recordDeserializers;
     protected final Map<InputChannelInfo, Integer> flattenedChannelIndices = new HashMap<>();
     /** Valve that controls how watermarks and stream statuses are forwarded. */
@@ -64,7 +64,7 @@ public abstract class AbstractStreamTaskNetworkInput<
 
     public AbstractStreamTaskNetworkInput(
             CheckpointedInputGate checkpointedInputGate,
-            TypeSerializer<?> inputSerializer,
+            TypeSerializer<T> inputSerializer,
             StatusWatermarkValve statusWatermarkValve,
             int inputIndex,
             Map<InputChannelInfo, R> recordDeserializers) {

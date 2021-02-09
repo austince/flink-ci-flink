@@ -37,6 +37,7 @@ import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInput;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.checkpointing.InputProcessorUtil;
+import org.apache.flink.streaming.runtime.io.recovery.RescalingStreamTaskNetworkInput;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -110,11 +111,11 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         }
         mainOperator
                 .getMetricGroup()
-                .gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge);
+                .gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, inputWatermarkGauge);
         // wrap watermark gauge since registered metrics must be unique
         getEnvironment()
                 .getMetricGroup()
-                .gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge::getValue);
+                .gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, inputWatermarkGauge::getValue);
     }
 
     private StreamTaskInput<IN> wrapWithSorted(StreamTaskInput<IN> input) {
@@ -157,8 +158,20 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
         TypeSerializer<IN> inSerializer =
                 configuration.getTypeSerializerIn1(getUserCodeClassLoader());
-        return new StreamTaskNetworkInput<>(
-                inputGate, inSerializer, getEnvironment().getIOManager(), statusWatermarkValve, 0);
+
+        return RescalingStreamTaskNetworkInput.create(
+                inputGate,
+                inSerializer,
+                getEnvironment().getIOManager(),
+                statusWatermarkValve,
+                0,
+                getEnvironment().getTaskStateManager().getInputRescalingDescriptor(),
+                gateIndex ->
+                        configuration
+                                .getInPhysicalEdges(getUserCodeClassLoader())
+                                .get(gateIndex)
+                                .getPartitioner(),
+                getEnvironment().getTaskInfo());
     }
 
     /**

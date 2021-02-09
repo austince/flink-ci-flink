@@ -44,8 +44,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.annotation.Nonnull;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -54,7 +52,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -63,6 +60,8 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
+import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.mapping;
+import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.set;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewKeyedStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewOperatorStateHandle;
@@ -502,19 +501,6 @@ public class StateAssignmentOperationTest extends TestLogger {
                         set(1, 2), singletonMap(0, mapping(set(0, 2), set(1))), set(0, 1)),
                 getAssignedState(vertices.get(operatorIds.get(1)), operatorIds.get(1), 1)
                         .getInputRescalingDescriptor());
-    }
-
-    @Nonnull
-    private RescaledChannelsMapping mapping(Set<Integer>... channelMappings) {
-        Map<Integer, Set<Integer>> mappings = new HashMap<>();
-        for (int newChannelIndex = 0; newChannelIndex < channelMappings.length; newChannelIndex++) {
-            mappings.put(newChannelIndex, channelMappings[newChannelIndex]);
-        }
-        return new RescaledChannelsMapping(mappings);
-    }
-
-    private Set<Integer> set(int... indexes) {
-        return IntStream.of(indexes).boxed().collect(Collectors.toSet());
     }
 
     private void assertState(
