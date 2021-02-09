@@ -109,6 +109,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -908,38 +909,57 @@ public abstract class SchedulerBase implements SchedulerNG {
         // will be restarted by the CheckpointCoordinatorDeActivator.
         checkpointCoordinator.stopCheckpointScheduler();
 
+        final CompletableFuture<Collection<ExecutionState>> executionGraphTerminationFuture =
+                FutureUtils.combineAll(
+                        StreamSupport.stream(
+                                        executionGraph.getAllExecutionVertices().spliterator(),
+                                        false)
+                                .map(ExecutionVertex::getCurrentExecutionAttempt)
+                                .map(Execution::getTerminalStateFuture)
+                                .collect(Collectors.toList()));
+
         final CompletableFuture<String> savepointFuture =
                 checkpointCoordinator
                         .triggerSynchronousSavepoint(advanceToEndOfEventTime, targetDirectory)
                         .thenApply(CompletedCheckpoint::getExternalPointer);
 
-        final CompletableFuture<JobStatus> terminationFuture =
-                executionGraph
-                        .getTerminationFuture()
-                        .handle(
-                                (jobstatus, throwable) -> {
-                                    if (throwable != null) {
-                                        log.info(
-                                                "Failed during stopping job {} with a savepoint. Reason: {}",
-                                                jobGraph.getJobID(),
-                                                throwable.getMessage());
-                                        throw new CompletionException(throwable);
-                                    } else if (jobstatus != JobStatus.FINISHED) {
-                                        log.info(
-                                                "Failed during stopping job {} with a savepoint. Reason: Reached state {} instead of FINISHED.",
-                                                jobGraph.getJobID(),
-                                                jobstatus);
-                                        throw new CompletionException(
-                                                new FlinkException(
-                                                        "Reached state "
-                                                                + jobstatus
-                                                                + " instead of FINISHED."));
-                                    }
-                                    return jobstatus;
-                                });
-
         return savepointFuture
-                .thenCompose((path) -> terminationFuture.thenApply((jobStatus -> path)))
+                .thenCompose(
+                        path ->
+                                executionGraphTerminationFuture
+                                        .handleAsync(
+                                                (executionStates, throwable) -> {
+                                                    Set<ExecutionState> nonFinishedStates =
+                                                            extractNonFinishedStates(
+                                                                    executionStates);
+                                                    if (throwable != null) {
+                                                        log.info(
+                                                                "Failed during stopping job {} with a savepoint. Reason: {}",
+                                                                jobGraph.getJobID(),
+                                                                throwable.getMessage());
+                                                        throw new CompletionException(throwable);
+                                                    } else if (!nonFinishedStates.isEmpty()) {
+                                                        log.info(
+                                                                "Failed while stopping job {} after successfully creating a savepoint. A global failover is going to be triggered. Reason: One or more states ended up in the following termination states instead of FINISHED: {}",
+                                                                jobGraph.getJobID(),
+                                                                nonFinishedStates);
+                                                        FlinkException
+                                                                inconsistentFinalStateException =
+                                                                        new FlinkException(
+                                                                                String.format(
+                                                                                        "Inconsistent execution state after stopping with savepoint. A global fail-over was triggered to recover the job %s.",
+                                                                                        jobGraph
+                                                                                                .getJobID()));
+                                                        executionGraph.failGlobal(
+                                                                inconsistentFinalStateException);
+
+                                                        throw new CompletionException(
+                                                                inconsistentFinalStateException);
+                                                    }
+                                                    return JobStatus.FINISHED;
+                                                },
+                                                mainThreadExecutor)
+                                        .thenApply(jobStatus -> path))
                 .handleAsync(
                         (path, throwable) -> {
                             if (throwable != null) {
@@ -951,6 +971,13 @@ public abstract class SchedulerBase implements SchedulerNG {
                             return path;
                         },
                         mainThreadExecutor);
+    }
+
+    private static Set<ExecutionState> extractNonFinishedStates(
+            Collection<ExecutionState> executionStates) {
+        return executionStates.stream()
+                .filter(state -> state != ExecutionState.FINISHED)
+                .collect(Collectors.toSet());
     }
 
     // ------------------------------------------------------------------------
