@@ -144,18 +144,31 @@ public class SchedulerTestingUtils {
     }
 
     public static void enableCheckpointing(final JobGraph jobGraph) {
-        enableCheckpointing(jobGraph, null, null);
+        enableCheckpointing(jobGraph, DEFAULT_CHECKPOINT_TIMEOUT_MS);
+    }
+
+    public static void enableCheckpointing(final JobGraph jobGraph, long checkpointTimeout) {
+        enableCheckpointing(jobGraph, checkpointTimeout, null, null);
     }
 
     public static void enableCheckpointing(
             final JobGraph jobGraph,
+            StateBackend stateBackend,
+            CheckpointStorage checkpointStorage) {
+        enableCheckpointing(
+                jobGraph, DEFAULT_CHECKPOINT_TIMEOUT_MS, stateBackend, checkpointStorage);
+    }
+
+    public static void enableCheckpointing(
+            final JobGraph jobGraph,
+            long checkpointTimeout,
             @Nullable StateBackend stateBackend,
             @Nullable CheckpointStorage checkpointStorage) {
 
         final CheckpointCoordinatorConfiguration config =
                 new CheckpointCoordinatorConfiguration(
                         Long.MAX_VALUE, // disable periodical checkpointing
-                        DEFAULT_CHECKPOINT_TIMEOUT_MS,
+                        checkpointTimeout,
                         0,
                         1,
                         CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,

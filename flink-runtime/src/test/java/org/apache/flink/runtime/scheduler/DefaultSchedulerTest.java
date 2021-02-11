@@ -22,6 +22,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -780,7 +781,7 @@ public class DefaultSchedulerTest extends TestLogger {
         checkpointCoordinator.receiveAcknowledgeMessage(acknowledgeCheckpoint, "unknown location");
         checkpointCoordinator.receiveDeclineMessage(declineCheckpoint, "unknown location");
 
-        // we need to wait for the confirmations to be collected since this running in a separate
+        // we need to wait for the confirmations to be collected since this is running in a separate
         // thread
         checkpointAbortionConfirmedLatch.await();
 
@@ -813,6 +814,126 @@ public class DefaultSchedulerTest extends TestLogger {
                     actualCheckpointException.get().getCheckpointFailureReason(),
                     is(CheckpointFailureReason.CHECKPOINT_DECLINED));
         }
+
+        assertThat(scheduler.getExecutionGraph().getState(), is(JobStatus.RUNNING));
+    }
+
+    @Test
+    public void testStopWithSavepointFailingWithExpiredCheckpoint() throws Exception {
+        // we allow restarts right from the start since the failure is going to happen in the first
+        // phase (savepoint creation) of stop-with-savepoint
+        testRestartBackoffTimeStrategy.setCanRestart(true);
+
+        final JobGraph jobGraph = createTwoVertexJobGraph();
+        // set checkpoint timeout to a low value to simulate checkpoint expiration
+        enableCheckpointing(jobGraph, 10);
+
+        final SimpleAckingTaskManagerGateway taskManagerGateway =
+                new SimpleAckingTaskManagerGateway();
+        final CountDownLatch checkpointTriggeredLatch =
+                getCheckpointTriggeredLatch(taskManagerGateway);
+
+        // we have to set a listener that checks for the termination of the checkpoint handling
+        OneShotLatch checkpointAbortionWasTriggered = new OneShotLatch();
+        taskManagerGateway.setNotifyCheckpointAbortedConsumer(
+                (executionAttemptId, jobId, actualCheckpointId, timestamp) ->
+                        checkpointAbortionWasTriggered.trigger());
+
+        // the failure handling has to happen in the same thread as the checkpoint coordination -
+        // that's why we have to instantiate a separate ThreadExecutorService here
+        final ScheduledExecutorService singleThreadExecutorService =
+                Executors.newSingleThreadScheduledExecutor();
+        final ComponentMainThreadExecutor mainThreadExecutor =
+                ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
+                        singleThreadExecutorService);
+
+        final DefaultScheduler scheduler =
+                CompletableFuture.supplyAsync(
+                                () ->
+                                        createSchedulerAndStartScheduling(
+                                                jobGraph, mainThreadExecutor),
+                                mainThreadExecutor)
+                        .get();
+
+        final ExecutionAttemptID succeedingExecutionAttemptId =
+                Iterables.get(scheduler.getExecutionGraph().getAllExecutionVertices(), 0)
+                        .getCurrentExecutionAttempt()
+                        .getAttemptId();
+        final ExecutionAttemptID failingExecutionAttemptId =
+                Iterables.getLast(scheduler.getExecutionGraph().getAllExecutionVertices())
+                        .getCurrentExecutionAttempt()
+                        .getAttemptId();
+
+        final CompletableFuture<String> stopWithSavepointFuture =
+                CompletableFuture.supplyAsync(
+                                () -> {
+                                    // we have to make sure that the tasks are running before
+                                    // stop-with-savepoint is triggered
+                                    scheduler.updateTaskExecutionState(
+                                            new TaskExecutionState(
+                                                    jobGraph.getJobID(),
+                                                    failingExecutionAttemptId,
+                                                    ExecutionState.RUNNING));
+                                    scheduler.updateTaskExecutionState(
+                                            new TaskExecutionState(
+                                                    jobGraph.getJobID(),
+                                                    succeedingExecutionAttemptId,
+                                                    ExecutionState.RUNNING));
+
+                                    return scheduler.stopWithSavepoint("savepoint-path", false);
+                                },
+                                mainThreadExecutor)
+                        .get();
+
+        checkpointTriggeredLatch.await();
+
+        final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
+
+        final AcknowledgeCheckpoint acknowledgeCheckpoint =
+                new AcknowledgeCheckpoint(jobGraph.getJobID(), succeedingExecutionAttemptId, 1);
+
+        checkpointCoordinator.receiveAcknowledgeMessage(acknowledgeCheckpoint, "unknown location");
+
+        // we need to wait for the expired checkpoint to be handled
+        checkpointAbortionWasTriggered.await();
+
+        CompletableFuture.runAsync(
+                        () -> {
+                            scheduler.updateTaskExecutionState(
+                                    new TaskExecutionState(
+                                            jobGraph.getJobID(),
+                                            succeedingExecutionAttemptId,
+                                            ExecutionState.FINISHED));
+                            scheduler.updateTaskExecutionState(
+                                    new TaskExecutionState(
+                                            jobGraph.getJobID(),
+                                            failingExecutionAttemptId,
+                                            ExecutionState.FAILED));
+
+                            // the restart due to failed checkpoint handling triggering a global job
+                            // fail-over
+                            assertThat(
+                                    taskRestartExecutor.getNonPeriodicScheduledTask(), hasSize(1));
+                            taskRestartExecutor.triggerNonPeriodicScheduledTasks();
+                        },
+                        mainThreadExecutor)
+                .get();
+
+        try {
+            stopWithSavepointFuture.get();
+            fail("An exception is expected.");
+        } catch (ExecutionException e) {
+            Optional<CheckpointException> actualCheckpointException =
+                    findThrowable(e, CheckpointException.class);
+            assertTrue(actualCheckpointException.isPresent());
+            assertThat(
+                    actualCheckpointException.get().getCheckpointFailureReason(),
+                    is(CheckpointFailureReason.CHECKPOINT_EXPIRED));
+        }
+
+        // we have to wait for the main executor to be finished with restarting tasks
+        singleThreadExecutorService.shutdown();
+        singleThreadExecutorService.awaitTermination(1, TimeUnit.SECONDS);
 
         assertThat(scheduler.getExecutionGraph().getState(), is(JobStatus.RUNNING));
     }
@@ -891,7 +1012,7 @@ public class DefaultSchedulerTest extends TestLogger {
         assertThat(scheduler.getExecutionGraph().getState(), is(JobStatus.FINISHED));
     }
 
-    private static JobGraph createTwoVertexJobGraphWithCheckpointingEnabled() {
+    private static JobGraph createTwoVertexJobGraph() {
         final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Testjob");
 
         final JobVertex jobVertex0 = new JobVertex("vertex #0");
@@ -902,6 +1023,11 @@ public class DefaultSchedulerTest extends TestLogger {
         jobVertex1.setInvokableClass(NoOpInvokable.class);
         jobGraph.addVertex(jobVertex1);
 
+        return jobGraph;
+    }
+
+    private static JobGraph createTwoVertexJobGraphWithCheckpointingEnabled() {
+        JobGraph jobGraph = createTwoVertexJobGraph();
         enableCheckpointing(jobGraph);
 
         return jobGraph;
@@ -1220,15 +1346,19 @@ public class DefaultSchedulerTest extends TestLogger {
     }
 
     private DefaultScheduler createSchedulerAndStartScheduling(final JobGraph jobGraph) {
+        return createSchedulerAndStartScheduling(
+                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread());
+    }
+
+    private DefaultScheduler createSchedulerAndStartScheduling(
+            final JobGraph jobGraph, ComponentMainThreadExecutor componentMainThreadExecutor) {
         final SchedulingStrategyFactory schedulingStrategyFactory =
                 new PipelinedRegionSchedulingStrategy.Factory();
 
         try {
             final DefaultScheduler scheduler =
                     createScheduler(
-                            jobGraph,
-                            ComponentMainThreadExecutorServiceAdapter.forMainThread(),
-                            schedulingStrategyFactory);
+                            jobGraph, componentMainThreadExecutor, schedulingStrategyFactory);
             scheduler.startScheduling();
             return scheduler;
         } catch (Exception e) {
