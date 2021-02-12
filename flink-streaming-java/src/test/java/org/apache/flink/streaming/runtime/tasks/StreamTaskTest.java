@@ -1654,7 +1654,8 @@ public class StreamTaskTest extends TestLogger {
 
         @Override
         public CompletableFuture<Void> prepareSnapshot(
-                ChannelStateWriter channelStateWriter, final long checkpointId) {
+                ChannelStateWriter channelStateWriter, final long checkpointId)
+                throws CheckpointException {
             return FutureUtils.completedVoidFuture();
         }
 
@@ -1683,7 +1684,8 @@ public class StreamTaskTest extends TestLogger {
 
         @Override
         public CompletableFuture<Void> prepareSnapshot(
-                ChannelStateWriter channelStateWriter, final long checkpointId) {
+                ChannelStateWriter channelStateWriter, final long checkpointId)
+                throws CheckpointException {
             return FutureUtils.completedVoidFuture();
         }
 
@@ -1865,7 +1867,8 @@ public class StreamTaskTest extends TestLogger {
 
         @Override
         public CompletableFuture<Void> prepareSnapshot(
-                ChannelStateWriter channelStateWriter, long checkpointId) {
+                ChannelStateWriter channelStateWriter, long checkpointId)
+                throws CheckpointException {
             return FutureUtils.completedVoidFuture();
         }
 
