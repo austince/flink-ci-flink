@@ -648,7 +648,7 @@ public class SavepointITCase extends TestLogger {
         env.setParallelism(1);
         env.getConfig()
                 .setRestartStrategy(
-                        RestartStrategies.fixedDelayRestart(expectedMaximumNumberOfRestarts, 10));
+                        RestartStrategies.fixedDelayRestart(expectedMaximumNumberOfRestarts, 0));
         env.addSource(failingSource)
                 .name("Failing Source")
                 .map(
