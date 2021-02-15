@@ -791,18 +791,24 @@ public class DefaultSchedulerTest extends TestLogger {
                 executionAttemptIdsWithAbortedCheckpoint,
                 containsInAnyOrder(succeedingExecutionAttemptId, failingExecutionAttemptId));
 
+        // one restart is expected to happen due to the declined Checkpoint that triggers a global
+        // job fail-over
+        final int expectedNumberOfPendingRestarts = 1;
+        assertThat(
+                taskRestartExecutor.getNonPeriodicScheduledTask(),
+                hasSize(expectedNumberOfPendingRestarts));
+        taskRestartExecutor.triggerNonPeriodicScheduledTasks();
+
+        // the restart triggered the cancellation of the tasks which need to be terminated by
+        // switching both tasks to CANCELED
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(
+                        jobGraph.getJobID(), failingExecutionAttemptId, ExecutionState.CANCELED));
         scheduler.updateTaskExecutionState(
                 new TaskExecutionState(
                         jobGraph.getJobID(),
                         succeedingExecutionAttemptId,
-                        ExecutionState.FINISHED));
-        scheduler.updateTaskExecutionState(
-                new TaskExecutionState(
-                        jobGraph.getJobID(), failingExecutionAttemptId, ExecutionState.FAILED));
-
-        // the restart due to failed checkpoint handling triggering a global job fail-over
-        assertThat(taskRestartExecutor.getNonPeriodicScheduledTask(), hasSize(1));
-        taskRestartExecutor.triggerNonPeriodicScheduledTasks();
+                        ExecutionState.CANCELED));
 
         try {
             stopWithSavepointFuture.get();
