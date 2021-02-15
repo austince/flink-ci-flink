@@ -1001,13 +1001,9 @@ public class DefaultSchedulerTest extends TestLogger {
                                 new TaskExecutionState(
                                         jobGraph.getJobID(), id, ExecutionState.FINISHED)));
 
-        try {
-            assertThat(
-                    stopWithSavepointFuture.get(),
-                    startsWith(String.format("file:%s", savepointFolder)));
-        } catch (ExecutionException e) {
-            fail("No exception is expected.");
-        }
+        assertThat(
+                stopWithSavepointFuture.get(),
+                startsWith(String.format("file:%s", savepointFolder)));
 
         assertThat(scheduler.getExecutionGraph().getState(), is(JobStatus.FINISHED));
     }
