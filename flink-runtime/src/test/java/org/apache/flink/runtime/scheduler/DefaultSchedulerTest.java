@@ -22,6 +22,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -708,8 +709,8 @@ public class DefaultSchedulerTest extends TestLogger {
 
             assertTrue(flinkException.isPresent());
             assertThat(
-                    flinkException.get().getMessage(),
-                    is(
+                    flinkException.get(),
+                    FlinkMatchers.containsMessage(
                             String.format(
                                     "Inconsistent execution state after stopping with savepoint. A global fail-over was triggered to recover the job %s.",
                                     jobGraph.getJobID())));
