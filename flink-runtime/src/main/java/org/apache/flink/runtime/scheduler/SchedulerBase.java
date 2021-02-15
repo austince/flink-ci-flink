@@ -909,14 +909,8 @@ public abstract class SchedulerBase implements SchedulerNG {
         // will be restarted by the CheckpointCoordinatorDeActivator.
         checkpointCoordinator.stopCheckpointScheduler();
 
-        final CompletableFuture<Collection<ExecutionState>> executionGraphTerminationFuture =
-                FutureUtils.combineAll(
-                        StreamSupport.stream(
-                                        executionGraph.getAllExecutionVertices().spliterator(),
-                                        false)
-                                .map(ExecutionVertex::getCurrentExecutionAttempt)
-                                .map(Execution::getTerminalStateFuture)
-                                .collect(Collectors.toList()));
+        final CompletableFuture<Collection<ExecutionState>> executionTerminationsFuture =
+                getCombinedExecutionTerminationFuture();
 
         final CompletableFuture<String> savepointFuture =
                 checkpointCoordinator
@@ -926,7 +920,7 @@ public abstract class SchedulerBase implements SchedulerNG {
         return savepointFuture
                 .thenCompose(
                         path ->
-                                executionGraphTerminationFuture
+                                executionTerminationsFuture
                                         .handleAsync(
                                                 (executionStates, throwable) -> {
                                                     Set<ExecutionState> nonFinishedStates =
@@ -971,6 +965,21 @@ public abstract class SchedulerBase implements SchedulerNG {
                             return path;
                         },
                         mainThreadExecutor);
+    }
+
+    /**
+     * Returns a {@code CompletableFuture} collecting the termination states of all {@link Execution
+     * Executions} of the underlying {@link ExecutionGraph}.
+     *
+     * @return a {@code CompletableFuture} that completes if all underlying {@code Executions}
+     *     terminated.
+     */
+    private CompletableFuture<Collection<ExecutionState>> getCombinedExecutionTerminationFuture() {
+        return FutureUtils.combineAll(
+                StreamSupport.stream(executionGraph.getAllExecutionVertices().spliterator(), false)
+                        .map(ExecutionVertex::getCurrentExecutionAttempt)
+                        .map(Execution::getTerminalStateFuture)
+                        .collect(Collectors.toList()));
     }
 
     private static Set<ExecutionState> extractNonFinishedStates(
