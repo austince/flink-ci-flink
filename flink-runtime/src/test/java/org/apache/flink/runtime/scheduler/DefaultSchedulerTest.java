@@ -788,7 +788,7 @@ public class DefaultSchedulerTest extends TestLogger {
         assertThat(
                 "Both of the executions where notified about the aborted checkpoint.",
                 executionAttemptIdsWithAbortedCheckpoint,
-                is(Arrays.asList(succeedingExecutionAttemptId, failingExecutionAttemptId)));
+                containsInAnyOrder(succeedingExecutionAttemptId, failingExecutionAttemptId));
 
         scheduler.updateTaskExecutionState(
                 new TaskExecutionState(
