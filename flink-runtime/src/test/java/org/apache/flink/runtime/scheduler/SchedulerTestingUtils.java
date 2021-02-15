@@ -153,8 +153,8 @@ public class SchedulerTestingUtils {
 
     public static void enableCheckpointing(
             final JobGraph jobGraph,
-            StateBackend stateBackend,
-            CheckpointStorage checkpointStorage) {
+            @Nullable StateBackend stateBackend,
+            @Nullable CheckpointStorage checkpointStorage) {
         enableCheckpointing(
                 jobGraph, DEFAULT_CHECKPOINT_TIMEOUT_MS, stateBackend, checkpointStorage);
     }
