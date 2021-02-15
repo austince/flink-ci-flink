@@ -944,7 +944,7 @@ public abstract class SchedulerBase implements SchedulerNG {
                                                                                         "Inconsistent execution state after stopping with savepoint. A global fail-over was triggered to recover the job %s.",
                                                                                         jobGraph
                                                                                                 .getJobID()));
-                                                        executionGraph.failGlobal(
+                                                        handleGlobalFailure(
                                                                 inconsistentFinalStateException);
 
                                                         throw new CompletionException(
