@@ -117,6 +117,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.concurrent.CompletableFuture.allOf;
+import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 import static org.hamcrest.CoreMatchers.is;
@@ -591,8 +592,8 @@ public class SavepointITCase extends TestLogger {
                     ExceptionUtils.findThrowable(actualException, FlinkException.class);
             assertTrue(actualFlinkException.isPresent());
             assertThat(
-                    actualFlinkException.get().getMessage(),
-                    is(
+                    actualFlinkException.get(),
+                    containsMessage(
                             String.format(
                                     "Inconsistent execution state after stopping with savepoint. A global fail-over was triggered to recover the job %s.",
                                     jobId)));
