@@ -917,54 +917,95 @@ public abstract class SchedulerBase implements SchedulerNG {
                         .triggerSynchronousSavepoint(advanceToEndOfEventTime, targetDirectory)
                         .thenApply(CompletedCheckpoint::getExternalPointer);
 
-        return savepointFuture
-                .thenCompose(
-                        path ->
-                                executionTerminationsFuture
-                                        .handleAsync(
-                                                (executionStates, throwable) -> {
-                                                    Set<ExecutionState> nonFinishedStates =
-                                                            extractNonFinishedStates(
-                                                                    executionStates);
-                                                    if (throwable != null) {
-                                                        log.info(
-                                                                "Failed during stopping job {} with a savepoint. Reason: {}",
-                                                                jobGraph.getJobID(),
-                                                                throwable.getMessage());
-                                                        throw new CompletionException(throwable);
-                                                    } else if (!nonFinishedStates.isEmpty()) {
-                                                        log.info(
-                                                                "Failed while stopping job {} after successfully creating a savepoint. A global failover is going to be triggered. Reason: One or more states ended up in the following termination states instead of FINISHED: {}",
-                                                                jobGraph.getJobID(),
-                                                                nonFinishedStates);
-                                                        FlinkException
-                                                                inconsistentFinalStateException =
-                                                                        new FlinkException(
-                                                                                String.format(
-                                                                                        "Inconsistent execution state after stopping with savepoint. A global fail-over was triggered to recover the job %s.",
-                                                                                        jobGraph
-                                                                                                .getJobID()));
-                                                        handleGlobalFailure(
-                                                                inconsistentFinalStateException);
+        StopWithSavepointContext context = new StopWithSavepointContext();
+        context.scheduler = this;
+        context.checkpointCoordinator = checkpointCoordinator;
+        context.jobGraph = jobGraph;
 
-                                                        throw new CompletionException(
-                                                                inconsistentFinalStateException);
-                                                    }
-                                                    return JobStatus.FINISHED;
-                                                },
-                                                mainThreadExecutor)
-                                        .thenApply(jobStatus -> path))
-                .handleAsync(
-                        (path, throwable) -> {
-                            if (throwable != null) {
-                                // restart the checkpoint coordinator if stopWithSavepoint failed.
-                                startCheckpointScheduler(checkpointCoordinator);
-                                throw new CompletionException(throwable);
-                            }
+        savepointFuture.whenCompleteAsync(context::handleSavepointCreation, mainThreadExecutor);
+        executionTerminationsFuture.whenCompleteAsync(
+                context::handleExecutionTermination, mainThreadExecutor);
 
-                            return path;
-                        },
-                        mainThreadExecutor);
+        return context.result;
+    }
+
+    private class StopWithSavepointContext {
+
+        private SchedulerBase scheduler;
+        private CheckpointCoordinator checkpointCoordinator;
+        private JobGraph jobGraph;
+        private String path;
+
+        private CompletableFuture<String> result = new CompletableFuture<>();
+
+        private StopWithSavepointState state = StopWithSavepointState.WaitForSavepoint;
+
+        public void handleSavepointCreation(String path, Throwable throwable) {
+            state = state.onSavepointCreation(this, path, throwable);
+        }
+
+        public void handleExecutionTermination(
+                Collection<ExecutionState> executionStates, Throwable throwable) {
+            state = state.onExecutionsTermination(this, executionStates, throwable);
+        }
+    }
+
+    private enum StopWithSavepointState {
+        WaitForSavepoint {
+            @Override
+            public StopWithSavepointState onSavepointCreation(
+                    StopWithSavepointContext context, String path, Throwable throwable) {
+                if (throwable != null) {
+                    context.scheduler.startCheckpointScheduler(context.checkpointCoordinator);
+                    context.result.completeExceptionally(throwable);
+                    return Error;
+                }
+                context.path = path;
+                return WaitForTermination;
+            }
+        },
+        WaitForTermination {
+            @Override
+            public StopWithSavepointState onExecutionsTermination(
+                    StopWithSavepointContext context,
+                    Collection<ExecutionState> executionStates,
+                    Throwable throwable) {
+                if (extractNonFinishedStates(executionStates).isEmpty()) {
+                    context.result.complete(context.path);
+                    return Success;
+                }
+
+                FlinkException inconsistentFinalStateException =
+                        new FlinkException(
+                                String.format(
+                                        "Inconsistent execution state after stopping with savepoint. A global fail-over was triggered to recover the job %s.",
+                                        context.jobGraph.getJobID()));
+                context.scheduler.handleGlobalFailure(inconsistentFinalStateException);
+                context.result.completeExceptionally(inconsistentFinalStateException);
+
+                context.scheduler.startCheckpointScheduler(context.checkpointCoordinator);
+
+                return Error;
+            }
+        },
+        Success,
+        Error;
+
+        public StopWithSavepointState onSavepointCreation(
+                StopWithSavepointContext context, String path, Throwable throwable) {
+            throw new IllegalStateException(
+                    "No onSavepointCreation should have been called in " + this.name() + " state.");
+        }
+
+        public StopWithSavepointState onExecutionsTermination(
+                StopWithSavepointContext context,
+                Collection<ExecutionState> executionStates,
+                Throwable throwable) {
+            throw new IllegalStateException(
+                    "No onExecutionsTermination should have been called in "
+                            + this.name()
+                            + " state.");
+        }
     }
 
     /**
