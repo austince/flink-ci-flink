@@ -922,7 +922,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 
         savepointFuture.whenCompleteAsync(
                 stopWithSavepointContext::handleSavepointCreation, mainThreadExecutor);
-        executionTerminationsFuture.whenCompleteAsync(
+        executionTerminationsFuture.thenAcceptAsync(
                 stopWithSavepointContext::handleExecutionTermination, mainThreadExecutor);
 
         return stopWithSavepointContext.getResult();

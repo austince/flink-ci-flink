@@ -52,9 +52,8 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
     }
 
     @Override
-    public void handleExecutionTermination(
-            Collection<ExecutionState> executionStates, Throwable throwable) {
-        state = state.onExecutionsTermination(this, executionStates, throwable);
+    public void handleExecutionTermination(Collection<ExecutionState> executionStates) {
+        state = state.onExecutionsTermination(this, executionStates);
     }
 
     @Override
@@ -102,9 +101,7 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
         WaitForJobTermination {
             @Override
             public StopWithSavepointState onExecutionsTermination(
-                    StopWithSavepointContext context,
-                    Collection<ExecutionState> executionStates,
-                    Throwable throwable) {
+                    StopWithSavepointContext context, Collection<ExecutionState> executionStates) {
                 if (extractNonFinishedStates(executionStates).isEmpty()) {
                     return context.terminateSuccessfully();
                 }
@@ -127,9 +124,7 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
         }
 
         public StopWithSavepointState onExecutionsTermination(
-                StopWithSavepointContext context,
-                Collection<ExecutionState> executionStates,
-                Throwable throwable) {
+                StopWithSavepointContext context, Collection<ExecutionState> executionStates) {
             throw new IllegalStateException(
                     "No onExecutionsTermination should have been called in "
                             + this.name()

@@ -91,8 +91,7 @@ public class StopWithSavepointContextTest extends TestLogger {
     public void testHappyPath() throws Exception {
         final String savepointPath = "savepoint-path";
         testInstance.handleSavepointCreation(savepointPath, null);
-        testInstance.handleExecutionTermination(
-                Collections.singletonList(ExecutionState.FINISHED), null);
+        testInstance.handleExecutionTermination(Collections.singletonList(ExecutionState.FINISHED));
 
         assertThat(testInstance.getResult().get(), is(savepointPath));
 
@@ -139,7 +138,7 @@ public class StopWithSavepointContextTest extends TestLogger {
         testInstance.handleSavepointCreation("savepoint-path", null);
         testInstance.handleExecutionTermination(
                 // the task failed and was restarted
-                Collections.singletonList(ExecutionState.RUNNING), null);
+                Collections.singletonList(ExecutionState.RUNNING));
 
         // the task gets cancelled before triggering the restart
         ExecutionAttemptID executionAttemptID =

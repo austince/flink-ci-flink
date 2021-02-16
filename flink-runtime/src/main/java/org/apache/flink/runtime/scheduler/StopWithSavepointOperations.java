@@ -42,10 +42,8 @@ public interface StopWithSavepointOperations {
      * Handles the job termination.
      *
      * @param executionStates the states of the job's {@link Execution Executions}.
-     * @param throwable the {@code Throwable} in case of failure.
      */
-    void handleExecutionTermination(
-            Collection<ExecutionState> executionStates, Throwable throwable);
+    void handleExecutionTermination(Collection<ExecutionState> executionStates);
 
     /**
      * Returns the result of the stop-with-savepoint operation.
