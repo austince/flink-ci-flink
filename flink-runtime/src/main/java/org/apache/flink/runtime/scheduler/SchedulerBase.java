@@ -836,7 +836,7 @@ public abstract class SchedulerBase implements SchedulerNG {
                         mainThreadExecutor);
     }
 
-    private void startCheckpointScheduler(final CheckpointCoordinator checkpointCoordinator) {
+    void startCheckpointScheduler(final CheckpointCoordinator checkpointCoordinator) {
         mainThreadExecutor.assertRunningInMainThread();
 
         if (checkpointCoordinator.isPeriodicCheckpointingConfigured()) {
@@ -917,95 +917,15 @@ public abstract class SchedulerBase implements SchedulerNG {
                         .triggerSynchronousSavepoint(advanceToEndOfEventTime, targetDirectory)
                         .thenApply(CompletedCheckpoint::getExternalPointer);
 
-        StopWithSavepointContext context = new StopWithSavepointContext();
-        context.scheduler = this;
-        context.checkpointCoordinator = checkpointCoordinator;
-        context.jobGraph = jobGraph;
+        StopWithSavepointContext stopWithSavepointContext =
+                new StopWithSavepointContext(jobGraph.getJobID(), this);
 
-        savepointFuture.whenCompleteAsync(context::handleSavepointCreation, mainThreadExecutor);
+        savepointFuture.whenCompleteAsync(
+                stopWithSavepointContext::handleSavepointCreation, mainThreadExecutor);
         executionTerminationsFuture.whenCompleteAsync(
-                context::handleExecutionTermination, mainThreadExecutor);
+                stopWithSavepointContext::handleExecutionTermination, mainThreadExecutor);
 
-        return context.result;
-    }
-
-    private class StopWithSavepointContext {
-
-        private SchedulerBase scheduler;
-        private CheckpointCoordinator checkpointCoordinator;
-        private JobGraph jobGraph;
-        private String path;
-
-        private CompletableFuture<String> result = new CompletableFuture<>();
-
-        private StopWithSavepointState state = StopWithSavepointState.WaitForSavepoint;
-
-        public void handleSavepointCreation(String path, Throwable throwable) {
-            state = state.onSavepointCreation(this, path, throwable);
-        }
-
-        public void handleExecutionTermination(
-                Collection<ExecutionState> executionStates, Throwable throwable) {
-            state = state.onExecutionsTermination(this, executionStates, throwable);
-        }
-    }
-
-    private enum StopWithSavepointState {
-        WaitForSavepoint {
-            @Override
-            public StopWithSavepointState onSavepointCreation(
-                    StopWithSavepointContext context, String path, Throwable throwable) {
-                if (throwable != null) {
-                    context.scheduler.startCheckpointScheduler(context.checkpointCoordinator);
-                    context.result.completeExceptionally(throwable);
-                    return Error;
-                }
-                context.path = path;
-                return WaitForTermination;
-            }
-        },
-        WaitForTermination {
-            @Override
-            public StopWithSavepointState onExecutionsTermination(
-                    StopWithSavepointContext context,
-                    Collection<ExecutionState> executionStates,
-                    Throwable throwable) {
-                if (extractNonFinishedStates(executionStates).isEmpty()) {
-                    context.result.complete(context.path);
-                    return Success;
-                }
-
-                FlinkException inconsistentFinalStateException =
-                        new FlinkException(
-                                String.format(
-                                        "Inconsistent execution state after stopping with savepoint. A global fail-over was triggered to recover the job %s.",
-                                        context.jobGraph.getJobID()));
-                context.scheduler.handleGlobalFailure(inconsistentFinalStateException);
-                context.result.completeExceptionally(inconsistentFinalStateException);
-
-                context.scheduler.startCheckpointScheduler(context.checkpointCoordinator);
-
-                return Error;
-            }
-        },
-        Success,
-        Error;
-
-        public StopWithSavepointState onSavepointCreation(
-                StopWithSavepointContext context, String path, Throwable throwable) {
-            throw new IllegalStateException(
-                    "No onSavepointCreation should have been called in " + this.name() + " state.");
-        }
-
-        public StopWithSavepointState onExecutionsTermination(
-                StopWithSavepointContext context,
-                Collection<ExecutionState> executionStates,
-                Throwable throwable) {
-            throw new IllegalStateException(
-                    "No onExecutionsTermination should have been called in "
-                            + this.name()
-                            + " state.");
-        }
+        return stopWithSavepointContext.getResult();
     }
 
     /**
