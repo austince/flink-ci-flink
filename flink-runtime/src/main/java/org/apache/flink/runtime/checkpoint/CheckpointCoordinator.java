@@ -1701,7 +1701,7 @@ public class CheckpointCoordinator {
     }
 
     @VisibleForTesting
-    boolean isCurrentPeriodicTriggerAvailable() {
+    public boolean isCurrentPeriodicTriggerAvailable() {
         return currentPeriodicTrigger != null;
     }
 
