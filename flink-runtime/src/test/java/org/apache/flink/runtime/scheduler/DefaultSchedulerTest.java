@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -60,6 +61,7 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.scheduler.strategy.TestSchedulingStrategy;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
@@ -75,6 +77,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -892,36 +895,42 @@ public class DefaultSchedulerTest extends TestLogger {
                                 mainThreadExecutor)
                         .get();
 
+        // we wait for the savepoint to be triggered
         checkpointTriggeredLatch.await();
 
         final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
 
-        final AcknowledgeCheckpoint acknowledgeCheckpoint =
-                new AcknowledgeCheckpoint(jobGraph.getJobID(), succeedingExecutionAttemptId, 1);
+        // only one task acknowledges the state creation being finished
+        checkpointCoordinator.receiveAcknowledgeMessage(
+                new AcknowledgeCheckpoint(jobGraph.getJobID(), succeedingExecutionAttemptId, 1),
+                "unknown location");
 
-        checkpointCoordinator.receiveAcknowledgeMessage(acknowledgeCheckpoint, "unknown location");
-
-        // we need to wait for the expired checkpoint to be handled
+        // we wait for the TaskManagers to be informed about the checkpoint abortion
+        // the TaskManagers get informed after the failure handling, i.e. the global job fail-over,
+        // is triggered
         checkpointAbortionWasTriggered.await();
+
+        // the restart is triggered but might not be finished, yet
+        // we need to wait for the restart runnable to be initialized before finalizing the restart
+        CommonTestUtils.waitUntilCondition(
+                () -> taskRestartExecutor.getScheduledTasks().size() == 1,
+                Deadline.fromNow(Duration.ofSeconds(1)));
+        taskRestartExecutor.triggerNonPeriodicScheduledTasks();
 
         CompletableFuture.runAsync(
                         () -> {
+                            // the TaskExecutors inform the JobMaster about the cancellation of the
+                            // tasks - that triggers the restart of each task
                             scheduler.updateTaskExecutionState(
                                     new TaskExecutionState(
                                             jobGraph.getJobID(),
                                             succeedingExecutionAttemptId,
-                                            ExecutionState.FINISHED));
+                                            ExecutionState.CANCELED));
                             scheduler.updateTaskExecutionState(
                                     new TaskExecutionState(
                                             jobGraph.getJobID(),
                                             failingExecutionAttemptId,
-                                            ExecutionState.FAILED));
-
-                            // the restart due to failed checkpoint handling triggering a global job
-                            // fail-over
-                            assertThat(
-                                    taskRestartExecutor.getNonPeriodicScheduledTask(), hasSize(1));
-                            taskRestartExecutor.triggerNonPeriodicScheduledTasks();
+                                            ExecutionState.CANCELED));
                         },
                         mainThreadExecutor)
                 .get();
@@ -938,11 +947,13 @@ public class DefaultSchedulerTest extends TestLogger {
                     is(CheckpointFailureReason.CHECKPOINT_EXPIRED));
         }
 
-        // we have to wait for the main executor to be finished with restarting tasks
-        singleThreadExecutorService.shutdown();
-        singleThreadExecutorService.awaitTermination(1, TimeUnit.SECONDS);
+        // stop-with-savepoint failed due to an expired checkpoint - the job is back in RUNNING
+        // state after a restart was triggered by the CheckpointCoordinator
+        CommonTestUtils.waitUntilCondition(
+                () -> scheduler.getExecutionGraph().getState() == JobStatus.RUNNING,
+                Deadline.fromNow(Duration.ofSeconds(1)));
 
-        assertThat(scheduler.getExecutionGraph().getState(), is(JobStatus.RUNNING));
+        ExecutorUtils.gracefulShutdown(1, TimeUnit.SECONDS, singleThreadExecutorService);
     }
 
     @Test
