@@ -70,6 +70,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import org.junit.After;
 import org.junit.Before;
@@ -700,7 +701,6 @@ public class DefaultSchedulerTest extends TestLogger {
                         ExecutionState.FINISHED));
 
         // the restarts due to local failure handling and global job fail-over are triggered
-        assertThat(taskRestartExecutor.getNonPeriodicScheduledTask(), hasSize(2));
         taskRestartExecutor.triggerNonPeriodicScheduledTasks();
 
         try {
@@ -719,7 +719,8 @@ public class DefaultSchedulerTest extends TestLogger {
                                     jobGraph.getJobID())));
         }
 
-        assertThat(scheduler.getExecutionGraph().getState(), is(JobStatus.RUNNING));
+        // all executions should be back in DEPLOYING state after the restart is done
+        assertAllExecutionsBeingDeployed(scheduler);
     }
 
     @Test
@@ -1024,6 +1025,22 @@ public class DefaultSchedulerTest extends TestLogger {
                 startsWith(String.format("file:%s", savepointFolder)));
 
         assertThat(scheduler.getExecutionGraph().getState(), is(JobStatus.FINISHED));
+    }
+
+    private static void assertAllExecutionsBeingDeployed(SchedulerBase scheduler) throws Exception {
+        CommonTestUtils.waitUntilCondition(
+                () ->
+                        StreamSupport.stream(
+                                        scheduler
+                                                .getExecutionGraph()
+                                                .getAllExecutionVertices()
+                                                .spliterator(),
+                                        false)
+                                .map(ExecutionVertex::getCurrentExecutionAttempt)
+                                .map(Execution::getState)
+                                .collect(Collectors.toSet())
+                                .equals(Sets.newHashSet(ExecutionState.DEPLOYING)),
+                Deadline.fromNow(Duration.ofSeconds(1)));
     }
 
     private static JobGraph createTwoVertexJobGraph() {
