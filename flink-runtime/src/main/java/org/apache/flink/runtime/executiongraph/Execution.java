@@ -116,7 +116,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class Execution
         implements AccessExecution, Archiveable<ArchivedExecution>, LogicalSlot.Payload {
 
-    private static final Logger LOG = ExecutionGraph.LOG;
+    private static final Logger LOG = DefaultExecutionGraph.LOG;
 
     private static final int NUM_CANCEL_CALL_TRIES = 3;
 

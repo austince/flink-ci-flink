@@ -18,33 +18,24 @@
 
 package org.apache.flink.runtime.scheduler.declarative;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.JobInformation;
-import org.apache.flink.runtime.executiongraph.NoOpExecutionDeploymentListener;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.MockExecutionGraphBase;
 import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
-import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategyFactoryLoader;
-import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.scheduler.declarative.WaitingForResourcesTest.assertNonNull;
@@ -183,33 +174,9 @@ public class RestartingTest extends TestLogger {
         }
     }
 
-    static class CancellableExecutionGraph extends ExecutionGraph {
+    private static class CancellableExecutionGraph extends MockExecutionGraphBase {
         private boolean cancelled = false;
-
-        CancellableExecutionGraph() throws IOException {
-            super(
-                    new JobInformation(
-                            new JobID(),
-                            "Test Job",
-                            new SerializedValue<>(new ExecutionConfig()),
-                            new Configuration(),
-                            Collections.emptyList(),
-                            Collections.emptyList()),
-                    TestingUtils.defaultExecutor(),
-                    TestingUtils.defaultExecutor(),
-                    AkkaUtils.getDefaultTimeout(),
-                    1,
-                    ExecutionGraph.class.getClassLoader(),
-                    VoidBlobWriter.getInstance(),
-                    PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(
-                            new Configuration()),
-                    NettyShuffleMaster.INSTANCE,
-                    NoOpJobMasterPartitionTracker.INSTANCE,
-                    ScheduleMode.EAGER,
-                    NoOpExecutionDeploymentListener.get(),
-                    (execution, newState) -> {},
-                    0L);
-        }
+        private JobStatus state = JobStatus.INITIALIZING;
 
         @Override
         public void cancel() {
@@ -218,6 +185,26 @@ public class RestartingTest extends TestLogger {
 
         public boolean isCancelled() {
             return cancelled;
+        }
+
+        @Override
+        public Map<JobVertexID, ExecutionJobVertex> getAllVertices() {
+            return Collections.emptyMap();
+        }
+
+        @Override
+        public void transitionToRunning() {
+            state = JobStatus.RUNNING;
+        }
+
+        @Override
+        public JobStatus getState() {
+            return state;
+        }
+
+        @Override
+        public CompletableFuture<JobStatus> getTerminationFuture() {
+            return CompletableFuture.completedFuture(JobStatus.FINISHED);
         }
     }
 }

@@ -57,7 +57,7 @@ public class TestingExecutionGraphBuilder {
     private ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
     private Executor ioExecutor = TestingUtils.defaultExecutor();
     private Time rpcTimeout = AkkaUtils.getDefaultTimeout();
-    private ClassLoader userClassLoader = ExecutionGraph.class.getClassLoader();
+    private ClassLoader userClassLoader = DefaultExecutionGraph.class.getClassLoader();
     private BlobWriter blobWriter = VoidBlobWriter.getInstance();
     private Time allocationTimeout = AkkaUtils.getDefaultTimeout();
     private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
@@ -154,8 +154,8 @@ public class TestingExecutionGraphBuilder {
         return this;
     }
 
-    public ExecutionGraph build() throws JobException, JobExecutionException {
-        return ExecutionGraphBuilder.buildGraph(
+    public DefaultExecutionGraph build() throws JobException, JobExecutionException {
+        return DefaultExecutionGraphBuilder.buildGraph(
                 jobGraph,
                 jobMasterConfig,
                 futureExecutor,

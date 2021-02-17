@@ -18,14 +18,10 @@
 
 package org.apache.flink.runtime.scheduler.declarative;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -34,28 +30,21 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
-import org.apache.flink.runtime.executiongraph.JobInformation;
-import org.apache.flink.runtime.executiongraph.NoOpExecutionDeploymentListener;
+import org.apache.flink.runtime.executiongraph.MockExecutionGraphBase;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
-import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategyFactoryLoader;
-import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 import org.slf4j.Logger;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -466,47 +455,46 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
-    private static class MockExecutionGraph extends ExecutionGraph {
+    private static class MockExecutionGraph extends MockExecutionGraphBase {
         private final boolean updateStateReturnValue;
         private final Supplier<Iterable<ExecutionJobVertex>> getVerticesTopologicallySupplier;
+        private JobStatus state = JobStatus.INITIALIZING;
+        private CompletableFuture<JobStatus> terminationFuture = new CompletableFuture<>();
 
-        MockExecutionGraph(Supplier<Iterable<ExecutionJobVertex>> getVerticesTopologicallySupplier)
-                throws IOException {
+        MockExecutionGraph(
+                Supplier<Iterable<ExecutionJobVertex>> getVerticesTopologicallySupplier) {
             this(false, getVerticesTopologicallySupplier);
         }
 
-        MockExecutionGraph(boolean updateStateReturnValue) throws IOException {
+        MockExecutionGraph(boolean updateStateReturnValue) {
             this(updateStateReturnValue, null);
         }
 
         private MockExecutionGraph(
                 boolean updateStateReturnValue,
-                Supplier<Iterable<ExecutionJobVertex>> getVerticesTopologicallySupplier)
-                throws IOException {
-            super(
-                    new JobInformation(
-                            new JobID(),
-                            "Test Job",
-                            new SerializedValue<>(new ExecutionConfig()),
-                            new Configuration(),
-                            Collections.emptyList(),
-                            Collections.emptyList()),
-                    TestingUtils.defaultExecutor(),
-                    TestingUtils.defaultExecutor(),
-                    AkkaUtils.getDefaultTimeout(),
-                    1,
-                    ExecutionGraph.class.getClassLoader(),
-                    VoidBlobWriter.getInstance(),
-                    PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(
-                            new Configuration()),
-                    NettyShuffleMaster.INSTANCE,
-                    NoOpJobMasterPartitionTracker.INSTANCE,
-                    ScheduleMode.EAGER,
-                    NoOpExecutionDeploymentListener.get(),
-                    (execution, newState) -> {},
-                    0L);
+                Supplier<Iterable<ExecutionJobVertex>> getVerticesTopologicallySupplier) {
             this.updateStateReturnValue = updateStateReturnValue;
             this.getVerticesTopologicallySupplier = getVerticesTopologicallySupplier;
+        }
+
+        @Override
+        public void transitionToRunning() {
+            state = JobStatus.RUNNING;
+        }
+
+        @Override
+        public JobStatus getState() {
+            return state;
+        }
+
+        @Override
+        public JobID getJobID() {
+            return new JobID();
+        }
+
+        @Override
+        public CompletableFuture<JobStatus> getTerminationFuture() {
+            return terminationFuture;
         }
 
         @Override

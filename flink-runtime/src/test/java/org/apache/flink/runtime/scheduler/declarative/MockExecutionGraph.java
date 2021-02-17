@@ -18,29 +18,9 @@
 
 package org.apache.flink.runtime.scheduler.declarative;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.JobInformation;
-import org.apache.flink.runtime.executiongraph.NoOpExecutionDeploymentListener;
-import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategyFactoryLoader;
-import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.runtime.executiongraph.MockExecutionGraphBase;
 
-import java.io.IOException;
-import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
-
-import static org.apache.flink.configuration.JobManagerOptions.PARTITION_RELEASE_DURING_JOB_EXECUTION;
 
 /**
  * Mocked ExecutionGraph with the following properties:
@@ -51,45 +31,11 @@ import static org.apache.flink.configuration.JobManagerOptions.PARTITION_RELEASE
  *   <li>it leaves above states when completeCancellation() gets called.
  * </ul>
  */
-class MockExecutionGraph extends ExecutionGraph {
+class MockExecutionGraph extends MockExecutionGraphBase {
 
     private final CompletableFuture<?> completeCancellationFuture = new CompletableFuture<>();
     private boolean isCancelling = false;
     private boolean isFailing = false;
-
-    public MockExecutionGraph() throws IOException, JobException {
-
-        super(
-                new JobInformation(
-                        new JobID(),
-                        "Test Job",
-                        new SerializedValue<>(new ExecutionConfig()),
-                        new Configuration(),
-                        Collections.emptyList(),
-                        Collections.emptyList()),
-                TestingUtils.defaultExecutor(),
-                TestingUtils.defaultExecutor(),
-                AkkaUtils.getDefaultTimeout(),
-                1,
-                ExecutionGraph.class.getClassLoader(),
-                VoidBlobWriter.getInstance(),
-                getPartitionReleaseStrategyFactoryLoader(),
-                NettyShuffleMaster.INSTANCE,
-                NoOpJobMasterPartitionTracker.INSTANCE,
-                ScheduleMode.EAGER,
-                NoOpExecutionDeploymentListener.get(),
-                (execution, newState) -> {},
-                0L);
-        this.setJsonPlan(""); // field must not be null for ArchivedExecutionGraph creation
-        this.attachJobGraph(Collections.emptyList()); // method must be called to initialize
-        // PartitionReleaseStrategy.
-    }
-
-    private static PartitionReleaseStrategy.Factory getPartitionReleaseStrategyFactoryLoader() {
-        Configuration conf = new Configuration();
-        conf.set(PARTITION_RELEASE_DURING_JOB_EXECUTION, false);
-        return PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(conf);
-    }
 
     void completeCancellation() {
         completeCancellationFuture.complete(null);
@@ -114,10 +60,5 @@ class MockExecutionGraph extends ExecutionGraph {
     public void failJob(Throwable cause) {
         super.failJob(cause);
         this.isFailing = true;
-    }
-
-    @Override
-    protected FutureUtils.ConjunctFuture<Void> cancelVerticesAsync() {
-        return FutureUtils.completeAll(Collections.singleton(completeCancellationFuture));
     }
 }

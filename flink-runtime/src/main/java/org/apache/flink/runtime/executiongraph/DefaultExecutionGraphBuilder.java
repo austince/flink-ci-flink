@@ -66,12 +66,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Utility class to encapsulate the logic of building an {@link ExecutionGraph} from a {@link
+ * Utility class to encapsulate the logic of building an {@link DefaultExecutionGraph} from a {@link
  * JobGraph}.
  */
-public class ExecutionGraphBuilder {
+public class DefaultExecutionGraphBuilder {
 
-    public static ExecutionGraph buildGraph(
+    public static DefaultExecutionGraph buildGraph(
             JobGraph jobGraph,
             Configuration jobManagerConfig,
             ScheduledExecutorService futureExecutor,
@@ -113,10 +113,10 @@ public class ExecutionGraphBuilder {
                         jobManagerConfig);
 
         // create a new execution graph, if none exists so far
-        final ExecutionGraph executionGraph;
+        final DefaultExecutionGraph executionGraph;
         try {
             executionGraph =
-                    new ExecutionGraph(
+                    new DefaultExecutionGraph(
                             jobInformation,
                             futureExecutor,
                             ioExecutor,
@@ -327,5 +327,5 @@ public class ExecutionGraphBuilder {
     // ------------------------------------------------------------------------
 
     /** This class is not supposed to be instantiated. */
-    private ExecutionGraphBuilder() {}
+    private DefaultExecutionGraphBuilder() {}
 }
