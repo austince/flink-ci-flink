@@ -27,6 +27,8 @@ import org.apache.flink.util.Preconditions;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -44,8 +46,8 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
     private final CompletableFuture<String> result = new CompletableFuture<>();
 
     private StopWithSavepointState state = StopWithSavepointState.InitialWait;
-    private String path;
-    private Set<ExecutionState> unfinishedStates;
+    @Nullable private String path;
+    @Nullable private Set<ExecutionState> unfinishedStates;
 
     public StopWithSavepointContext(JobID jobId, SchedulerBase scheduler, Logger log) {
         this.jobId = jobId;
@@ -55,7 +57,8 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
     }
 
     @Override
-    public synchronized void handleSavepointCreation(String path, Throwable throwable) {
+    public synchronized void handleSavepointCreation(
+            @Nullable String path, @Nullable Throwable throwable) {
         final StopWithSavepointState oldState = state;
         state = state.onSavepointCreation(this, path, throwable);
 
@@ -174,7 +177,9 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
         Final;
 
         public StopWithSavepointState onSavepointCreation(
-                StopWithSavepointContext context, String path, Throwable throwable) {
+                StopWithSavepointContext context,
+                @Nullable String path,
+                @Nullable Throwable throwable) {
             if (throwable != null) {
                 return context.terminateExceptionally(throwable);
             }
