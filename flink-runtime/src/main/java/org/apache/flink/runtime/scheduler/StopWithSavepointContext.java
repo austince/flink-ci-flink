@@ -82,7 +82,7 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
         return result;
     }
 
-    private StopWithSavepointState terminateExceptionWithGlobalFailover(
+    private StopWithSavepointState terminateExceptionallyWithGlobalFailover(
             Iterable<ExecutionState> unfinishedExecutionStates) {
         String errorMessage =
                 String.format(
@@ -146,7 +146,8 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
                         InitialWait + " should have preceded: No unfinishedStates is set.");
 
                 if (!context.unfinishedStates.isEmpty()) {
-                    return context.terminateExceptionWithGlobalFailover(context.unfinishedStates);
+                    return context.terminateExceptionallyWithGlobalFailover(
+                            context.unfinishedStates);
                 }
 
                 return context.terminateSuccessfully(path);
@@ -163,7 +164,8 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
                 Collection<ExecutionState> unfinishedExecutionStates =
                         extractUnfinishedStates(executionStates);
                 if (!unfinishedExecutionStates.isEmpty()) {
-                    return context.terminateExceptionWithGlobalFailover(unfinishedExecutionStates);
+                    return context.terminateExceptionallyWithGlobalFailover(
+                            unfinishedExecutionStates);
                 }
 
                 return context.terminateSuccessfully(context.path);
