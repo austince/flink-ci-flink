@@ -74,9 +74,9 @@ public class StopWithSavepointContextTest extends TestLogger {
         jobVertex.setInvokableClass(NoOpInvokable.class);
         jobGraph.addVertex(jobVertex);
 
-        // minPauseBetweenCheckpoints has to be set to a value lower than Long.MAX_VALUE to enable
+        // checkpointInterval has to be set to a value lower than Long.MAX_VALUE to enable
         // periodic checkpointing - only then can we enable/disable the CheckpointCoordinator
-        SchedulerTestingUtils.enableCheckpointing(jobGraph, 60000, Long.MAX_VALUE - 1, null, null);
+        SchedulerTestingUtils.enablePeriodicCheckpointing(jobGraph, Long.MAX_VALUE - 1);
         scheduler =
                 SchedulerTestingUtils.createSchedulerBuilder(
                                 jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())

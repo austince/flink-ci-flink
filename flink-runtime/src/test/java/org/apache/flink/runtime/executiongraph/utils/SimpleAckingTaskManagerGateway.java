@@ -31,7 +31,6 @@ import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.function.QuadConsumer;
 import org.apache.flink.util.function.TriConsumer;
 
 import java.util.Collection;
@@ -68,12 +67,6 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
                     checkpointOptions,
                     advanceToEndOfEventTime) -> {};
 
-    private QuadConsumer<ExecutionAttemptID, JobID, Long, Long> notifyCheckpointCompleteConsumer =
-            (ignore0, ignore1, ignored2, ignored3) -> {};
-
-    private QuadConsumer<ExecutionAttemptID, JobID, Long, Long> notifyCheckpointAbortedConsumer =
-            (ignored0, ignored1, ignored2, ignored3) -> {};
-
     private TriConsumer<ExecutionAttemptID, Iterable<PartitionInfo>, Time>
             updatePartitionsConsumer = (ignore1, ignore2, ignore3) -> {};
 
@@ -93,16 +86,6 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
     public void setReleasePartitionsConsumer(
             BiConsumer<JobID, Collection<ResultPartitionID>> releasePartitionsConsumer) {
         this.releasePartitionsConsumer = releasePartitionsConsumer;
-    }
-
-    public void setNotifyCheckpointCompleteConsumer(
-            QuadConsumer<ExecutionAttemptID, JobID, Long, Long> notifyCheckpointCompleteConsumer) {
-        this.notifyCheckpointCompleteConsumer = notifyCheckpointCompleteConsumer;
-    }
-
-    public void setNotifyCheckpointAbortedConsumer(
-            QuadConsumer<ExecutionAttemptID, JobID, Long, Long> notifyCheckpointAbortedConsumer) {
-        this.notifyCheckpointAbortedConsumer = notifyCheckpointAbortedConsumer;
     }
 
     public void setCheckpointConsumer(CheckpointConsumer checkpointConsumer) {
@@ -149,15 +132,17 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
     @Override
     public void notifyCheckpointComplete(
-            ExecutionAttemptID executionAttemptID, JobID jobId, long checkpointId, long timestamp) {
-        notifyCheckpointCompleteConsumer.accept(executionAttemptID, jobId, checkpointId, timestamp);
-    }
+            ExecutionAttemptID executionAttemptID,
+            JobID jobId,
+            long checkpointId,
+            long timestamp) {}
 
     @Override
     public void notifyCheckpointAborted(
-            ExecutionAttemptID executionAttemptID, JobID jobId, long checkpointId, long timestamp) {
-        notifyCheckpointAbortedConsumer.accept(executionAttemptID, jobId, checkpointId, timestamp);
-    }
+            ExecutionAttemptID executionAttemptID,
+            JobID jobId,
+            long checkpointId,
+            long timestamp) {}
 
     @Override
     public void triggerCheckpoint(

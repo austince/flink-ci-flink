@@ -625,7 +625,10 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         final Consumer<JobGraph> savepointConfigurer =
                 (jobGraph) -> {
                     SchedulerTestingUtils.enableCheckpointing(
-                            jobGraph, new ModernStateBackend(), storage.asCheckpointStorage());
+                            jobGraph,
+                            Long.MAX_VALUE,
+                            new ModernStateBackend(),
+                            storage.asCheckpointStorage());
                     jobGraph.setSavepointRestoreSettings(
                             SavepointRestoreSettings.forPath(savepointPointer));
                 };

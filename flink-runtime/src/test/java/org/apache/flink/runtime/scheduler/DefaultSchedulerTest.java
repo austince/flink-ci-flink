@@ -62,9 +62,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -97,8 +95,6 @@ import static org.junit.Assert.fail;
 
 /** Tests for {@link DefaultScheduler}. */
 public class DefaultSchedulerTest extends TestLogger {
-
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
     private static final int TIMEOUT_MS = 1000;
 
@@ -922,19 +918,15 @@ public class DefaultSchedulerTest extends TestLogger {
     }
 
     private DefaultScheduler createSchedulerAndStartScheduling(final JobGraph jobGraph) {
-        return createSchedulerAndStartScheduling(
-                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread());
-    }
-
-    private DefaultScheduler createSchedulerAndStartScheduling(
-            final JobGraph jobGraph, ComponentMainThreadExecutor componentMainThreadExecutor) {
         final SchedulingStrategyFactory schedulingStrategyFactory =
                 new PipelinedRegionSchedulingStrategy.Factory();
 
         try {
             final DefaultScheduler scheduler =
                     createScheduler(
-                            jobGraph, componentMainThreadExecutor, schedulingStrategyFactory);
+                            jobGraph,
+                            ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                            schedulingStrategyFactory);
             scheduler.startScheduling();
             return scheduler;
         } catch (Exception e) {
@@ -979,12 +971,12 @@ public class DefaultSchedulerTest extends TestLogger {
      * Since checkpoint is triggered asynchronously, we need to figure out when checkpoint is really
      * triggered. Note that this should be invoked before scheduler initialized.
      *
-     * @param taskManagerGateway the {@link SimpleAckingTaskManagerGateway} used for the test.
      * @return the latch representing checkpoint is really triggered
      */
-    private CountDownLatch getCheckpointTriggeredLatch(
-            SimpleAckingTaskManagerGateway taskManagerGateway) {
+    private CountDownLatch getCheckpointTriggeredLatch() {
         final CountDownLatch checkpointTriggeredLatch = new CountDownLatch(1);
+        final SimpleAckingTaskManagerGateway taskManagerGateway =
+                new SimpleAckingTaskManagerGateway();
         testExecutionSlotAllocator
                 .getLogicalSlotBuilder()
                 .setTaskManagerGateway(taskManagerGateway);
@@ -994,11 +986,9 @@ public class DefaultSchedulerTest extends TestLogger {
                         checkpointId,
                         timestamp,
                         checkpointOptions,
-                        advanceToEndOfEventTime) -> checkpointTriggeredLatch.countDown());
+                        advanceToEndOfEventTime) -> {
+                    checkpointTriggeredLatch.countDown();
+                });
         return checkpointTriggeredLatch;
-    }
-
-    private CountDownLatch getCheckpointTriggeredLatch() {
-        return getCheckpointTriggeredLatch(new SimpleAckingTaskManagerGateway());
     }
 }
