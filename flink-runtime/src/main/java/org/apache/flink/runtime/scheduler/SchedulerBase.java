@@ -918,7 +918,7 @@ public abstract class SchedulerBase implements SchedulerNG {
                         .thenApply(CompletedCheckpoint::getExternalPointer);
 
         StopWithSavepointContext stopWithSavepointContext =
-                new StopWithSavepointContext(jobGraph.getJobID(), this);
+                new StopWithSavepointContext(jobGraph.getJobID(), this, log);
 
         savepointFuture.whenCompleteAsync(
                 stopWithSavepointContext::handleSavepointCreation, mainThreadExecutor);
@@ -941,13 +941,6 @@ public abstract class SchedulerBase implements SchedulerNG {
                         .map(ExecutionVertex::getCurrentExecutionAttempt)
                         .map(Execution::getTerminalStateFuture)
                         .collect(Collectors.toList()));
-    }
-
-    private static Set<ExecutionState> extractNonFinishedStates(
-            Collection<ExecutionState> executionStates) {
-        return executionStates.stream()
-                .filter(state -> state != ExecutionState.FINISHED)
-                .collect(Collectors.toSet());
     }
 
     // ------------------------------------------------------------------------

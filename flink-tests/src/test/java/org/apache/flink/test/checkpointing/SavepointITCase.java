@@ -595,7 +595,7 @@ public class SavepointITCase extends TestLogger {
                     actualFlinkException.get(),
                     containsMessage(
                             String.format(
-                                    "Inconsistent execution state after stopping with savepoint. A global fail-over was triggered to recover the job %s.",
+                                    "Inconsistent execution state after stopping with savepoint. At least one execution is still in one of the following states: FAILED. A global fail-over is triggered to recover the job %s.",
                                     jobId)));
         };
     }

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -33,6 +34,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
@@ -43,6 +45,7 @@ import org.junit.Test;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -84,14 +87,33 @@ public class StopWithSavepointContextTest extends TestLogger {
         // the checkpoint scheduler is stopped before triggering the stop-with-savepoint
         disableCheckpointScheduler();
 
-        testInstance = new StopWithSavepointContext(jobGraph.getJobID(), scheduler);
+        testInstance = new StopWithSavepointContext(jobGraph.getJobID(), scheduler, this.log);
     }
 
     @Test
-    public void testHappyPath() throws Exception {
+    public void testHappyPathWithSavepointCreationBeforeTermination() throws Exception {
+        assertHappyPath(
+                (savepointPath) -> {
+                    testInstance.handleSavepointCreation(savepointPath, null);
+                    testInstance.handleExecutionTermination(
+                            Collections.singletonList(ExecutionState.FINISHED));
+                });
+    }
+
+    @Test
+    public void testHappyPathWithSavepointCreationAfterTermination() throws Exception {
+        assertHappyPath(
+                (savepointPath) -> {
+                    testInstance.handleExecutionTermination(
+                            Collections.singletonList(ExecutionState.FINISHED));
+                    testInstance.handleSavepointCreation(savepointPath, null);
+                });
+    }
+
+    private void assertHappyPath(Consumer<String> stopWithSavepointCompletion) throws Exception {
         final String savepointPath = "savepoint-path";
-        testInstance.handleSavepointCreation(savepointPath, null);
-        testInstance.handleExecutionTermination(Collections.singletonList(ExecutionState.FINISHED));
+
+        stopWithSavepointCompletion.accept(savepointPath);
 
         assertThat(testInstance.getResult().get(), is(savepointPath));
 
@@ -117,7 +139,29 @@ public class StopWithSavepointContextTest extends TestLogger {
     }
 
     @Test
-    public void testNoTerminationHandling() throws Exception {
+    public void testNoTerminationHandlingAfterSavepointCompletion() throws Exception {
+        assertNoTerminationHandling(
+                () -> {
+                    testInstance.handleSavepointCreation("savepoint-path", null);
+                    testInstance.handleExecutionTermination(
+                            // the task failed and was restarted
+                            Collections.singletonList(ExecutionState.RUNNING));
+                });
+    }
+
+    @Test
+    public void testNoTerminationHandlingBeforeSavepointCompletion() throws Exception {
+        assertNoTerminationHandling(
+                () -> {
+                    testInstance.handleExecutionTermination(
+                            // the task failed and was restarted
+                            Collections.singletonList(ExecutionState.RUNNING));
+                    testInstance.handleSavepointCreation("savepoint-path", null);
+                });
+    }
+
+    private void assertNoTerminationHandling(Runnable stopWithSavepointCompletion)
+            throws Exception {
         final ManuallyTriggeredScheduledExecutor restartExecutor =
                 new ManuallyTriggeredScheduledExecutor();
         scheduler =
@@ -131,14 +175,11 @@ public class StopWithSavepointContextTest extends TestLogger {
                         .build();
         scheduler.startScheduling();
 
-        testInstance = new StopWithSavepointContext(jobGraph.getJobID(), scheduler);
+        testInstance = new StopWithSavepointContext(jobGraph.getJobID(), scheduler, log);
 
         disableCheckpointScheduler();
 
-        testInstance.handleSavepointCreation("savepoint-path", null);
-        testInstance.handleExecutionTermination(
-                // the task failed and was restarted
-                Collections.singletonList(ExecutionState.RUNNING));
+        stopWithSavepointCompletion.run();
 
         // the task gets cancelled before triggering the restart
         ExecutionAttemptID executionAttemptID =
@@ -154,21 +195,20 @@ public class StopWithSavepointContextTest extends TestLogger {
                         jobGraph.getJobID(), executionAttemptID, ExecutionState.CANCELED));
 
         restartExecutor.triggerScheduledTasks();
-        //                        },
-        //                        mainThreadExecutor)
-        //                .get();
 
         try {
             testInstance.getResult().get();
             fail("An ExecutionException is expected.");
         } catch (Throwable e) {
-            final Optional<Throwable> actualException =
-                    ExceptionUtils.findThrowableWithMessage(
-                            e,
-                            String.format(
-                                    "Inconsistent execution state after stopping with savepoint. A global fail-over was triggered to recover the job %s.",
-                                    jobGraph.getJobID()));
-            assertTrue(actualException.isPresent());
+            final Optional<FlinkException> expectedFlinkException =
+                    ExceptionUtils.findThrowable(e, FlinkException.class);
+            final String expectedMessage =
+                    String.format(
+                            "Inconsistent execution state after stopping with savepoint. At least one execution is still in one of the following states: RUNNING. A global fail-over is triggered to recover the job %s.",
+                            jobGraph.getJobID());
+            assertTrue(expectedFlinkException.isPresent());
+            assertThat(
+                    expectedFlinkException.get(), FlinkMatchers.containsMessage(expectedMessage));
         }
 
         // the global fail-over puts all tasks into DEPLOYING state again
