@@ -460,6 +460,7 @@ public class ExecutingTest extends TestLogger {
         private final Supplier<Iterable<ExecutionJobVertex>> getVerticesTopologicallySupplier;
         private JobStatus state = JobStatus.INITIALIZING;
         private CompletableFuture<JobStatus> terminationFuture = new CompletableFuture<>();
+        private final JobID jobId = new JobID();
 
         MockExecutionGraph(
                 Supplier<Iterable<ExecutionJobVertex>> getVerticesTopologicallySupplier) {
@@ -489,7 +490,7 @@ public class ExecutingTest extends TestLogger {
 
         @Override
         public JobID getJobID() {
-            return new JobID();
+            return jobId;
         }
 
         @Override
