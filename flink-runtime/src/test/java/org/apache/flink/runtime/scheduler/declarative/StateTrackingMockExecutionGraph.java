@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.executiongraph;
+package org.apache.flink.runtime.scheduler.declarative;
 
 import org.apache.flink.api.common.ArchivedExecutionConfig;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -37,6 +38,17 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
+import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionDeploymentListener;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.IntermediateResult;
+import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
@@ -59,68 +71,161 @@ import org.apache.flink.util.SerializedValue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 
-/** Base class for mocking the ExecutionGraph. */
-public class MockExecutionGraphBase implements ExecutionGraph {
+/**
+ * Mocked ExecutionGraph which (partially) tracks the job status, and provides some basic mocks to
+ * create an {@link org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph} from this
+ * ExecutionGraph.
+ */
+class StateTrackingMockExecutionGraph implements ExecutionGraph {
+    private JobStatus state = JobStatus.INITIALIZING;
+    private final CompletableFuture<JobStatus> terminationFuture = new CompletableFuture<>();
+    private final JobID jobId = new JobID();
+    private final ArchivedExecutionConfig archivedExecutionConfig = new ExecutionConfig().archive();
 
-    @Override
-    public String getJsonPlan() {
-        throw new UnsupportedOperationException();
+    // ---- methods to control the mock
+
+    void completeTerminationFuture(JobStatus finalStatus) {
+        terminationFuture.complete(finalStatus);
+        state = finalStatus;
     }
 
-    @Override
-    public JobID getJobID() {
-        throw new UnsupportedOperationException();
-    }
+    // ---- interface implementations
 
     @Override
-    public String getJobName() {
-        throw new UnsupportedOperationException();
+    public boolean updateState(TaskExecutionStateTransition state) {
+        return true;
     }
 
     @Override
     public JobStatus getState() {
-        throw new UnsupportedOperationException();
+        return state;
+    }
+
+    @Override
+    public CompletableFuture<JobStatus> getTerminationFuture() {
+        return terminationFuture;
+    }
+
+    @Override
+    public Executor getFutureExecutor() {
+        return ForkJoinPool.commonPool();
+    }
+
+    @Override
+    public void registerExecution(Execution exec) {
+        // no-op
+    }
+
+    @Override
+    public void cancel() {
+        state = JobStatus.CANCELLING;
+    }
+
+    @Override
+    public void failJob(Throwable cause) {
+        state = JobStatus.FAILING;
+    }
+
+    @Override
+    public void suspend(Throwable suspensionCause) {
+        state = JobStatus.SUSPENDED;
+    }
+
+    @Override
+    public void transitionToRunning() {
+        state = JobStatus.RUNNING;
+    }
+
+    // --- interface implementations: methods for creating an archived execution graph
+
+    @Override
+    public int getTotalNumberOfVertices() {
+        return 0;
+    }
+
+    @Override
+    public Iterable<ExecutionJobVertex> getVerticesTopologically() {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public Map<JobVertexID, ExecutionJobVertex> getAllVertices() {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<String, SerializedValue<OptionalFailure<Object>>> getAccumulatorsSerialized() {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public long getStatusTimestamp(JobStatus status) {
+        return 0L;
+    }
+
+    @Override
+    public String getJsonPlan() {
+        return "";
+    }
+
+    @Override
+    public JobID getJobID() {
+        return jobId;
+    }
+
+    @Override
+    public String getJobName() {
+        return "testJob";
     }
 
     @Nullable
     @Override
     public ErrorInfo getFailureInfo() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public long getStatusTimestamp(JobStatus status) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Nullable
-    @Override
-    public CheckpointCoordinatorConfiguration getCheckpointCoordinatorConfiguration() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Nullable
-    @Override
-    public CheckpointStatsSnapshot getCheckpointStatsSnapshot() {
-        throw new UnsupportedOperationException();
+        return null;
     }
 
     @Nullable
     @Override
     public ArchivedExecutionConfig getArchivedExecutionConfig() {
-        throw new UnsupportedOperationException();
+        return archivedExecutionConfig;
     }
 
     @Override
     public boolean isStoppable() {
-        throw new UnsupportedOperationException();
+        return false;
     }
+
+    @Nullable
+    @Override
+    public CheckpointCoordinatorConfiguration getCheckpointCoordinatorConfiguration() {
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public CheckpointStatsSnapshot getCheckpointStatsSnapshot() {
+        return null;
+    }
+
+    @Override
+    public Optional<String> getStateBackendName() {
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<String> getCheckpointStorageName() {
+        return Optional.empty();
+    }
+
+    // -- remaining interface implementations: all unsupported
 
     @Override
     public StringifiedAccumulatorResult[] getAccumulatorResultsStringified() {
@@ -128,22 +233,7 @@ public class MockExecutionGraphBase implements ExecutionGraph {
     }
 
     @Override
-    public Map<String, SerializedValue<OptionalFailure<Object>>> getAccumulatorsSerialized() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public boolean isArchived() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Optional<String> getStateBackendName() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Optional<String> getCheckpointStorageName() {
         throw new UnsupportedOperationException();
     }
 
@@ -223,11 +313,6 @@ public class MockExecutionGraphBase implements ExecutionGraph {
     }
 
     @Override
-    public Iterable<ExecutionJobVertex> getVerticesTopologically() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public Iterable<ExecutionVertex> getAllExecutionVertices() {
         throw new UnsupportedOperationException();
     }
@@ -238,17 +323,7 @@ public class MockExecutionGraphBase implements ExecutionGraph {
     }
 
     @Override
-    public Map<JobVertexID, ExecutionJobVertex> getAllVertices() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public long getNumberOfRestarts() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public int getTotalNumberOfVertices() {
         throw new UnsupportedOperationException();
     }
 
@@ -259,11 +334,6 @@ public class MockExecutionGraphBase implements ExecutionGraph {
 
     @Override
     public BlobWriter getBlobWriter() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Executor getFutureExecutor() {
         throw new UnsupportedOperationException();
     }
 
@@ -284,27 +354,7 @@ public class MockExecutionGraphBase implements ExecutionGraph {
     }
 
     @Override
-    public void transitionToRunning() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void cancel() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void suspend(Throwable suspensionCause) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public void failGlobal(Throwable t) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public CompletableFuture<JobStatus> getTerminationFuture() {
         throw new UnsupportedOperationException();
     }
 
@@ -335,16 +385,6 @@ public class MockExecutionGraphBase implements ExecutionGraph {
 
     @Override
     public void vertexUnFinished() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void failJob(Throwable cause) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean updateState(TaskExecutionStateTransition state) {
         throw new UnsupportedOperationException();
     }
 
@@ -404,11 +444,6 @@ public class MockExecutionGraphBase implements ExecutionGraph {
 
     @Override
     public ExecutionDeploymentListener getExecutionDeploymentListener() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void registerExecution(Execution exec) {
         throw new UnsupportedOperationException();
     }
 

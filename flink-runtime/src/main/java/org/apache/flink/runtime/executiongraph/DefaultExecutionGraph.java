@@ -111,7 +111,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class DefaultExecutionGraph implements ExecutionGraph {
 
     /** The log object used for debugging. */
-    static final Logger LOG = LoggerFactory.getLogger(DefaultExecutionGraph.class);
+    static final Logger LOG = LoggerFactory.getLogger(ExecutionGraph.class);
 
     // --------------------------------------------------------------------------------------------
 

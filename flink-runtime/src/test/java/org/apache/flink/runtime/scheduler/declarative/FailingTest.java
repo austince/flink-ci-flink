@@ -43,10 +43,10 @@ public class FailingTest extends TestLogger {
     @Test
     public void testFailingStateOnEnter() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
-            MockExecutionGraph meg = new MockExecutionGraph();
+            StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
             failing.onEnter();
-            assertThat(meg.isFailing(), is(true));
+            assertThat(meg.getState(), is(JobStatus.FAILING));
             ctx.assertNoStateTransition();
         }
     }
@@ -54,20 +54,20 @@ public class FailingTest extends TestLogger {
     @Test
     public void testTransitionToFailedWhenFailingCompletes() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
-            MockExecutionGraph meg = new MockExecutionGraph();
+            StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
             failing.onEnter(); // transition from RUNNING to FAILING
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
                             assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED)));
-            meg.completeCancellation(); // transition to FAILED
+            meg.completeTerminationFuture(JobStatus.FAILED);
         }
     }
 
     @Test
     public void testTransitionToCancelingOnCancel() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
-            MockExecutionGraph meg = new MockExecutionGraph();
+            StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
             ctx.setExpectCanceling(assertNonNull());
             failing.onEnter();
@@ -78,7 +78,7 @@ public class FailingTest extends TestLogger {
     @Test
     public void testTransitionToFinishedOnSuspend() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
-            MockExecutionGraph meg = new MockExecutionGraph();
+            StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
@@ -92,7 +92,7 @@ public class FailingTest extends TestLogger {
     @Test
     public void testIgnoreGlobalFailure() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
-            MockExecutionGraph meg = new MockExecutionGraph();
+            StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
             failing.onEnter();
             failing.handleGlobalFailure(new RuntimeException());
@@ -103,7 +103,7 @@ public class FailingTest extends TestLogger {
     @Test
     public void testTaskFailuresAreIgnored() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
-            MockExecutionGraph meg = new MockExecutionGraph();
+            StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
             failing.onEnter();
             // register execution at EG

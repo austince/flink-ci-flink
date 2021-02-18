@@ -22,10 +22,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.MockExecutionGraphBase;
 import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.util.TestLogger;
@@ -33,9 +30,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.time.Duration;
-import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.scheduler.declarative.WaitingForResourcesTest.assertNonNull;
@@ -48,11 +42,12 @@ public class RestartingTest extends TestLogger {
     @Test
     public void testExecutionGraphCancellationOnEnter() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
-            CancellableExecutionGraph cancellableExecutionGraph = new CancellableExecutionGraph();
-            Restarting restarting = createRestartingState(ctx, cancellableExecutionGraph);
+            StateTrackingMockExecutionGraph mockExecutionGraph =
+                    new StateTrackingMockExecutionGraph();
+            Restarting restarting = createRestartingState(ctx, mockExecutionGraph);
 
             restarting.onEnter();
-            assertThat(cancellableExecutionGraph.isCancelled(), is(true));
+            assertThat(mockExecutionGraph.getState(), is(JobStatus.CANCELLING));
         }
     }
 
@@ -171,40 +166,6 @@ public class RestartingTest extends TestLogger {
             super.close();
             cancellingStateValidator.close();
             waitingForResourcesStateValidator.close();
-        }
-    }
-
-    private static class CancellableExecutionGraph extends MockExecutionGraphBase {
-        private boolean cancelled = false;
-        private JobStatus state = JobStatus.INITIALIZING;
-
-        @Override
-        public void cancel() {
-            cancelled = true;
-        }
-
-        public boolean isCancelled() {
-            return cancelled;
-        }
-
-        @Override
-        public Map<JobVertexID, ExecutionJobVertex> getAllVertices() {
-            return Collections.emptyMap();
-        }
-
-        @Override
-        public void transitionToRunning() {
-            state = JobStatus.RUNNING;
-        }
-
-        @Override
-        public JobStatus getState() {
-            return state;
-        }
-
-        @Override
-        public CompletableFuture<JobStatus> getTerminationFuture() {
-            return CompletableFuture.completedFuture(JobStatus.FINISHED);
         }
     }
 }

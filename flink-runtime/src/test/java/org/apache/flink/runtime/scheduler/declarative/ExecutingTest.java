@@ -30,7 +30,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
-import org.apache.flink.runtime.executiongraph.MockExecutionGraphBase;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -44,7 +43,6 @@ import org.slf4j.Logger;
 
 import java.time.Duration;
 import java.util.Collections;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -455,12 +453,9 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
-    private static class MockExecutionGraph extends MockExecutionGraphBase {
+    private static class MockExecutionGraph extends StateTrackingMockExecutionGraph {
         private final boolean updateStateReturnValue;
         private final Supplier<Iterable<ExecutionJobVertex>> getVerticesTopologicallySupplier;
-        private JobStatus state = JobStatus.INITIALIZING;
-        private CompletableFuture<JobStatus> terminationFuture = new CompletableFuture<>();
-        private final JobID jobId = new JobID();
 
         MockExecutionGraph(
                 Supplier<Iterable<ExecutionJobVertex>> getVerticesTopologicallySupplier) {
@@ -476,26 +471,6 @@ public class ExecutingTest extends TestLogger {
                 Supplier<Iterable<ExecutionJobVertex>> getVerticesTopologicallySupplier) {
             this.updateStateReturnValue = updateStateReturnValue;
             this.getVerticesTopologicallySupplier = getVerticesTopologicallySupplier;
-        }
-
-        @Override
-        public void transitionToRunning() {
-            state = JobStatus.RUNNING;
-        }
-
-        @Override
-        public JobStatus getState() {
-            return state;
-        }
-
-        @Override
-        public JobID getJobID() {
-            return jobId;
-        }
-
-        @Override
-        public CompletableFuture<JobStatus> getTerminationFuture() {
-            return terminationFuture;
         }
 
         @Override
