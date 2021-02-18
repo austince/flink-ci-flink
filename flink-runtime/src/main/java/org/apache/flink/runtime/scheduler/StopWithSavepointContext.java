@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -46,7 +47,7 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
     private final CompletableFuture<String> result = new CompletableFuture<>();
 
     private StopWithSavepointState state = StopWithSavepointState.InitialWait;
-    @Nullable private String path;
+    @Nullable private CompletedCheckpoint completedSavepoint;
     @Nullable private Set<ExecutionState> unfinishedStates;
 
     public <S extends SchedulerNG & CheckpointScheduling> StopWithSavepointContext(
@@ -66,13 +67,23 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
     }
 
     @Override
-    public synchronized void handleSavepointCreation(
-            @Nullable String path, @Nullable Throwable throwable) {
+    public synchronized void handleSavepointCreation(CompletedCheckpoint completedCheckpoint) {
         final StopWithSavepointState oldState = state;
-        state = state.onSavepointCreation(this, path, throwable);
+        state = state.onSavepointCreation(this, completedCheckpoint);
 
         log.debug(
                 "Stop-with-savepoint transitioned from {} to {} on savepoint creation handling.",
+                oldState,
+                state);
+    }
+
+    @Override
+    public synchronized void handleSavepointCreationFailure(Throwable throwable) {
+        final StopWithSavepointState oldState = state;
+        state = state.onSavepointCreationFailure(this, throwable);
+
+        log.debug(
+                "Stop-with-savepoint transitioned from {} to {} on savepoint creation failure handling.",
                 oldState,
                 state);
     }
@@ -136,10 +147,16 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
     private enum StopWithSavepointState {
         InitialWait {
             @Override
-            protected StopWithSavepointState handleSavepointCreation(
-                    StopWithSavepointContext context, String path) {
-                context.path = path;
+            public StopWithSavepointState onSavepointCreation(
+                    StopWithSavepointContext context, CompletedCheckpoint completedSavepoint) {
+                context.completedSavepoint = completedSavepoint;
                 return WaitForJobTermination;
+            }
+
+            @Override
+            public StopWithSavepointState onSavepointCreationFailure(
+                    StopWithSavepointContext context, Throwable throwable) {
+                return context.terminateExceptionally(throwable);
             }
 
             @Override
@@ -151,27 +168,58 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
         },
         WaitForSavepointCreation {
             @Override
-            public StopWithSavepointState handleSavepointCreation(
-                    StopWithSavepointContext context, String path) {
+            public StopWithSavepointState onSavepointCreation(
+                    StopWithSavepointContext context, CompletedCheckpoint completedSavepoint) {
                 Preconditions.checkState(
                         context.unfinishedStates != null,
                         InitialWait + " should have preceded: No unfinishedStates is set.");
 
-                if (!context.unfinishedStates.isEmpty()) {
-                    return context.terminateExceptionallyWithGlobalFailover(
-                            context.unfinishedStates);
-                }
-
-                return context.terminateSuccessfully(path);
+                return context.terminateSuccessfully(completedSavepoint.getExternalPointer());
             }
-        },
-        WaitForJobTermination {
+
+            @Override
+            public StopWithSavepointState onSavepointCreationFailure(
+                    StopWithSavepointContext context, Throwable throwable) {
+                Preconditions.checkState(
+                        context.unfinishedStates != null,
+                        InitialWait + " should have preceded: No unfinishedStates is set.");
+
+                return context.terminateExceptionally(throwable);
+            }
+
             @Override
             public StopWithSavepointState onExecutionsTermination(
                     StopWithSavepointContext context, Collection<ExecutionState> executionStates) {
                 Preconditions.checkState(
-                        context.path != null,
-                        InitialWait + " should have preceded: No path is set.");
+                        context.unfinishedStates != null,
+                        InitialWait + " should have preceded: No unfinishedStates is set.");
+
+                // we still have to wait for the SavepointCreation to terminate
+                return WaitForSavepointCreation;
+            }
+        },
+        WaitForJobTermination {
+            @Override
+            public StopWithSavepointState onSavepointCreation(
+                    StopWithSavepointContext context, CompletedCheckpoint completedSavepoint) {
+                throw new IllegalStateException(
+                        "The savepoint should have been completed already while waiting for the job termination.");
+            }
+
+            @Override
+            public StopWithSavepointState onSavepointCreationFailure(
+                    StopWithSavepointContext context, Throwable throwable) {
+                throw new IllegalStateException(
+                        "The savepoint should have been completed already while waiting for the job termination.");
+            }
+
+            @Override
+            public StopWithSavepointState onExecutionsTermination(
+                    StopWithSavepointContext context, Collection<ExecutionState> executionStates) {
+                Preconditions.checkState(
+                        context.completedSavepoint != null,
+                        InitialWait
+                                + " should have preceded: No completed savepoint was colelcted.");
 
                 Collection<ExecutionState> unfinishedExecutionStates =
                         extractUnfinishedStates(executionStates);
@@ -180,34 +228,47 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
                             unfinishedExecutionStates);
                 }
 
-                return context.terminateSuccessfully(context.path);
+                return context.terminateSuccessfully(
+                        context.completedSavepoint.getExternalPointer());
             }
         },
-        Final;
-
-        public StopWithSavepointState onSavepointCreation(
-                StopWithSavepointContext context,
-                @Nullable String path,
-                @Nullable Throwable throwable) {
-            if (throwable != null) {
-                return context.terminateExceptionally(throwable);
+        Final {
+            @Override
+            public StopWithSavepointState onSavepointCreation(
+                    StopWithSavepointContext context, CompletedCheckpoint completedSavepoint) {
+                throw new IllegalStateException(
+                        "onSavepointCreation was called on "
+                                + Final
+                                + " state. The operation will be ignored.");
             }
 
-            return handleSavepointCreation(context, path);
-        }
+            @Override
+            public StopWithSavepointState onSavepointCreationFailure(
+                    StopWithSavepointContext context, Throwable throwable) {
+                throw new IllegalStateException(
+                        "onSavepointCreationFailure was called on "
+                                + Final
+                                + " state. The operation will be ignored.");
+            }
 
-        protected StopWithSavepointState handleSavepointCreation(
-                StopWithSavepointContext context, String path) {
-            throw new IllegalStateException(
-                    "No onSavepointCreation should have been called in " + this.name() + " state.");
-        }
+            @Override
+            public StopWithSavepointState onExecutionsTermination(
+                    StopWithSavepointContext context, Collection<ExecutionState> executionStates) {
+                context.log.debug(
+                        "onExecutionsTermination was called on "
+                                + Final
+                                + " state. The operation will be ignored.");
+                return Final;
+            }
+        };
 
-        public StopWithSavepointState onExecutionsTermination(
-                StopWithSavepointContext context, Collection<ExecutionState> executionStates) {
-            throw new IllegalStateException(
-                    "No onExecutionsTermination should have been called in "
-                            + this.name()
-                            + " state.");
-        }
+        public abstract StopWithSavepointState onSavepointCreation(
+                StopWithSavepointContext context, CompletedCheckpoint completedSavepoint);
+
+        public abstract StopWithSavepointState onSavepointCreationFailure(
+                StopWithSavepointContext context, Throwable throwable);
+
+        public abstract StopWithSavepointState onExecutionsTermination(
+                StopWithSavepointContext context, Collection<ExecutionState> executionStates);
     }
 }

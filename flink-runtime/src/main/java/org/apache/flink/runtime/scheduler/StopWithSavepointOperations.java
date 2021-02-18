@@ -18,10 +18,9 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
-
-import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -33,12 +32,18 @@ import java.util.concurrent.CompletableFuture;
 public interface StopWithSavepointOperations {
 
     /**
-     * Handles the Savepoint creation termination.
+     * Handles the successful savepoint creation.
      *
-     * @param path the path to the newly created savepoint.
-     * @param throwable the {@code Throwable} in case of failure.
+     * @param completedSavepoint the completed savepoint.
      */
-    void handleSavepointCreation(@Nullable String path, @Nullable Throwable throwable);
+    void handleSavepointCreation(CompletedCheckpoint completedSavepoint);
+
+    /**
+     * Handles the savepoint creation in case of failure.
+     *
+     * @param throwable the error that occurred during savepoint creation.
+     */
+    void handleSavepointCreationFailure(Throwable throwable);
 
     /**
      * Handles the job termination.

@@ -35,7 +35,11 @@ public class TestCompletedCheckpointStorageLocation implements CompletedCheckpoi
     private boolean disposed;
 
     public TestCompletedCheckpointStorageLocation() {
-        this(new EmptyStreamStateHandle(), "<pointer>");
+        this("<pointer>");
+    }
+
+    public TestCompletedCheckpointStorageLocation(String pointer) {
+        this(new EmptyStreamStateHandle(), pointer);
     }
 
     public TestCompletedCheckpointStorageLocation(

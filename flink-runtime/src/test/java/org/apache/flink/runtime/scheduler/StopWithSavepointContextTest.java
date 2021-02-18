@@ -20,8 +20,12 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.FlinkMatchers;
+import org.apache.flink.runtime.checkpoint.CheckpointProperties;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointScheduling;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -29,6 +33,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -45,7 +50,8 @@ import static org.junit.Assert.fail;
  */
 public class StopWithSavepointContextTest extends TestLogger {
 
-    private final JobID jobId = new JobID();
+    private static final JobID JOB_ID = new JobID();
+
     private final TestingCheckpointScheduling checkpointScheduling =
             new TestingCheckpointScheduling(false);
 
@@ -58,14 +64,14 @@ public class StopWithSavepointContextTest extends TestLogger {
                 TestingSchedulerNG.newBuilder()
                         .setHandleGlobalFailureConsumer(handleGlobalFailureConsumer)
                         .build();
-        return new StopWithSavepointContext(jobId, scheduler, checkpointScheduling, log);
+        return new StopWithSavepointContext(JOB_ID, scheduler, checkpointScheduling, log);
     }
 
     @Test
     public void testHappyPathWithSavepointCreationBeforeSuccessfulTermination() throws Exception {
         assertHappyPath(
                 (testInstance, savepointPath) -> {
-                    testInstance.handleSavepointCreation(savepointPath, null);
+                    testInstance.handleSavepointCreation(createCompletedSavepoint(savepointPath));
                     testInstance.handleExecutionTermination(
                             Collections.singletonList(ExecutionState.FINISHED));
                 });
@@ -77,7 +83,7 @@ public class StopWithSavepointContextTest extends TestLogger {
                 (testInstance, savepointPath) -> {
                     testInstance.handleExecutionTermination(
                             Collections.singletonList(ExecutionState.FINISHED));
-                    testInstance.handleSavepointCreation(savepointPath, null);
+                    testInstance.handleSavepointCreation(createCompletedSavepoint(savepointPath));
                 });
     }
 
@@ -85,7 +91,7 @@ public class StopWithSavepointContextTest extends TestLogger {
     public void testSavepointCreationFailureBeforeSuccessfulTermination() {
         assertSavepointCreationFailure(
                 (testInstance, expectedFailure) -> {
-                    testInstance.handleSavepointCreation(null, expectedFailure);
+                    testInstance.handleSavepointCreationFailure(expectedFailure);
                     testInstance.handleExecutionTermination(
                             Collections.singletonList(ExecutionState.FINISHED));
                 });
@@ -97,7 +103,7 @@ public class StopWithSavepointContextTest extends TestLogger {
                 (testInstance, expectedFailure) -> {
                     testInstance.handleExecutionTermination(
                             Collections.singletonList(ExecutionState.FINISHED));
-                    testInstance.handleSavepointCreation(null, expectedFailure);
+                    testInstance.handleSavepointCreationFailure(expectedFailure);
                 });
     }
 
@@ -105,7 +111,7 @@ public class StopWithSavepointContextTest extends TestLogger {
     public void testSavepointCreationFailureBeforeTaskFailure() {
         assertSavepointCreationFailure(
                 (testInstance, expectedFailure) -> {
-                    testInstance.handleSavepointCreation(null, expectedFailure);
+                    testInstance.handleSavepointCreationFailure(expectedFailure);
                     testInstance.handleExecutionTermination(
                             Collections.singletonList(ExecutionState.FAILED));
                 });
@@ -117,7 +123,7 @@ public class StopWithSavepointContextTest extends TestLogger {
                 (testInstance, expectedFailure) -> {
                     testInstance.handleExecutionTermination(
                             Collections.singletonList(ExecutionState.FAILED));
-                    testInstance.handleSavepointCreation(null, expectedFailure);
+                    testInstance.handleSavepointCreationFailure(expectedFailure);
                 });
     }
 
@@ -125,7 +131,8 @@ public class StopWithSavepointContextTest extends TestLogger {
     public void testNoTerminationHandlingAfterSavepointCompletion() {
         assertNoTerminationHandling(
                 (testInstance, expectedUnfinishedExecutionState) -> {
-                    testInstance.handleSavepointCreation("savepoint-path", null);
+                    testInstance.handleSavepointCreation(
+                            createCompletedSavepoint("savepoint-path"));
                     testInstance.handleExecutionTermination(
                             // the task failed and was restarted
                             Collections.singletonList(expectedUnfinishedExecutionState));
@@ -139,7 +146,8 @@ public class StopWithSavepointContextTest extends TestLogger {
                     testInstance.handleExecutionTermination(
                             // the task failed and was restarted
                             Collections.singletonList(expectedUnfinishedExecutionState));
-                    testInstance.handleSavepointCreation("savepoint-path", null);
+                    testInstance.handleSavepointCreation(
+                            createCompletedSavepoint("savepoint-path"));
                 });
     }
 
@@ -188,7 +196,7 @@ public class StopWithSavepointContextTest extends TestLogger {
         final String expectedErrorMessage =
                 String.format(
                         "Inconsistent execution state after stopping with savepoint. At least one execution is still in one of the following states: %s. A global fail-over is triggered to recover the job %s.",
-                        expectedNonFinishedState, jobId);
+                        expectedNonFinishedState, JOB_ID);
 
         final StopWithSavepointContext testInstance =
                 createTestInstance(
@@ -212,5 +220,18 @@ public class StopWithSavepointContextTest extends TestLogger {
 
         // the checkpoint scheduling should be enabled in case of failure
         assertTrue(checkpointScheduling.isEnabled());
+    }
+
+    private static CompletedCheckpoint createCompletedSavepoint(String path) {
+        return new CompletedCheckpoint(
+                JOB_ID,
+                0,
+                0L,
+                0L,
+                new HashMap<>(),
+                null,
+                new CheckpointProperties(
+                        true, CheckpointType.SYNC_SAVEPOINT, false, false, false, false, false),
+                new TestCompletedCheckpointStorageLocation(path));
     }
 }

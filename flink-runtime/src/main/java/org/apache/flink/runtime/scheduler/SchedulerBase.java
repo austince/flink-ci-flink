@@ -920,16 +920,22 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         final CompletableFuture<Collection<ExecutionState>> executionTerminationsFuture =
                 getCombinedExecutionTerminationFuture();
 
-        final CompletableFuture<String> savepointFuture =
-                checkpointCoordinator
-                        .triggerSynchronousSavepoint(advanceToEndOfEventTime, targetDirectory)
-                        .thenApply(CompletedCheckpoint::getExternalPointer);
+        final CompletableFuture<CompletedCheckpoint> savepointFuture =
+                checkpointCoordinator.triggerSynchronousSavepoint(
+                        advanceToEndOfEventTime, targetDirectory);
 
-        StopWithSavepointContext stopWithSavepointContext =
+        final StopWithSavepointContext stopWithSavepointContext =
                 new StopWithSavepointContext(jobGraph.getJobID(), this, log);
 
         savepointFuture.whenCompleteAsync(
-                stopWithSavepointContext::handleSavepointCreation, mainThreadExecutor);
+                (completedSavepoint, throwable) -> {
+                    if (throwable != null) {
+                        stopWithSavepointContext.handleSavepointCreationFailure(throwable);
+                    }
+
+                    stopWithSavepointContext.handleSavepointCreation(completedSavepoint);
+                },
+                mainThreadExecutor);
         executionTerminationsFuture.thenAcceptAsync(
                 stopWithSavepointContext::handleExecutionTermination, mainThreadExecutor);
 
