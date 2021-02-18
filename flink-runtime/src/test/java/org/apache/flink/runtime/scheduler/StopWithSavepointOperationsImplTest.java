@@ -79,7 +79,7 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
         assertHappyPath(
                 (testInstance, savepointPath) -> {
                     testInstance.handleSavepointCreation(createCompletedSavepoint(savepointPath));
-                    testInstance.handleExecutionTermination(
+                    testInstance.handleExecutionsTermination(
                             Collections.singletonList(ExecutionState.FINISHED));
                 });
     }
@@ -88,7 +88,7 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
     public void testHappyPathWithSavepointCreationAfterSuccessfulTermination() throws Exception {
         assertHappyPath(
                 (testInstance, savepointPath) -> {
-                    testInstance.handleExecutionTermination(
+                    testInstance.handleExecutionsTermination(
                             Collections.singletonList(ExecutionState.FINISHED));
                     testInstance.handleSavepointCreation(createCompletedSavepoint(savepointPath));
                 });
@@ -99,7 +99,7 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
         assertSavepointCreationFailure(
                 (testInstance, expectedFailure) -> {
                     testInstance.handleSavepointCreationFailure(expectedFailure);
-                    testInstance.handleExecutionTermination(
+                    testInstance.handleExecutionsTermination(
                             Collections.singletonList(ExecutionState.FINISHED));
                 });
     }
@@ -108,7 +108,7 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
     public void testSavepointCreationFailureAfterSuccessfulTermination() {
         assertSavepointCreationFailure(
                 (testInstance, expectedFailure) -> {
-                    testInstance.handleExecutionTermination(
+                    testInstance.handleExecutionsTermination(
                             Collections.singletonList(ExecutionState.FINISHED));
                     testInstance.handleSavepointCreationFailure(expectedFailure);
                 });
@@ -119,7 +119,7 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
         assertSavepointCreationFailure(
                 (testInstance, expectedFailure) -> {
                     testInstance.handleSavepointCreationFailure(expectedFailure);
-                    testInstance.handleExecutionTermination(
+                    testInstance.handleExecutionsTermination(
                             Collections.singletonList(ExecutionState.FAILED));
                 });
     }
@@ -128,7 +128,7 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
     public void testSavepointCreationFailureAfterTaskFailure() {
         assertSavepointCreationFailure(
                 (testInstance, expectedFailure) -> {
-                    testInstance.handleExecutionTermination(
+                    testInstance.handleExecutionsTermination(
                             Collections.singletonList(ExecutionState.FAILED));
                     testInstance.handleSavepointCreationFailure(expectedFailure);
                 });
@@ -139,7 +139,7 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
         assertNoTerminationHandling(
                 (testInstance, completedSavepoint, expectedUnfinishedExecutionState) -> {
                     testInstance.handleSavepointCreation(completedSavepoint);
-                    testInstance.handleExecutionTermination(
+                    testInstance.handleExecutionsTermination(
                             // the task failed and was restarted
                             Collections.singletonList(expectedUnfinishedExecutionState));
                 });
@@ -149,7 +149,7 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
     public void testNoTerminationHandlingBeforeSavepointCompletion() {
         assertNoTerminationHandling(
                 (testInstance, completedSavepoint, expectedUnfinishedExecutionState) -> {
-                    testInstance.handleExecutionTermination(
+                    testInstance.handleExecutionsTermination(
                             // the task failed and was restarted
                             Collections.singletonList(expectedUnfinishedExecutionState));
                     testInstance.handleSavepointCreation(completedSavepoint);

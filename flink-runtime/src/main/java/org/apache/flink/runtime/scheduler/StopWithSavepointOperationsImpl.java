@@ -84,7 +84,7 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
     }
 
     @Override
-    public synchronized void handleExecutionTermination(
+    public synchronized void handleExecutionsTermination(
             Collection<ExecutionState> executionStates) {
         final State oldState = state;
         state = state.onExecutionsTermination(executionStates);

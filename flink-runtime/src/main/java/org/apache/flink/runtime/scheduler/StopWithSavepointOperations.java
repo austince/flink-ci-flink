@@ -51,11 +51,11 @@ public interface StopWithSavepointOperations {
     void handleSavepointCreationFailure(Throwable throwable);
 
     /**
-     * Handles the job termination.
+     * Handles the termination of the job's {@link Execution Executions}.
      *
-     * @param executionStates the states of the job's {@link Execution Executions}.
+     * @param executionStates the states of the job's {@code Executions}.
      */
-    void handleExecutionTermination(Collection<ExecutionState> executionStates);
+    void handleExecutionsTermination(Collection<ExecutionState> executionStates);
 
     /**
      * Returns the result of the stop-with-savepoint operation.

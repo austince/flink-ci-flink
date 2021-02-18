@@ -937,7 +937,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                 },
                 mainThreadExecutor);
         executionTerminationsFuture.thenAcceptAsync(
-                stopWithSavepointOperations::handleExecutionTermination, mainThreadExecutor);
+                stopWithSavepointOperations::handleExecutionsTermination, mainThreadExecutor);
 
         return stopWithSavepointOperations.getResult();
     }
