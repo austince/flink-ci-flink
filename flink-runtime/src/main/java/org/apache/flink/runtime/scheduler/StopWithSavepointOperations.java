@@ -26,8 +26,13 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code StopWithSavepointOperations} collects the steps for creating a savepoint and waiting for
- * the job to stop.
+ * {@code StopWithSavepointOperations} collects the steps of the stop-with-savepoint operation.
+ * These steps include:
+ *
+ * <ol>
+ *   <li>Creating a savepoint.
+ *   <li>Stopping the job after the savepoint creation was successful.
+ * </ol>
  */
 public interface StopWithSavepointOperations {
 

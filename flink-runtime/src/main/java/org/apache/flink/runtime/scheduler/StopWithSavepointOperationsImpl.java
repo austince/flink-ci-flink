@@ -100,6 +100,63 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
         return result;
     }
 
+    /**
+     * Handles the termination of the {@code StopWithSavepointOperations} exceptionally after
+     * triggering a global job fail-over.
+     *
+     * @param completedSavepoint the completed savepoint that needs to be discarded.
+     * @param unfinishedExecutionStates the unfinished states that caused the failure.
+     */
+    private void terminateExceptionallyWithGlobalFailover(
+            CompletedCheckpoint completedSavepoint,
+            Iterable<ExecutionState> unfinishedExecutionStates) {
+        String errorMessage =
+                String.format(
+                        "Inconsistent execution state after stopping with savepoint. At least one execution is still in one of the following states: %s. A global fail-over is triggered to recover the job %s.",
+                        StringUtils.join(unfinishedExecutionStates, ", "), jobId);
+        FlinkException inconsistentFinalStateException = new FlinkException(errorMessage);
+
+        scheduler.handleGlobalFailure(inconsistentFinalStateException);
+
+        try {
+            completedSavepoint.discard();
+        } catch (Exception e) {
+            log.warn(
+                    "Error occurred while cleaning up completed savepoint due to stop-with-savepoint failure.",
+                    e);
+            inconsistentFinalStateException.addSuppressed(e);
+        }
+
+        terminateExceptionally(inconsistentFinalStateException);
+    }
+
+    /**
+     * Handles the termination of the {@code StopWithSavepointOperations} exceptionally without
+     * triggering a global job fail-over. It does restart the checkpoint scheduling.
+     *
+     * @param throwable the error that caused the exceptional termination.
+     */
+    private void terminateExceptionally(Throwable throwable) {
+        checkpointScheduling.startCheckpointScheduler();
+        result.completeExceptionally(throwable);
+    }
+
+    /**
+     * Handles the successful termination of the {@code StopWithSavepointOperations}.
+     *
+     * @param path the path where the savepoint is stored.
+     */
+    private void terminateSuccessfully(String path) {
+        result.complete(path);
+    }
+
+    private static Set<ExecutionState> extractUnfinishedStates(
+            Collection<ExecutionState> executionStates) {
+        return executionStates.stream()
+                .filter(state -> state != ExecutionState.FINISHED)
+                .collect(Collectors.toSet());
+    }
+
     private final class InitialState extends State {
 
         @Override
@@ -109,7 +166,8 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
 
         @Override
         public State onSavepointCreationFailure(Throwable throwable) {
-            return terminateExceptionally(throwable);
+            terminateExceptionally(throwable);
+            return new FinalState();
         }
 
         @Override
@@ -137,10 +195,12 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
             final Set<ExecutionState> unfinishedStates = extractUnfinishedStates(executionStates);
 
             if (unfinishedStates.isEmpty()) {
-                return terminateSuccessfully(completedSavepoint.getExternalPointer());
+                terminateSuccessfully(completedSavepoint.getExternalPointer());
+                return new FinalState();
             }
 
-            return terminateExceptionallyWithGlobalFailover(completedSavepoint, unfinishedStates);
+            terminateExceptionallyWithGlobalFailover(completedSavepoint, unfinishedStates);
+            return new FinalState();
         }
     }
 
@@ -148,12 +208,14 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
 
         @Override
         public State onSavepointCreation(CompletedCheckpoint completedSavepoint) {
-            return terminateSuccessfully(completedSavepoint.getExternalPointer());
+            terminateSuccessfully(completedSavepoint.getExternalPointer());
+            return new FinalState();
         }
 
         @Override
         public State onSavepointCreationFailure(Throwable throwable) {
-            return terminateExceptionally(throwable);
+            terminateExceptionally(throwable);
+            return new FinalState();
         }
     }
 
@@ -168,13 +230,15 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
 
         @Override
         public State onSavepointCreation(CompletedCheckpoint completedSavepoint) {
-            return terminateExceptionallyWithGlobalFailover(
+            terminateExceptionallyWithGlobalFailover(
                     completedSavepoint, this.unfinishedExecutionStates);
+            return new FinalState();
         }
 
         @Override
         public State onSavepointCreationFailure(Throwable throwable) {
-            return terminateExceptionally(throwable);
+            terminateExceptionally(throwable);
+            return new FinalState();
         }
 
         @Override
@@ -212,49 +276,6 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
             throw new UnsupportedOperationException(
                     this.getClass().getSimpleName()
                             + " state does not support onExecutionsTermination.");
-        }
-
-        protected State terminateExceptionallyWithGlobalFailover(
-                CompletedCheckpoint completedSavepoint,
-                Iterable<ExecutionState> unfinishedExecutionStates) {
-            String errorMessage =
-                    String.format(
-                            "Inconsistent execution state after stopping with savepoint. At least one execution is still in one of the following states: %s. A global fail-over is triggered to recover the job %s.",
-                            StringUtils.join(unfinishedExecutionStates, ", "), jobId);
-            FlinkException inconsistentFinalStateException = new FlinkException(errorMessage);
-
-            scheduler.handleGlobalFailure(inconsistentFinalStateException);
-
-            try {
-                completedSavepoint.discard();
-            } catch (Exception e) {
-                log.warn(
-                        "Error occurred while cleaning up completed savepoint due to stop-with-savepoint failure.",
-                        e);
-                inconsistentFinalStateException.addSuppressed(e);
-            }
-
-            return terminateExceptionally(inconsistentFinalStateException);
-        }
-
-        protected State terminateExceptionally(Throwable throwable) {
-            checkpointScheduling.startCheckpointScheduler();
-            result.completeExceptionally(throwable);
-
-            return new FinalState();
-        }
-
-        protected State terminateSuccessfully(String path) {
-            result.complete(path);
-
-            return new FinalState();
-        }
-
-        protected Set<ExecutionState> extractUnfinishedStates(
-                Collection<ExecutionState> executionStates) {
-            return executionStates.stream()
-                    .filter(state -> state != ExecutionState.FINISHED)
-                    .collect(Collectors.toSet());
         }
     }
 }
