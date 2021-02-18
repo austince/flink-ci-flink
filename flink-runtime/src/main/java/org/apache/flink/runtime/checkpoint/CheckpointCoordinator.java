@@ -1701,7 +1701,7 @@ public class CheckpointCoordinator implements CheckpointScheduling {
     }
 
     @VisibleForTesting
-    public boolean isCurrentPeriodicTriggerAvailable() {
+    boolean isCurrentPeriodicTriggerAvailable() {
         return currentPeriodicTrigger != null;
     }
 

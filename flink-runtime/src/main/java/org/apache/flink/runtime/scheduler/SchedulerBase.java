@@ -946,8 +946,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
      * Returns a {@code CompletableFuture} collecting the termination states of all {@link Execution
      * Executions} of the underlying {@link ExecutionGraph}.
      *
-     * @return a {@code CompletableFuture} that completes if all underlying {@code Executions}
-     *     terminated.
+     * @return a {@code CompletableFuture} that completes after all underlying {@code Executions}
+     *     have been terminated.
      */
     private CompletableFuture<Collection<ExecutionState>> getCombinedExecutionTerminationFuture() {
         return FutureUtils.combineAll(
