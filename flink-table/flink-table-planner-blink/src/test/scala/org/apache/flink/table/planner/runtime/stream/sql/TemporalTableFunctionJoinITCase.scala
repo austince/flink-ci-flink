@@ -43,7 +43,7 @@ import scala.collection.mutable
 class TemporalTableFunctionJoinITCase(state: StateBackendMode)
   extends StreamingWithStateTestBase(state) {
 
-    @Test
+  @Test
   def testProcessTimeInnerJoinUnionAll(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -95,6 +95,7 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     result.addSink(new TestingAppendSink)
     env.execute()
   }
+
   /**
     * Because of nature of the processing time, we can not (or at least it is not that easy)
     * validate the result here. Instead of that, here we are just testing whether there are no
