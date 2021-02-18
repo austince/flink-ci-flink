@@ -35,6 +35,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
@@ -115,7 +116,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** Base class which can be used to implement {@link SchedulerNG}. */
-public abstract class SchedulerBase implements SchedulerNG {
+public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling {
 
     private final Logger log;
 
@@ -811,7 +812,7 @@ public abstract class SchedulerBase implements SchedulerNG {
                 jobGraph.getJobID());
 
         if (cancelJob) {
-            checkpointCoordinator.stopCheckpointScheduler();
+            stopCheckpointScheduler();
         }
 
         return checkpointCoordinator
@@ -821,7 +822,7 @@ public abstract class SchedulerBase implements SchedulerNG {
                         (path, throwable) -> {
                             if (throwable != null) {
                                 if (cancelJob) {
-                                    startCheckpointScheduler(checkpointCoordinator);
+                                    startCheckpointScheduler();
                                 }
                                 throw new CompletionException(throwable);
                             } else if (cancelJob) {
@@ -836,8 +837,15 @@ public abstract class SchedulerBase implements SchedulerNG {
                         mainThreadExecutor);
     }
 
-    void startCheckpointScheduler(final CheckpointCoordinator checkpointCoordinator) {
+    @Override
+    public void stopCheckpointScheduler() {
+        getCheckpointCoordinator().stopCheckpointScheduler();
+    }
+
+    @Override
+    public void startCheckpointScheduler() {
         mainThreadExecutor.assertRunningInMainThread();
+        final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator();
 
         if (checkpointCoordinator.isPeriodicCheckpointingConfigured()) {
             try {
@@ -907,7 +915,7 @@ public abstract class SchedulerBase implements SchedulerNG {
         // to have only the data of the synchronous savepoint committed.
         // in case of failure, and if the job restarts, the coordinator
         // will be restarted by the CheckpointCoordinatorDeActivator.
-        checkpointCoordinator.stopCheckpointScheduler();
+        stopCheckpointScheduler();
 
         final CompletableFuture<Collection<ExecutionState>> executionTerminationsFuture =
                 getCombinedExecutionTerminationFuture();

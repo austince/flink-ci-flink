@@ -98,7 +98,7 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
     }
 
     private StopWithSavepointState terminateExceptionally(Throwable throwable) {
-        scheduler.startCheckpointScheduler(checkpointCoordinator);
+        scheduler.startCheckpointScheduler();
         result.completeExceptionally(throwable);
 
         return StopWithSavepointState.Final;

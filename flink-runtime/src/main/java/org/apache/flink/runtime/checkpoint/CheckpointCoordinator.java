@@ -89,7 +89,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * acknowledgements. It also collects and maintains the overview of the state handles reported by
  * the tasks that acknowledge the checkpoint.
  */
-public class CheckpointCoordinator {
+public class CheckpointCoordinator implements CheckpointScheduling {
 
     private static final Logger LOG = LoggerFactory.getLogger(CheckpointCoordinator.class);
 
@@ -1718,6 +1718,7 @@ public class CheckpointCoordinator {
     //  Periodic scheduling of checkpoints
     // --------------------------------------------------------------------------------------------
 
+    @Override
     public void startCheckpointScheduler() {
         synchronized (lock) {
             if (shutdown) {
@@ -1732,6 +1733,7 @@ public class CheckpointCoordinator {
         }
     }
 
+    @Override
     public void stopCheckpointScheduler() {
         synchronized (lock) {
             periodicScheduling = false;

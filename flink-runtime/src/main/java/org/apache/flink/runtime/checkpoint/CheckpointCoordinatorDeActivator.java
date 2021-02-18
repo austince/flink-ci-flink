@@ -30,9 +30,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class CheckpointCoordinatorDeActivator implements JobStatusListener {
 
-    private final CheckpointCoordinator coordinator;
+    private final CheckpointScheduling coordinator;
 
-    public CheckpointCoordinatorDeActivator(CheckpointCoordinator coordinator) {
+    public CheckpointCoordinatorDeActivator(CheckpointScheduling coordinator) {
         this.coordinator = checkNotNull(coordinator);
     }
 
