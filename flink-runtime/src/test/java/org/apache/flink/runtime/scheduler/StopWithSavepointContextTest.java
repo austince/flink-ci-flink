@@ -25,12 +25,17 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointScheduling;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.testutils.EmptyStreamStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.TriConsumer;
 
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -49,6 +54,8 @@ import static org.junit.Assert.fail;
  * SchedulerBase#stopWithSavepoint(String, boolean)}.
  */
 public class StopWithSavepointContextTest extends TestLogger {
+
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
     private static final JobID JOB_ID = new JobID();
 
@@ -130,9 +137,8 @@ public class StopWithSavepointContextTest extends TestLogger {
     @Test
     public void testNoTerminationHandlingAfterSavepointCompletion() {
         assertNoTerminationHandling(
-                (testInstance, expectedUnfinishedExecutionState) -> {
-                    testInstance.handleSavepointCreation(
-                            createCompletedSavepoint("savepoint-path"));
+                (testInstance, completedSavepoint, expectedUnfinishedExecutionState) -> {
+                    testInstance.handleSavepointCreation(completedSavepoint);
                     testInstance.handleExecutionTermination(
                             // the task failed and was restarted
                             Collections.singletonList(expectedUnfinishedExecutionState));
@@ -142,12 +148,11 @@ public class StopWithSavepointContextTest extends TestLogger {
     @Test
     public void testNoTerminationHandlingBeforeSavepointCompletion() {
         assertNoTerminationHandling(
-                (testInstance, expectedUnfinishedExecutionState) -> {
+                (testInstance, completedSavepoint, expectedUnfinishedExecutionState) -> {
                     testInstance.handleExecutionTermination(
                             // the task failed and was restarted
                             Collections.singletonList(expectedUnfinishedExecutionState));
-                    testInstance.handleSavepointCreation(
-                            createCompletedSavepoint("savepoint-path"));
+                    testInstance.handleSavepointCreation(completedSavepoint);
                 });
     }
 
@@ -156,7 +161,7 @@ public class StopWithSavepointContextTest extends TestLogger {
             throws Exception {
         final StopWithSavepointContext testInstance =
                 createTestInstance(
-                        (throwable) -> fail("No global failover should have been triggered."));
+                        throwable -> fail("No global failover should have been triggered."));
 
         final String savepointPath = "savepoint-path";
 
@@ -166,7 +171,7 @@ public class StopWithSavepointContextTest extends TestLogger {
         assertThat(testInstance.getResult().get(), is(savepointPath));
 
         // the happy path won't restart the CheckpointCoordinator
-        assertFalse(checkpointScheduling.isEnabled());
+        assertFalse("Checkpoint scheduling should be disabled.", checkpointScheduling.isEnabled());
     }
 
     private void assertSavepointCreationFailure(
@@ -183,20 +188,32 @@ public class StopWithSavepointContextTest extends TestLogger {
         } catch (Throwable e) {
             final Optional<Throwable> actualException =
                     ExceptionUtils.findThrowableWithMessage(e, exception.getMessage());
-            assertTrue(actualException.isPresent());
+            assertTrue(
+                    "An exception with the expected error message should have been thrown.",
+                    actualException.isPresent());
         }
 
         // the checkpoint scheduling should be enabled in case of failure
-        assertTrue(checkpointScheduling.isEnabled());
+        assertTrue("Checkpoint scheduling should be enabled.", checkpointScheduling.isEnabled());
     }
 
     private void assertNoTerminationHandling(
-            BiConsumer<StopWithSavepointContext, ExecutionState> stopWithSavepointCompletion) {
+            TriConsumer<StopWithSavepointContext, CompletedCheckpoint, ExecutionState>
+                    stopWithSavepointCompletion) {
         final ExecutionState expectedNonFinishedState = ExecutionState.FAILED;
         final String expectedErrorMessage =
                 String.format(
                         "Inconsistent execution state after stopping with savepoint. At least one execution is still in one of the following states: %s. A global fail-over is triggered to recover the job %s.",
                         expectedNonFinishedState, JOB_ID);
+
+        final EmptyStreamStateHandle streamStateHandle = new EmptyStreamStateHandle();
+        final CompletedCheckpoint completedSavepoint =
+                createCompletedSavepoint(streamStateHandle, "savepoint-folder");
+
+        // we have to verify that the handle points to the savepoint's metadata is not disposed, yet
+        assertFalse(
+                "The completed savepoint must not be disposed, yet.",
+                streamStateHandle.isDisposed());
 
         final StopWithSavepointContext testInstance =
                 createTestInstance(
@@ -204,7 +221,8 @@ public class StopWithSavepointContextTest extends TestLogger {
                                 assertThat(
                                         throwable,
                                         FlinkMatchers.containsMessage(expectedErrorMessage)));
-        stopWithSavepointCompletion.accept(testInstance, expectedNonFinishedState);
+        stopWithSavepointCompletion.accept(
+                testInstance, completedSavepoint, expectedNonFinishedState);
 
         try {
             testInstance.getResult().get();
@@ -212,17 +230,25 @@ public class StopWithSavepointContextTest extends TestLogger {
         } catch (Throwable e) {
             final Optional<FlinkException> actualFlinkException =
                     ExceptionUtils.findThrowable(e, FlinkException.class);
-            assertTrue(actualFlinkException.isPresent());
+            assertTrue(
+                    "A FlinkException should have been thrown.", actualFlinkException.isPresent());
             assertThat(
                     actualFlinkException.get(),
                     FlinkMatchers.containsMessage(expectedErrorMessage));
         }
 
         // the checkpoint scheduling should be enabled in case of failure
-        assertTrue(checkpointScheduling.isEnabled());
+        assertTrue("Checkpoint scheduling should be enabled.", checkpointScheduling.isEnabled());
+
+        assertTrue("The savepoint should be cleaned up.", streamStateHandle.isDisposed());
     }
 
     private static CompletedCheckpoint createCompletedSavepoint(String path) {
+        return createCompletedSavepoint(new EmptyStreamStateHandle(), path);
+    }
+
+    private static CompletedCheckpoint createCompletedSavepoint(
+            StreamStateHandle metadataHandle, String path) {
         return new CompletedCheckpoint(
                 JOB_ID,
                 0,
@@ -232,6 +258,6 @@ public class StopWithSavepointContextTest extends TestLogger {
                 null,
                 new CheckpointProperties(
                         true, CheckpointType.SYNC_SAVEPOINT, false, false, false, false, false),
-                new TestCompletedCheckpointStorageLocation(path));
+                new TestCompletedCheckpointStorageLocation(metadataHandle, path));
     }
 }

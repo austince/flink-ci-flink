@@ -140,7 +140,7 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
                 return terminateSuccessfully(completedSavepoint.getExternalPointer());
             }
 
-            return terminateExceptionallyWithGlobalFailover(unfinishedStates);
+            return terminateExceptionallyWithGlobalFailover(completedSavepoint, unfinishedStates);
         }
     }
 
@@ -168,7 +168,8 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
 
         @Override
         public State onSavepointCreation(CompletedCheckpoint completedSavepoint) {
-            return terminateExceptionallyWithGlobalFailover(this.unfinishedExecutionStates);
+            return terminateExceptionallyWithGlobalFailover(
+                    completedSavepoint, this.unfinishedExecutionStates);
         }
 
         @Override
@@ -214,6 +215,7 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
         }
 
         protected State terminateExceptionallyWithGlobalFailover(
+                CompletedCheckpoint completedSavepoint,
                 Iterable<ExecutionState> unfinishedExecutionStates) {
             String errorMessage =
                     String.format(
@@ -222,14 +224,22 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
             FlinkException inconsistentFinalStateException = new FlinkException(errorMessage);
 
             scheduler.handleGlobalFailure(inconsistentFinalStateException);
+
+            try {
+                completedSavepoint.discard();
+            } catch (Exception e) {
+                log.warn(
+                        "Error occurred while cleaning up completed savepoint due to stop-with-savepoint failure.",
+                        e);
+                inconsistentFinalStateException.addSuppressed(e);
+            }
+
             return terminateExceptionally(inconsistentFinalStateException);
         }
 
         protected State terminateExceptionally(Throwable throwable) {
             checkpointScheduling.startCheckpointScheduler();
             result.completeExceptionally(throwable);
-
-            // TODO: do cleanup
 
             return new FinalState();
         }
