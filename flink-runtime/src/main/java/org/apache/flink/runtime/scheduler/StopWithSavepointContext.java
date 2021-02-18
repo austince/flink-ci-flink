@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -39,8 +39,8 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
 
     private final Logger log;
 
-    private final SchedulerBase scheduler;
-    private final CheckpointCoordinator checkpointCoordinator;
+    private final SchedulerNG scheduler;
+    private final CheckpointScheduling checkpointScheduling;
     private final JobID jobId;
 
     private final CompletableFuture<String> result = new CompletableFuture<>();
@@ -49,10 +49,19 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
     @Nullable private String path;
     @Nullable private Set<ExecutionState> unfinishedStates;
 
-    public StopWithSavepointContext(JobID jobId, SchedulerBase scheduler, Logger log) {
+    public <S extends SchedulerNG & CheckpointScheduling> StopWithSavepointContext(
+            JobID jobId, S schedulerWithCheckpointing, Logger log) {
+        this(jobId, schedulerWithCheckpointing, schedulerWithCheckpointing, log);
+    }
+
+    StopWithSavepointContext(
+            JobID jobId,
+            SchedulerNG scheduler,
+            CheckpointScheduling checkpointScheduling,
+            Logger log) {
         this.jobId = jobId;
         this.scheduler = scheduler;
-        this.checkpointCoordinator = scheduler.getCheckpointCoordinator();
+        this.checkpointScheduling = checkpointScheduling;
         this.log = log;
     }
 
@@ -98,7 +107,7 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
     }
 
     private StopWithSavepointState terminateExceptionally(Throwable throwable) {
-        scheduler.startCheckpointScheduler();
+        checkpointScheduling.startCheckpointScheduler();
         result.completeExceptionally(throwable);
 
         return StopWithSavepointState.Final;
