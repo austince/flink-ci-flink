@@ -32,8 +32,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-/** {@code StopWithSavepointContext} implements {@link StopWithSavepointOperations}. */
-public class StopWithSavepointContext implements StopWithSavepointOperations {
+/** {@code StopWithSavepointOperationsImpl} implements {@link StopWithSavepointOperations}. */
+public class StopWithSavepointOperationsImpl implements StopWithSavepointOperations {
 
     private final Logger log;
 
@@ -45,12 +45,12 @@ public class StopWithSavepointContext implements StopWithSavepointOperations {
 
     private State state = new InitialState();
 
-    public <S extends SchedulerNG & CheckpointScheduling> StopWithSavepointContext(
+    public <S extends SchedulerNG & CheckpointScheduling> StopWithSavepointOperationsImpl(
             JobID jobId, S schedulerWithCheckpointing, Logger log) {
         this(jobId, schedulerWithCheckpointing, schedulerWithCheckpointing, log);
     }
 
-    StopWithSavepointContext(
+    StopWithSavepointOperationsImpl(
             JobID jobId,
             SchedulerNG scheduler,
             CheckpointScheduling checkpointScheduling,

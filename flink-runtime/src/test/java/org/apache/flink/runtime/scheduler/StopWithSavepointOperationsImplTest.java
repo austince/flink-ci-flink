@@ -50,10 +50,10 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * {@code StopWithSavepointContextTest} tests the stop-with-savepoint functionality of {@link
+ * {@code StopWithSavepointOperationsImplTest} tests the stop-with-savepoint functionality of {@link
  * SchedulerBase#stopWithSavepoint(String, boolean)}.
  */
-public class StopWithSavepointContextTest extends TestLogger {
+public class StopWithSavepointOperationsImplTest extends TestLogger {
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
@@ -62,7 +62,7 @@ public class StopWithSavepointContextTest extends TestLogger {
     private final TestingCheckpointScheduling checkpointScheduling =
             new TestingCheckpointScheduling(false);
 
-    private StopWithSavepointContext createTestInstance(
+    private StopWithSavepointOperationsImpl createTestInstance(
             Consumer<Throwable> handleGlobalFailureConsumer) {
         // checkpointing should be always stopped before initiating stop-with-savepoint
         checkpointScheduling.stopCheckpointScheduler();
@@ -71,7 +71,7 @@ public class StopWithSavepointContextTest extends TestLogger {
                 TestingSchedulerNG.newBuilder()
                         .setHandleGlobalFailureConsumer(handleGlobalFailureConsumer)
                         .build();
-        return new StopWithSavepointContext(JOB_ID, scheduler, checkpointScheduling, log);
+        return new StopWithSavepointOperationsImpl(JOB_ID, scheduler, checkpointScheduling, log);
     }
 
     @Test
@@ -157,9 +157,9 @@ public class StopWithSavepointContextTest extends TestLogger {
     }
 
     private void assertHappyPath(
-            BiConsumer<StopWithSavepointContext, String> stopWithSavepointCompletion)
+            BiConsumer<StopWithSavepointOperationsImpl, String> stopWithSavepointCompletion)
             throws Exception {
-        final StopWithSavepointContext testInstance =
+        final StopWithSavepointOperationsImpl testInstance =
                 createTestInstance(
                         throwable -> fail("No global failover should have been triggered."));
 
@@ -175,10 +175,10 @@ public class StopWithSavepointContextTest extends TestLogger {
     }
 
     private void assertSavepointCreationFailure(
-            BiConsumer<StopWithSavepointContext, Throwable> stopWithSavepointCompletion) {
+            BiConsumer<StopWithSavepointOperationsImpl, Throwable> stopWithSavepointCompletion) {
         final Exception exception = new Exception("Expected exception during savepoint creation.");
 
-        final StopWithSavepointContext testInstance =
+        final StopWithSavepointOperationsImpl testInstance =
                 createTestInstance(throwable -> fail("No global failover should be triggered."));
         stopWithSavepointCompletion.accept(testInstance, exception);
 
@@ -198,7 +198,7 @@ public class StopWithSavepointContextTest extends TestLogger {
     }
 
     private void assertNoTerminationHandling(
-            TriConsumer<StopWithSavepointContext, CompletedCheckpoint, ExecutionState>
+            TriConsumer<StopWithSavepointOperationsImpl, CompletedCheckpoint, ExecutionState>
                     stopWithSavepointCompletion) {
         final ExecutionState expectedNonFinishedState = ExecutionState.FAILED;
         final String expectedErrorMessage =
@@ -215,7 +215,7 @@ public class StopWithSavepointContextTest extends TestLogger {
                 "The completed savepoint must not be disposed, yet.",
                 streamStateHandle.isDisposed());
 
-        final StopWithSavepointContext testInstance =
+        final StopWithSavepointOperationsImpl testInstance =
                 createTestInstance(
                         throwable ->
                                 assertThat(
