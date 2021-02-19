@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 
 import java.util.Collection;
@@ -36,20 +35,11 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface StopWithSavepointTerminationHandler {
 
-    /**
-     * Executes the stop-with-savepoint operation.
-     *
-     * @param completedSavepointFuture a {@code CompletableFuture} pointing the savepoint creation
-     *     result.
-     * @param terminatedExecutionsFuture a {@code CompletableFuture} pointing to the {@code
-     *     Collection} of terminated states of the corresponding {@link
-     *     org.apache.flink.runtime.executiongraph.ExecutionGraph}.
-     * @param mainThreadExecutor the executor that should be used for executing the
-     *     stop-with-savepoint operation.
-     * @return a {@code CompletableFuture} pointing the path of finally created savepoint.
-     */
-    CompletableFuture<String> handlesStopWithSavepointTermination(
-            CompletableFuture<CompletedCheckpoint> completedSavepointFuture,
-            CompletableFuture<Collection<ExecutionState>> terminatedExecutionsFuture,
-            ComponentMainThreadExecutor mainThreadExecutor);
+    CompletableFuture<CompletedCheckpoint> getCompletedSavepoint();
+
+    void handleSavepointCreation(CompletedCheckpoint completedCheckpoint);
+
+    void handleSavepointCreationFailure(Throwable throwable);
+
+    void handleExecutionsTermination(Collection<ExecutionState> executionStates);
 }

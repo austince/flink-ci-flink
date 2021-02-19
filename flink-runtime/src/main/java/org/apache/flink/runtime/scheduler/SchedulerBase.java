@@ -927,8 +927,27 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         final StopWithSavepointTerminationHandlerImpl stopWithSavepointTerminationHandler =
                 new StopWithSavepointTerminationHandlerImpl(jobGraph.getJobID(), this, log);
 
-        return stopWithSavepointTerminationHandler.handlesStopWithSavepointTermination(
-                savepointFuture, executionTerminationsFuture, mainThreadExecutor);
+        savepointFuture
+                .whenCompleteAsync(
+                        (completedSavepoint, throwable) -> {
+                            if (throwable != null) {
+                                stopWithSavepointTerminationHandler.handleSavepointCreationFailure(
+                                        throwable);
+                            } else {
+                                stopWithSavepointTerminationHandler.handleSavepointCreation(
+                                        completedSavepoint);
+                            }
+                        },
+                        mainThreadExecutor)
+                .thenRun(
+                        () ->
+                                executionTerminationsFuture.thenAccept(
+                                        stopWithSavepointTerminationHandler
+                                                ::handleExecutionsTermination));
+
+        return stopWithSavepointTerminationHandler
+                .getCompletedSavepoint()
+                .thenApply(CompletedCheckpoint::getExternalPointer);
     }
 
     /**

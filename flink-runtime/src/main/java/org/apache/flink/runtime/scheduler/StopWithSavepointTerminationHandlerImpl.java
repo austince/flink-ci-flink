@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.util.FlinkException;
 
@@ -54,7 +53,7 @@ public class StopWithSavepointTerminationHandlerImpl
     private final CheckpointScheduling checkpointScheduling;
     private final JobID jobId;
 
-    private final CompletableFuture<String> result = new CompletableFuture<>();
+    private final CompletableFuture<CompletedCheckpoint> result = new CompletableFuture<>();
 
     private State state = new WaitingForSavepoint();
 
@@ -76,29 +75,12 @@ public class StopWithSavepointTerminationHandlerImpl
     }
 
     @Override
-    public CompletableFuture<String> handlesStopWithSavepointTermination(
-            CompletableFuture<CompletedCheckpoint> completedSavepointFuture,
-            CompletableFuture<Collection<ExecutionState>> terminatedExecutionsFuture,
-            ComponentMainThreadExecutor mainThreadExecutor) {
-        completedSavepointFuture
-                .whenCompleteAsync(
-                        (completedSavepoint, throwable) -> {
-                            if (throwable != null) {
-                                handleSavepointCreationFailure(throwable);
-                            } else {
-                                handleSavepointCreation(completedSavepoint);
-                            }
-                        },
-                        mainThreadExecutor)
-                .thenCompose(
-                        aVoid ->
-                                terminatedExecutionsFuture.thenAcceptAsync(
-                                        this::handleExecutionsTermination, mainThreadExecutor));
-
+    public CompletableFuture<CompletedCheckpoint> getCompletedSavepoint() {
         return result;
     }
 
-    private void handleSavepointCreation(CompletedCheckpoint completedCheckpoint) {
+    @Override
+    public void handleSavepointCreation(CompletedCheckpoint completedCheckpoint) {
         final State oldState = state;
         state = state.onSavepointCreation(completedCheckpoint);
 
@@ -109,7 +91,8 @@ public class StopWithSavepointTerminationHandlerImpl
                 jobId);
     }
 
-    private void handleSavepointCreationFailure(Throwable throwable) {
+    @Override
+    public void handleSavepointCreationFailure(Throwable throwable) {
         final State oldState = state;
         state = state.onSavepointCreationFailure(throwable);
 
@@ -120,7 +103,8 @@ public class StopWithSavepointTerminationHandlerImpl
                 jobId);
     }
 
-    private void handleExecutionsTermination(Collection<ExecutionState> executionStates) {
+    @Override
+    public void handleExecutionsTermination(Collection<ExecutionState> executionStates) {
         final State oldState = state;
         state = state.onExecutionsTermination(executionStates);
 
@@ -175,10 +159,10 @@ public class StopWithSavepointTerminationHandlerImpl
     /**
      * Handles the successful termination of the {@code StopWithSavepointTerminationHandler}.
      *
-     * @param path the path where the savepoint is stored.
+     * @param completedSavepoint the completed savepoint
      */
-    private void terminateSuccessfully(String path) {
-        result.complete(path);
+    private void terminateSuccessfully(CompletedCheckpoint completedSavepoint) {
+        result.complete(completedSavepoint);
     }
 
     private static Set<ExecutionState> extractUnfinishedStates(
@@ -215,7 +199,7 @@ public class StopWithSavepointTerminationHandlerImpl
             final Set<ExecutionState> unfinishedStates = extractUnfinishedStates(executionStates);
 
             if (unfinishedStates.isEmpty()) {
-                terminateSuccessfully(completedSavepoint.getExternalPointer());
+                terminateSuccessfully(completedSavepoint);
                 return new FinalState();
             }
 
