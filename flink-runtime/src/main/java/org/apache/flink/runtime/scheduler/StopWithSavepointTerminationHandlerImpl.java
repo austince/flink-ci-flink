@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
@@ -28,13 +29,26 @@ import org.apache.flink.util.FlinkException;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
+
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-/** {@code StopWithSavepointOperationsImpl} implements {@link StopWithSavepointOperations}. */
-public class StopWithSavepointOperationsImpl implements StopWithSavepointOperations {
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+/**
+ * {@code StopWithSavepointTerminationHandlerImpl} implements {@link
+ * StopWithSavepointTerminationHandler}.
+ *
+ * <p>The operation only succeeds if both steps, the savepoint creation and the successful
+ * termination of the job, succeed. If the former step fails, the operation fails exceptionally
+ * without any further actions. If the latter one fails, a global fail-over is triggered before
+ * failing the operation.
+ */
+public class StopWithSavepointTerminationHandlerImpl
+        implements StopWithSavepointTerminationHandler {
 
     private final Logger log;
 
@@ -46,24 +60,25 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
 
     private State state = new WaitingForSavepoint();
 
-    public <S extends SchedulerNG & CheckpointScheduling> StopWithSavepointOperationsImpl(
-            JobID jobId, S schedulerWithCheckpointing, Logger log) {
+    public <S extends SchedulerNG & CheckpointScheduling> StopWithSavepointTerminationHandlerImpl(
+            @Nonnull JobID jobId, @Nonnull S schedulerWithCheckpointing, @Nonnull Logger log) {
         this(jobId, schedulerWithCheckpointing, schedulerWithCheckpointing, log);
     }
 
-    StopWithSavepointOperationsImpl(
-            JobID jobId,
-            SchedulerNG scheduler,
-            CheckpointScheduling checkpointScheduling,
-            Logger log) {
-        this.jobId = jobId;
-        this.scheduler = scheduler;
-        this.checkpointScheduling = checkpointScheduling;
-        this.log = log;
+    @VisibleForTesting
+    StopWithSavepointTerminationHandlerImpl(
+            @Nonnull JobID jobId,
+            @Nonnull SchedulerNG scheduler,
+            @Nonnull CheckpointScheduling checkpointScheduling,
+            @Nonnull Logger log) {
+        this.jobId = checkNotNull(jobId);
+        this.scheduler = checkNotNull(scheduler);
+        this.checkpointScheduling = checkNotNull(checkpointScheduling);
+        this.log = checkNotNull(log);
     }
 
     @Override
-    public CompletableFuture<String> stopWithSavepoint(
+    public CompletableFuture<String> handlesStopWithSavepointTermination(
             CompletableFuture<CompletedCheckpoint> completedSavepointFuture,
             CompletableFuture<Collection<ExecutionState>> terminatedExecutionsFuture,
             ComponentMainThreadExecutor mainThreadExecutor) {
@@ -120,8 +135,8 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
     }
 
     /**
-     * Handles the termination of the {@code StopWithSavepointOperations} exceptionally after
-     * triggering a global job fail-over.
+     * Handles the termination of the {@code StopWithSavepointTerminationHandler} exceptionally
+     * after triggering a global job fail-over.
      *
      * @param completedSavepoint the completed savepoint that needs to be discarded.
      * @param unfinishedExecutionStates the unfinished states that caused the failure.
@@ -150,8 +165,8 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
     }
 
     /**
-     * Handles the termination of the {@code StopWithSavepointOperations} exceptionally without
-     * triggering a global job fail-over. It does restart the checkpoint scheduling.
+     * Handles the termination of the {@code StopWithSavepointTerminationHandler} exceptionally
+     * without triggering a global job fail-over. It does restart the checkpoint scheduling.
      *
      * @param throwable the error that caused the exceptional termination.
      */
@@ -161,7 +176,7 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
     }
 
     /**
-     * Handles the successful termination of the {@code StopWithSavepointOperations}.
+     * Handles the successful termination of the {@code StopWithSavepointTerminationHandler}.
      *
      * @param path the path where the savepoint is stored.
      */

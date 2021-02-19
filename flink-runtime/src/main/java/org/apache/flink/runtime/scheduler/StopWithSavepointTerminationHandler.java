@@ -22,19 +22,21 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 
+import javax.annotation.Nonnull;
+
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code StopWithSavepointOperations} collects the steps of the stop-with-savepoint operation.
- * These steps include:
+ * {@code StopWithSavepointTerminationHandler} handles the termination of the steps needed for the
+ * stop-with-savepoint operation. This includes:
  *
  * <ol>
- *   <li>Creating a savepoint.
- *   <li>Stopping the job after the savepoint creation was successful.
+ *   <li>Creating a savepoint
+ *   <li>Waiting for the executions of the underlying job to finish
  * </ol>
  */
-public interface StopWithSavepointOperations {
+public interface StopWithSavepointTerminationHandler {
 
     /**
      * Executes the stop-with-savepoint operation.
@@ -48,8 +50,8 @@ public interface StopWithSavepointOperations {
      *     stop-with-savepoint operation.
      * @return a {@code CompletableFuture} pointing the path of finally created savepoint.
      */
-    CompletableFuture<String> stopWithSavepoint(
-            CompletableFuture<CompletedCheckpoint> completedSavepointFuture,
-            CompletableFuture<Collection<ExecutionState>> terminatedExecutionsFuture,
-            ComponentMainThreadExecutor mainThreadExecutor);
+    CompletableFuture<String> handlesStopWithSavepointTermination(
+            @Nonnull CompletableFuture<CompletedCheckpoint> completedSavepointFuture,
+            @Nonnull CompletableFuture<Collection<ExecutionState>> terminatedExecutionsFuture,
+            @Nonnull ComponentMainThreadExecutor mainThreadExecutor);
 }

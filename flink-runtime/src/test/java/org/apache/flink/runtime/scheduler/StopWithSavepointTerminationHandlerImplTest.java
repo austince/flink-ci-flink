@@ -54,10 +54,10 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * {@code StopWithSavepointOperationsImplTest} tests the stop-with-savepoint functionality of {@link
- * SchedulerBase#stopWithSavepoint(String, boolean)}.
+ * {@code StopWithSavepointTerminationHandlerImplTest} tests the stop-with-savepoint functionality
+ * of {@link SchedulerBase#stopWithSavepoint(String, boolean)}.
  */
-public class StopWithSavepointOperationsImplTest extends TestLogger {
+public class StopWithSavepointTerminationHandlerImplTest extends TestLogger {
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
@@ -66,7 +66,7 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
     private final TestingCheckpointScheduling checkpointScheduling =
             new TestingCheckpointScheduling(false);
 
-    private StopWithSavepointOperationsImpl createTestInstance(
+    private StopWithSavepointTerminationHandlerImpl createTestInstance(
             Consumer<Throwable> handleGlobalFailureConsumer) {
         // checkpointing should be always stopped before initiating stop-with-savepoint
         checkpointScheduling.stopCheckpointScheduler();
@@ -75,7 +75,8 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
                 TestingSchedulerNG.newBuilder()
                         .setHandleGlobalFailureConsumer(handleGlobalFailureConsumer)
                         .build();
-        return new StopWithSavepointOperationsImpl(JOB_ID, scheduler, checkpointScheduling, log);
+        return new StopWithSavepointTerminationHandlerImpl(
+                JOB_ID, scheduler, checkpointScheduling, log);
     }
 
     @Test
@@ -174,7 +175,7 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
                             CompletableFuture<Collection<ExecutionState>>>
                     completion)
             throws ExecutionException, InterruptedException {
-        final StopWithSavepointOperationsImpl testInstance =
+        final StopWithSavepointTerminationHandlerImpl testInstance =
                 createTestInstance(
                         throwable -> fail("No global fail-over should have been triggered."));
 
@@ -184,7 +185,7 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
                 new CompletableFuture<>();
 
         final CompletableFuture<String> result =
-                testInstance.stopWithSavepoint(
+                testInstance.handlesStopWithSavepointTermination(
                         completedSavepointFuture,
                         executionsTerminatedFuture,
                         ComponentMainThreadExecutorServiceAdapter.forMainThread());
@@ -198,7 +199,7 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
 
         assertThat(result.get(), is(savepointPath));
 
-        // the happy path won't restart the CheckpointCoordinator
+        // the happy path won't restart the checkpoint scheduling
         assertFalse("Checkpoint scheduling should be disabled.", checkpointScheduling.isEnabled());
     }
 
@@ -208,7 +209,7 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
                             CompletableFuture<CompletedCheckpoint>,
                             CompletableFuture<Collection<ExecutionState>>>
                     completion) {
-        final StopWithSavepointOperationsImpl testInstance =
+        final StopWithSavepointTerminationHandlerImpl testInstance =
                 createTestInstance(throwable -> fail("No global failover should be triggered."));
 
         final CompletableFuture<CompletedCheckpoint> completedSavepointFuture =
@@ -217,7 +218,7 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
                 new CompletableFuture<>();
 
         final CompletableFuture<String> result =
-                testInstance.stopWithSavepoint(
+                testInstance.handlesStopWithSavepointTermination(
                         completedSavepointFuture,
                         executionsTerminatedFuture,
                         ComponentMainThreadExecutorServiceAdapter.forMainThread());
@@ -266,7 +267,7 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
                 "The completed savepoint must not be disposed, yet.",
                 streamStateHandle.isDisposed());
 
-        final StopWithSavepointOperationsImpl testInstance =
+        final StopWithSavepointTerminationHandlerImpl testInstance =
                 createTestInstance(
                         throwable ->
                                 assertThat(
@@ -279,7 +280,7 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
                 new CompletableFuture<>();
 
         final CompletableFuture<String> result =
-                testInstance.stopWithSavepoint(
+                testInstance.handlesStopWithSavepointTermination(
                         completedSavepointFuture,
                         executionsTerminatedFuture,
                         ComponentMainThreadExecutorServiceAdapter.forMainThread());

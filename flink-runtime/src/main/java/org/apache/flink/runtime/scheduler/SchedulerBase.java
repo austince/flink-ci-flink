@@ -924,10 +924,10 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                 checkpointCoordinator.triggerSynchronousSavepoint(
                         advanceToEndOfEventTime, targetDirectory);
 
-        final StopWithSavepointOperationsImpl stopWithSavepointOperations =
-                new StopWithSavepointOperationsImpl(jobGraph.getJobID(), this, log);
+        final StopWithSavepointTerminationHandlerImpl stopWithSavepointTerminationHandler =
+                new StopWithSavepointTerminationHandlerImpl(jobGraph.getJobID(), this, log);
 
-        return stopWithSavepointOperations.stopWithSavepoint(
+        return stopWithSavepointTerminationHandler.handlesStopWithSavepointTermination(
                 savepointFuture, executionTerminationsFuture, mainThreadExecutor);
     }
 
