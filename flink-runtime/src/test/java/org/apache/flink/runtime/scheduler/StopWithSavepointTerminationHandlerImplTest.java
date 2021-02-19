@@ -144,7 +144,8 @@ public class StopWithSavepointTerminationHandlerImplTest extends TestLogger {
     }
 
     @Test
-    public void testNoTerminationHandlingAfterSavepointCompletion() {
+    public void testNoTerminationHandlingAfterSavepointCompletion()
+            throws ExecutionException, InterruptedException {
         assertNoTerminationHandling(
                 (completedSavepoint,
                         completedSavepointFuture,
@@ -156,7 +157,8 @@ public class StopWithSavepointTerminationHandlerImplTest extends TestLogger {
     }
 
     @Test
-    public void testNoTerminationHandlingBeforeSavepointCompletion() {
+    public void testNoTerminationHandlingBeforeSavepointCompletion()
+            throws ExecutionException, InterruptedException {
         assertNoTerminationHandling(
                 (completedSavepoint,
                         completedSavepointFuture,
@@ -250,7 +252,8 @@ public class StopWithSavepointTerminationHandlerImplTest extends TestLogger {
                             CompletableFuture<CompletedCheckpoint>,
                             Collection<ExecutionState>,
                             CompletableFuture<Collection<ExecutionState>>>
-                    completion) {
+                    completion)
+            throws ExecutionException, InterruptedException {
         final ExecutionState expectedNonFinishedState = ExecutionState.FAILED;
         final String expectedErrorMessage =
                 String.format(
@@ -267,12 +270,9 @@ public class StopWithSavepointTerminationHandlerImplTest extends TestLogger {
                 "The completed savepoint must not be disposed, yet.",
                 streamStateHandle.isDisposed());
 
+        final CompletableFuture<Throwable> globalFailOverTriggered = new CompletableFuture<>();
         final StopWithSavepointTerminationHandlerImpl testInstance =
-                createTestInstance(
-                        throwable ->
-                                assertThat(
-                                        throwable,
-                                        FlinkMatchers.containsMessage(expectedErrorMessage)));
+                createTestInstance(globalFailOverTriggered::complete);
 
         final CompletableFuture<CompletedCheckpoint> completedSavepointFuture =
                 new CompletableFuture<>();
@@ -303,6 +303,10 @@ public class StopWithSavepointTerminationHandlerImplTest extends TestLogger {
                     actualFlinkException.get(),
                     FlinkMatchers.containsMessage(expectedErrorMessage));
         }
+
+        assertTrue("Global fail-over was not triggered.", globalFailOverTriggered.isDone());
+        assertThat(
+                globalFailOverTriggered.get(), FlinkMatchers.containsMessage(expectedErrorMessage));
 
         // the checkpoint scheduling should be enabled in case of failure
         assertTrue("Checkpoint scheduling should be enabled.", checkpointScheduling.isEnabled());
