@@ -98,7 +98,7 @@ public class StopWithSavepointTerminationHandlerImpl
         return result;
     }
 
-    private synchronized void handleSavepointCreation(CompletedCheckpoint completedCheckpoint) {
+    private void handleSavepointCreation(CompletedCheckpoint completedCheckpoint) {
         final State oldState = state;
         state = state.onSavepointCreation(completedCheckpoint);
 
@@ -109,7 +109,7 @@ public class StopWithSavepointTerminationHandlerImpl
                 jobId);
     }
 
-    private synchronized void handleSavepointCreationFailure(Throwable throwable) {
+    private void handleSavepointCreationFailure(Throwable throwable) {
         final State oldState = state;
         state = state.onSavepointCreationFailure(throwable);
 
@@ -120,8 +120,7 @@ public class StopWithSavepointTerminationHandlerImpl
                 jobId);
     }
 
-    private synchronized void handleExecutionsTermination(
-            Collection<ExecutionState> executionStates) {
+    private void handleExecutionsTermination(Collection<ExecutionState> executionStates) {
         final State oldState = state;
         state = state.onExecutionsTermination(executionStates);
 
