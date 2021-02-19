@@ -22,8 +22,6 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 
-import javax.annotation.Nonnull;
-
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
@@ -51,7 +49,7 @@ public interface StopWithSavepointTerminationHandler {
      * @return a {@code CompletableFuture} pointing the path of finally created savepoint.
      */
     CompletableFuture<String> handlesStopWithSavepointTermination(
-            @Nonnull CompletableFuture<CompletedCheckpoint> completedSavepointFuture,
-            @Nonnull CompletableFuture<Collection<ExecutionState>> terminatedExecutionsFuture,
-            @Nonnull ComponentMainThreadExecutor mainThreadExecutor);
+            CompletableFuture<CompletedCheckpoint> completedSavepointFuture,
+            CompletableFuture<Collection<ExecutionState>> terminatedExecutionsFuture,
+            ComponentMainThreadExecutor mainThreadExecutor);
 }

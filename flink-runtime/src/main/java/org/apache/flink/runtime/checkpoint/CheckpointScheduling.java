@@ -19,7 +19,8 @@
 package org.apache.flink.runtime.checkpoint;
 
 /**
- * {@code CheckpointScheduling} provides methods for starting and stopping the periodic scheduling.
+ * {@code CheckpointScheduling} provides methods for starting and stopping the periodic scheduling
+ * of checkpoints.
  */
 public interface CheckpointScheduling {
 

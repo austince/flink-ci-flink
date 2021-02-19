@@ -29,8 +29,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 
-import javax.annotation.Nonnull;
-
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -61,16 +59,16 @@ public class StopWithSavepointTerminationHandlerImpl
     private State state = new WaitingForSavepoint();
 
     public <S extends SchedulerNG & CheckpointScheduling> StopWithSavepointTerminationHandlerImpl(
-            @Nonnull JobID jobId, @Nonnull S schedulerWithCheckpointing, @Nonnull Logger log) {
+            JobID jobId, S schedulerWithCheckpointing, Logger log) {
         this(jobId, schedulerWithCheckpointing, schedulerWithCheckpointing, log);
     }
 
     @VisibleForTesting
     StopWithSavepointTerminationHandlerImpl(
-            @Nonnull JobID jobId,
-            @Nonnull SchedulerNG scheduler,
-            @Nonnull CheckpointScheduling checkpointScheduling,
-            @Nonnull Logger log) {
+            JobID jobId,
+            SchedulerNG scheduler,
+            CheckpointScheduling checkpointScheduling,
+            Logger log) {
         this.jobId = checkNotNull(jobId);
         this.scheduler = checkNotNull(scheduler);
         this.checkpointScheduling = checkNotNull(checkpointScheduling);
