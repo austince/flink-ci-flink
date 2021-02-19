@@ -24,6 +24,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointScheduling;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.testutils.EmptyStreamStateHandle;
@@ -31,16 +32,19 @@ import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLo
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.QuadConsumer;
 import org.apache.flink.util.function.TriConsumer;
 
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Optional;
-import java.util.function.BiConsumer;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
 import static org.hamcrest.CoreMatchers.is;
@@ -77,29 +81,33 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
     @Test
     public void testHappyPathWithSavepointCreationBeforeSuccessfulTermination() throws Exception {
         assertHappyPath(
-                (testInstance, savepointPath) -> {
-                    testInstance.handleSavepointCreation(createCompletedSavepoint(savepointPath));
-                    testInstance.handleExecutionsTermination(
-                            Collections.singletonList(ExecutionState.FINISHED));
+                (completedSavepoint,
+                        completedSavepointFuture,
+                        terminatedExecutionStates,
+                        executionsTerminatedFuture) -> {
+                    completedSavepointFuture.complete(completedSavepoint);
+                    executionsTerminatedFuture.complete(terminatedExecutionStates);
                 });
     }
 
     @Test
     public void testHappyPathWithSavepointCreationAfterSuccessfulTermination() throws Exception {
         assertHappyPath(
-                (testInstance, savepointPath) -> {
-                    testInstance.handleExecutionsTermination(
-                            Collections.singletonList(ExecutionState.FINISHED));
-                    testInstance.handleSavepointCreation(createCompletedSavepoint(savepointPath));
+                (completedSavepoint,
+                        completedSavepointFuture,
+                        terminatedExecutionStates,
+                        executionsTerminatedFuture) -> {
+                    executionsTerminatedFuture.complete(terminatedExecutionStates);
+                    completedSavepointFuture.complete(completedSavepoint);
                 });
     }
 
     @Test
     public void testSavepointCreationFailureBeforeSuccessfulTermination() {
         assertSavepointCreationFailure(
-                (testInstance, expectedFailure) -> {
-                    testInstance.handleSavepointCreationFailure(expectedFailure);
-                    testInstance.handleExecutionsTermination(
+                (expectedException, completedSavepointFuture, executionsTerminatedFuture) -> {
+                    completedSavepointFuture.completeExceptionally(expectedException);
+                    executionsTerminatedFuture.complete(
                             Collections.singletonList(ExecutionState.FINISHED));
                 });
     }
@@ -107,19 +115,19 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
     @Test
     public void testSavepointCreationFailureAfterSuccessfulTermination() {
         assertSavepointCreationFailure(
-                (testInstance, expectedFailure) -> {
-                    testInstance.handleExecutionsTermination(
+                (expectedException, completedSavepointFuture, executionsTerminatedFuture) -> {
+                    executionsTerminatedFuture.complete(
                             Collections.singletonList(ExecutionState.FINISHED));
-                    testInstance.handleSavepointCreationFailure(expectedFailure);
+                    completedSavepointFuture.completeExceptionally(expectedException);
                 });
     }
 
     @Test
     public void testSavepointCreationFailureBeforeTaskFailure() {
         assertSavepointCreationFailure(
-                (testInstance, expectedFailure) -> {
-                    testInstance.handleSavepointCreationFailure(expectedFailure);
-                    testInstance.handleExecutionsTermination(
+                (expectedException, completedSavepointFuture, executionsTerminatedFuture) -> {
+                    completedSavepointFuture.completeExceptionally(expectedException);
+                    executionsTerminatedFuture.complete(
                             Collections.singletonList(ExecutionState.FAILED));
                 });
     }
@@ -127,67 +135,105 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
     @Test
     public void testSavepointCreationFailureAfterTaskFailure() {
         assertSavepointCreationFailure(
-                (testInstance, expectedFailure) -> {
-                    testInstance.handleExecutionsTermination(
+                (expectedException, completedSavepointFuture, executionsTerminatedFuture) -> {
+                    executionsTerminatedFuture.complete(
                             Collections.singletonList(ExecutionState.FAILED));
-                    testInstance.handleSavepointCreationFailure(expectedFailure);
+                    completedSavepointFuture.completeExceptionally(expectedException);
                 });
     }
 
     @Test
     public void testNoTerminationHandlingAfterSavepointCompletion() {
         assertNoTerminationHandling(
-                (testInstance, completedSavepoint, expectedUnfinishedExecutionState) -> {
-                    testInstance.handleSavepointCreation(completedSavepoint);
-                    testInstance.handleExecutionsTermination(
-                            // the task failed and was restarted
-                            Collections.singletonList(expectedUnfinishedExecutionState));
+                (completedSavepoint,
+                        completedSavepointFuture,
+                        terminatedExecutionStates,
+                        executionsTerminatedFuture) -> {
+                    completedSavepointFuture.complete(completedSavepoint);
+                    executionsTerminatedFuture.complete(terminatedExecutionStates);
                 });
     }
 
     @Test
     public void testNoTerminationHandlingBeforeSavepointCompletion() {
         assertNoTerminationHandling(
-                (testInstance, completedSavepoint, expectedUnfinishedExecutionState) -> {
-                    testInstance.handleExecutionsTermination(
-                            // the task failed and was restarted
-                            Collections.singletonList(expectedUnfinishedExecutionState));
-                    testInstance.handleSavepointCreation(completedSavepoint);
+                (completedSavepoint,
+                        completedSavepointFuture,
+                        terminatedExecutionStates,
+                        executionsTerminatedFuture) -> {
+                    executionsTerminatedFuture.complete(terminatedExecutionStates);
+                    completedSavepointFuture.complete(completedSavepoint);
                 });
     }
 
     private void assertHappyPath(
-            BiConsumer<StopWithSavepointOperationsImpl, String> stopWithSavepointCompletion)
-            throws Exception {
+            final QuadConsumer<
+                            CompletedCheckpoint,
+                            CompletableFuture<CompletedCheckpoint>,
+                            Collection<ExecutionState>,
+                            CompletableFuture<Collection<ExecutionState>>>
+                    completion)
+            throws ExecutionException, InterruptedException {
         final StopWithSavepointOperationsImpl testInstance =
                 createTestInstance(
-                        throwable -> fail("No global failover should have been triggered."));
+                        throwable -> fail("No global fail-over should have been triggered."));
+
+        final CompletableFuture<CompletedCheckpoint> completedSavepointFuture =
+                new CompletableFuture<>();
+        final CompletableFuture<Collection<ExecutionState>> executionsTerminatedFuture =
+                new CompletableFuture<>();
+
+        final CompletableFuture<String> result =
+                testInstance.stopWithSavepoint(
+                        completedSavepointFuture,
+                        executionsTerminatedFuture,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
         final String savepointPath = "savepoint-path";
+        completion.accept(
+                createCompletedSavepoint(savepointPath),
+                completedSavepointFuture,
+                Collections.singleton(ExecutionState.FINISHED),
+                executionsTerminatedFuture);
 
-        // trigger the completion of the stop-with-savepoint operations
-        stopWithSavepointCompletion.accept(testInstance, savepointPath);
-
-        assertThat(testInstance.getResult().get(), is(savepointPath));
+        assertThat(result.get(), is(savepointPath));
 
         // the happy path won't restart the CheckpointCoordinator
         assertFalse("Checkpoint scheduling should be disabled.", checkpointScheduling.isEnabled());
     }
 
     private void assertSavepointCreationFailure(
-            BiConsumer<StopWithSavepointOperationsImpl, Throwable> stopWithSavepointCompletion) {
-        final Exception exception = new Exception("Expected exception during savepoint creation.");
-
+            final TriConsumer<
+                            Throwable,
+                            CompletableFuture<CompletedCheckpoint>,
+                            CompletableFuture<Collection<ExecutionState>>>
+                    completion) {
         final StopWithSavepointOperationsImpl testInstance =
                 createTestInstance(throwable -> fail("No global failover should be triggered."));
-        stopWithSavepointCompletion.accept(testInstance, exception);
+
+        final CompletableFuture<CompletedCheckpoint> completedSavepointFuture =
+                new CompletableFuture<>();
+        final CompletableFuture<Collection<ExecutionState>> executionsTerminatedFuture =
+                new CompletableFuture<>();
+
+        final CompletableFuture<String> result =
+                testInstance.stopWithSavepoint(
+                        completedSavepointFuture,
+                        executionsTerminatedFuture,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread());
+
+        final String expectedErrorMessage = "Expected exception during savepoint creation.";
+        completion.accept(
+                new Exception(expectedErrorMessage),
+                completedSavepointFuture,
+                executionsTerminatedFuture);
 
         try {
-            testInstance.getResult().get();
+            result.get();
             fail("An ExecutionException is expected.");
         } catch (Throwable e) {
             final Optional<Throwable> actualException =
-                    ExceptionUtils.findThrowableWithMessage(e, exception.getMessage());
+                    ExceptionUtils.findThrowableWithMessage(e, expectedErrorMessage);
             assertTrue(
                     "An exception with the expected error message should have been thrown.",
                     actualException.isPresent());
@@ -198,8 +244,12 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
     }
 
     private void assertNoTerminationHandling(
-            TriConsumer<StopWithSavepointOperationsImpl, CompletedCheckpoint, ExecutionState>
-                    stopWithSavepointCompletion) {
+            final QuadConsumer<
+                            CompletedCheckpoint,
+                            CompletableFuture<CompletedCheckpoint>,
+                            Collection<ExecutionState>,
+                            CompletableFuture<Collection<ExecutionState>>>
+                    completion) {
         final ExecutionState expectedNonFinishedState = ExecutionState.FAILED;
         final String expectedErrorMessage =
                 String.format(
@@ -210,7 +260,8 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
         final CompletedCheckpoint completedSavepoint =
                 createCompletedSavepoint(streamStateHandle, "savepoint-folder");
 
-        // we have to verify that the handle points to the savepoint's metadata is not disposed, yet
+        // we have to verify that the handle pointing to the savepoint's metadata is not disposed,
+        // yet
         assertFalse(
                 "The completed savepoint must not be disposed, yet.",
                 streamStateHandle.isDisposed());
@@ -221,11 +272,26 @@ public class StopWithSavepointOperationsImplTest extends TestLogger {
                                 assertThat(
                                         throwable,
                                         FlinkMatchers.containsMessage(expectedErrorMessage)));
-        stopWithSavepointCompletion.accept(
-                testInstance, completedSavepoint, expectedNonFinishedState);
+
+        final CompletableFuture<CompletedCheckpoint> completedSavepointFuture =
+                new CompletableFuture<>();
+        final CompletableFuture<Collection<ExecutionState>> executionsTerminatedFuture =
+                new CompletableFuture<>();
+
+        final CompletableFuture<String> result =
+                testInstance.stopWithSavepoint(
+                        completedSavepointFuture,
+                        executionsTerminatedFuture,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread());
+
+        completion.accept(
+                completedSavepoint,
+                completedSavepointFuture,
+                Collections.singletonList(expectedNonFinishedState),
+                executionsTerminatedFuture);
 
         try {
-            testInstance.getResult().get();
+            result.get();
             fail("An ExecutionException is expected.");
         } catch (Throwable e) {
             final Optional<FlinkException> actualFlinkException =

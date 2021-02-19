@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.Execution;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -37,30 +37,19 @@ import java.util.concurrent.CompletableFuture;
 public interface StopWithSavepointOperations {
 
     /**
-     * Handles the successful savepoint creation.
+     * Executes the stop-with-savepoint operation.
      *
-     * @param completedSavepoint the completed savepoint.
+     * @param completedSavepointFuture a {@code CompletableFuture} pointing the savepoint creation
+     *     result.
+     * @param terminatedExecutionsFuture a {@code CompletableFuture} pointing to the {@code
+     *     Collection} of terminated states of the corresponding {@link
+     *     org.apache.flink.runtime.executiongraph.ExecutionGraph}.
+     * @param mainThreadExecutor the executor that should be used for executing the
+     *     stop-with-savepoint operation.
+     * @return a {@code CompletableFuture} pointing the path of finally created savepoint.
      */
-    void handleSavepointCreation(CompletedCheckpoint completedSavepoint);
-
-    /**
-     * Handles the savepoint creation in case of failure.
-     *
-     * @param throwable the error that occurred during savepoint creation.
-     */
-    void handleSavepointCreationFailure(Throwable throwable);
-
-    /**
-     * Handles the termination of the job's {@link Execution Executions}.
-     *
-     * @param executionStates the states of the job's {@code Executions}.
-     */
-    void handleExecutionsTermination(Collection<ExecutionState> executionStates);
-
-    /**
-     * Returns the result of the stop-with-savepoint operation.
-     *
-     * @return a {@code CompletableFuture} containing the final path of the savepoint.
-     */
-    CompletableFuture<String> getResult();
+    CompletableFuture<String> stopWithSavepoint(
+            CompletableFuture<CompletedCheckpoint> completedSavepointFuture,
+            CompletableFuture<Collection<ExecutionState>> terminatedExecutionsFuture,
+            ComponentMainThreadExecutor mainThreadExecutor);
 }

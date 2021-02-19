@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.util.FlinkException;
 
@@ -43,7 +44,7 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
 
     private final CompletableFuture<String> result = new CompletableFuture<>();
 
-    private State state = new InitialState();
+    private State state = new WaitingForSavepoint();
 
     public <S extends SchedulerNG & CheckpointScheduling> StopWithSavepointOperationsImpl(
             JobID jobId, S schedulerWithCheckpointing, Logger log) {
@@ -62,7 +63,29 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
     }
 
     @Override
-    public synchronized void handleSavepointCreation(CompletedCheckpoint completedCheckpoint) {
+    public CompletableFuture<String> stopWithSavepoint(
+            CompletableFuture<CompletedCheckpoint> completedSavepointFuture,
+            CompletableFuture<Collection<ExecutionState>> terminatedExecutionsFuture,
+            ComponentMainThreadExecutor mainThreadExecutor) {
+        completedSavepointFuture
+                .whenCompleteAsync(
+                        (completedSavepoint, throwable) -> {
+                            if (throwable != null) {
+                                handleSavepointCreationFailure(throwable);
+                            }
+
+                            handleSavepointCreation(completedSavepoint);
+                        },
+                        mainThreadExecutor)
+                .thenCompose(
+                        aVoid ->
+                                terminatedExecutionsFuture.thenAcceptAsync(
+                                        this::handleExecutionsTermination, mainThreadExecutor));
+
+        return result;
+    }
+
+    private synchronized void handleSavepointCreation(CompletedCheckpoint completedCheckpoint) {
         final State oldState = state;
         state = state.onSavepointCreation(completedCheckpoint);
 
@@ -72,8 +95,7 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
                 state);
     }
 
-    @Override
-    public synchronized void handleSavepointCreationFailure(Throwable throwable) {
+    private synchronized void handleSavepointCreationFailure(Throwable throwable) {
         final State oldState = state;
         state = state.onSavepointCreationFailure(throwable);
 
@@ -83,8 +105,7 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
                 state);
     }
 
-    @Override
-    public synchronized void handleExecutionsTermination(
+    private synchronized void handleExecutionsTermination(
             Collection<ExecutionState> executionStates) {
         final State oldState = state;
         state = state.onExecutionsTermination(executionStates);
@@ -93,11 +114,6 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
                 "Stop-with-savepoint transitioned from {} to {} on execution termination handling.",
                 oldState,
                 state);
-    }
-
-    @Override
-    public CompletableFuture<String> getResult() {
-        return result;
     }
 
     /**
@@ -157,7 +173,7 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
                 .collect(Collectors.toSet());
     }
 
-    private final class InitialState extends State {
+    private final class WaitingForSavepoint implements State {
 
         @Override
         public State onSavepointCreation(CompletedCheckpoint completedSavepoint) {
@@ -169,20 +185,9 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
             terminateExceptionally(throwable);
             return new FinalState();
         }
-
-        @Override
-        public State onExecutionsTermination(Collection<ExecutionState> executionStates) {
-            final Set<ExecutionState> unfinishedStates = extractUnfinishedStates(executionStates);
-
-            if (unfinishedStates.isEmpty()) {
-                return new ExecutionsFinished();
-            }
-
-            return new ExecutionsTerminatedExceptionally(unfinishedStates);
-        }
     }
 
-    private final class SavepointCreated extends State {
+    private final class SavepointCreated implements State {
 
         private final CompletedCheckpoint completedSavepoint;
 
@@ -204,53 +209,7 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
         }
     }
 
-    private final class ExecutionsFinished extends State {
-
-        @Override
-        public State onSavepointCreation(CompletedCheckpoint completedSavepoint) {
-            terminateSuccessfully(completedSavepoint.getExternalPointer());
-            return new FinalState();
-        }
-
-        @Override
-        public State onSavepointCreationFailure(Throwable throwable) {
-            terminateExceptionally(throwable);
-            return new FinalState();
-        }
-    }
-
-    private final class ExecutionsTerminatedExceptionally extends State {
-
-        private final Iterable<ExecutionState> unfinishedExecutionStates;
-
-        private ExecutionsTerminatedExceptionally(
-                Iterable<ExecutionState> unfinishedExecutionStates) {
-            this.unfinishedExecutionStates = unfinishedExecutionStates;
-        }
-
-        @Override
-        public State onSavepointCreation(CompletedCheckpoint completedSavepoint) {
-            terminateExceptionallyWithGlobalFailover(
-                    completedSavepoint, this.unfinishedExecutionStates);
-            return new FinalState();
-        }
-
-        @Override
-        public State onSavepointCreationFailure(Throwable throwable) {
-            terminateExceptionally(throwable);
-            return new FinalState();
-        }
-
-        @Override
-        public State onExecutionsTermination(Collection<ExecutionState> executionStates) {
-            throw new IllegalStateException(
-                    "onExecutionsTermination was triggered in "
-                            + ExecutionsTerminatedExceptionally.class.getSimpleName()
-                            + " state.");
-        }
-    }
-
-    private final class FinalState extends State {
+    private final class FinalState implements State {
 
         @Override
         public State onExecutionsTermination(Collection<ExecutionState> executionStates) {
@@ -258,21 +217,21 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
         }
     }
 
-    private abstract class State {
+    private interface State {
 
-        public State onSavepointCreation(CompletedCheckpoint completedSavepoint) {
+        default State onSavepointCreation(CompletedCheckpoint completedSavepoint) {
             throw new UnsupportedOperationException(
                     this.getClass().getSimpleName()
                             + " state does not support onSavepointCreation.");
         }
 
-        public State onSavepointCreationFailure(Throwable throwable) {
+        default State onSavepointCreationFailure(Throwable throwable) {
             throw new UnsupportedOperationException(
                     this.getClass().getSimpleName()
                             + " state does not support onSavepointCreationFailure.");
         }
 
-        public State onExecutionsTermination(Collection<ExecutionState> executionStates) {
+        default State onExecutionsTermination(Collection<ExecutionState> executionStates) {
             throw new UnsupportedOperationException(
                     this.getClass().getSimpleName()
                             + " state does not support onExecutionsTermination.");
