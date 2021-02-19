@@ -72,9 +72,9 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
                         (completedSavepoint, throwable) -> {
                             if (throwable != null) {
                                 handleSavepointCreationFailure(throwable);
+                            } else {
+                                handleSavepointCreation(completedSavepoint);
                             }
-
-                            handleSavepointCreation(completedSavepoint);
                         },
                         mainThreadExecutor)
                 .thenCompose(
