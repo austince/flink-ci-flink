@@ -90,9 +90,10 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
         state = state.onSavepointCreation(completedCheckpoint);
 
         log.debug(
-                "Stop-with-savepoint transitioned from {} to {} on savepoint creation handling.",
+                "Stop-with-savepoint transitioned from {} to {} on savepoint creation handling for job {}.",
                 oldState,
-                state);
+                state,
+                jobId);
     }
 
     private synchronized void handleSavepointCreationFailure(Throwable throwable) {
@@ -100,9 +101,10 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
         state = state.onSavepointCreationFailure(throwable);
 
         log.debug(
-                "Stop-with-savepoint transitioned from {} to {} on savepoint creation failure handling.",
+                "Stop-with-savepoint transitioned from {} to {} on savepoint creation failure handling for job {}.",
                 oldState,
-                state);
+                state,
+                jobId);
     }
 
     private synchronized void handleExecutionsTermination(
@@ -111,9 +113,10 @@ public class StopWithSavepointOperationsImpl implements StopWithSavepointOperati
         state = state.onExecutionsTermination(executionStates);
 
         log.debug(
-                "Stop-with-savepoint transitioned from {} to {} on execution termination handling.",
+                "Stop-with-savepoint transitioned from {} to {} on execution termination handling for job {}.",
                 oldState,
-                state);
+                state,
+                jobId);
     }
 
     /**
