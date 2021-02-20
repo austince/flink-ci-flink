@@ -54,7 +54,7 @@ public class CheckpointProperties implements Serializable {
     private final boolean discardSuspended;
 
     @VisibleForTesting
-    public CheckpointProperties(
+    CheckpointProperties(
             boolean forced,
             CheckpointType checkpointType,
             boolean discardSubsumed,
@@ -238,7 +238,8 @@ public class CheckpointProperties implements Serializable {
     //  Factories and pre-configured properties
     // ------------------------------------------------------------------------
 
-    private static final CheckpointProperties SYNC_SAVEPOINT =
+    @VisibleForTesting
+    public static final CheckpointProperties SYNC_SAVEPOINT =
             new CheckpointProperties(
                     true, CheckpointType.SYNC_SAVEPOINT, false, false, false, false, false);
 
