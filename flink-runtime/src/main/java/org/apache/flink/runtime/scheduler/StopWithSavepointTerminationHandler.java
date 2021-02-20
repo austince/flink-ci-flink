@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
  */
 public interface StopWithSavepointTerminationHandler {
 
-    CompletableFuture<CompletedCheckpoint> getCompletedSavepoint();
+    CompletableFuture<String> getSavepointPath();
 
     void handleSavepointCreation(CompletedCheckpoint completedCheckpoint);
 

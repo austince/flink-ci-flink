@@ -925,7 +925,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                         advanceToEndOfEventTime, targetDirectory);
 
         final StopWithSavepointTerminationHandlerImpl stopWithSavepointTerminationHandler =
-                new StopWithSavepointTerminationHandlerImpl(jobGraph.getJobID(), this, log);
+                new StopWithSavepointTerminationHandlerImpl(
+                        jobGraph.getJobID(), this, ioExecutor, log);
 
         savepointFuture
                 .whenCompleteAsync(
@@ -945,9 +946,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                                         stopWithSavepointTerminationHandler
                                                 ::handleExecutionsTermination));
 
-        return stopWithSavepointTerminationHandler
-                .getCompletedSavepoint()
-                .thenApply(CompletedCheckpoint::getExternalPointer);
+        return stopWithSavepointTerminationHandler.getSavepointPath();
     }
 
     /**

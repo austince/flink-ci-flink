@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -50,14 +51,15 @@ public class StopWithSavepointTerminationHandlerImpl
     private final SchedulerNG scheduler;
     private final CheckpointScheduling checkpointScheduling;
     private final JobID jobId;
+    private final Executor ioExecutor;
 
-    private final CompletableFuture<CompletedCheckpoint> result = new CompletableFuture<>();
+    private final CompletableFuture<String> result = new CompletableFuture<>();
 
     private State state = new WaitingForSavepoint();
 
     public <S extends SchedulerNG & CheckpointScheduling> StopWithSavepointTerminationHandlerImpl(
-            JobID jobId, S schedulerWithCheckpointing, Logger log) {
-        this(jobId, schedulerWithCheckpointing, schedulerWithCheckpointing, log);
+            JobID jobId, S schedulerWithCheckpointing, Executor ioExecutor, Logger log) {
+        this(jobId, schedulerWithCheckpointing, schedulerWithCheckpointing, ioExecutor, log);
     }
 
     @VisibleForTesting
@@ -65,15 +67,17 @@ public class StopWithSavepointTerminationHandlerImpl
             JobID jobId,
             SchedulerNG scheduler,
             CheckpointScheduling checkpointScheduling,
+            Executor ioExecutor,
             Logger log) {
         this.jobId = checkNotNull(jobId);
         this.scheduler = checkNotNull(scheduler);
         this.checkpointScheduling = checkNotNull(checkpointScheduling);
+        this.ioExecutor = checkNotNull(ioExecutor);
         this.log = checkNotNull(log);
     }
 
     @Override
-    public CompletableFuture<CompletedCheckpoint> getCompletedSavepoint() {
+    public CompletableFuture<String> getSavepointPath() {
         return result;
     }
 
@@ -143,15 +147,7 @@ public class StopWithSavepointTerminationHandlerImpl
         FlinkException inconsistentFinalStateException = new FlinkException(errorMessage);
 
         scheduler.handleGlobalFailure(inconsistentFinalStateException);
-
-        try {
-            completedSavepoint.discard();
-        } catch (Exception e) {
-            log.warn(
-                    "Error occurred while cleaning up completed savepoint due to stop-with-savepoint failure.",
-                    e);
-            inconsistentFinalStateException.addSuppressed(e);
-        }
+        discardSavepoint(completedSavepoint, inconsistentFinalStateException);
 
         terminateExceptionally(inconsistentFinalStateException);
     }
@@ -173,7 +169,24 @@ public class StopWithSavepointTerminationHandlerImpl
      * @param completedSavepoint the completed savepoint
      */
     private void terminateSuccessfully(CompletedCheckpoint completedSavepoint) {
-        result.complete(completedSavepoint);
+        result.complete(completedSavepoint.getExternalPointer());
+    }
+
+    private void discardSavepoint(
+            CompletedCheckpoint completedSavepoint,
+            FlinkException inconsistentFinalStateException) {
+        CompletableFuture.runAsync(
+                () -> {
+                    try {
+                        completedSavepoint.discard();
+                    } catch (Exception e) {
+                        log.warn(
+                                "Error occurred while cleaning up completed savepoint due to stop-with-savepoint failure.",
+                                e);
+                        inconsistentFinalStateException.addSuppressed(e);
+                    }
+                },
+                ioExecutor);
     }
 
     private final class WaitingForSavepoint implements State {
