@@ -20,53 +20,52 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.Collection;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 /**
- * {@code StopWithSavepointTerminationHandler} handles the termination of the steps needed for the
- * stop-with-savepoint operation. This includes:
+ * {@code StopWithSavepointTerminationHandler} handles the termination both steps necessary for the
+ * stop-with-savepoint operation to finish. It includes:
  *
  * <ol>
- *   <li>Creating a savepoint
+ *   <li>Creating a savepoint needs to be completed
  *   <li>Waiting for the executions of the underlying job to finish
  * </ol>
  */
 public interface StopWithSavepointTerminationHandler {
 
+    /**
+     * Returns the a {@code CompletableFuture} referring to the result of the stop-with-savepoint
+     * operation.
+     *
+     * @return the {@code CompletableFuture} containing the path to the created savepoint in case of
+     *     success.
+     */
     CompletableFuture<String> getSavepointPath();
 
-    default void handleSavepointCreation(
-            CompletedCheckpoint completedSavepoint, Throwable throwable) {
-        if (throwable != null) {
-            handleSavepointCreationFailure(throwable);
-        } else {
-            handleSavepointCreationSuccess(Preconditions.checkNotNull(completedSavepoint));
-        }
-    }
+    /**
+     * Handles the result of a {@code CompletableFuture} holding a {@link CompletedCheckpoint}. Only
+     * one of the two parameters are allowed to be set.
+     *
+     * @param completedSavepoint the {@code CompletedCheckpoint} referring to the created savepoint
+     * @param throwable an error that was caught during savepoint creation
+     * @throws IllegalArgumentException if {@code throwable} and {@code completedSavepoint} are set
+     * @throws NullPointerException if none of the parameters are set
+     */
+    void handleSavepointCreation(
+            @Nullable CompletedCheckpoint completedSavepoint, @Nullable Throwable throwable);
 
-    void handleSavepointCreationSuccess(CompletedCheckpoint completedCheckpoint);
-
-    void handleSavepointCreationFailure(Throwable throwable);
-
-    default void handleExecutionsTermination(Collection<ExecutionState> executionStates) {
-        final Set<ExecutionState> notFinishedExecutionStates =
-                executionStates.stream()
-                        .filter(state -> state != ExecutionState.FINISHED)
-                        .collect(Collectors.toSet());
-
-        if (notFinishedExecutionStates.isEmpty()) {
-            handleExecutionsFinished();
-        } else {
-            handleAnyExecutionNotFinished(notFinishedExecutionStates);
-        }
-    }
-
-    void handleExecutionsFinished();
-
-    void handleAnyExecutionNotFinished(Set<ExecutionState> notFinishedExecutionStates);
+    /**
+     * Handles the termination of the job based on the passed terminated {@link ExecutionState
+     * ExecutionStates}. stop-with-savepoint expects the {@code terminatedExecutionStates} to only
+     * contain {@link ExecutionState#FINISHED} to succeed.
+     *
+     * @param terminatedExecutionStates The terminated {@code ExecutionStates} of the underlying
+     *     job.
+     * @throws NullPointerException if {@code null} is passed.
+     */
+    void handleExecutionsTermination(Collection<ExecutionState> terminatedExecutionStates);
 }

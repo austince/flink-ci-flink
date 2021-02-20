@@ -28,10 +28,13 @@ import org.apache.flink.util.FlinkException;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 
+import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -82,7 +85,33 @@ public class StopWithSavepointTerminationHandlerImpl
     }
 
     @Override
-    public void handleSavepointCreationSuccess(CompletedCheckpoint completedCheckpoint) {
+    public void handleSavepointCreation(
+            CompletedCheckpoint completedSavepoint, Throwable throwable) {
+        if (throwable != null) {
+            checkArgument(
+                    completedSavepoint == null,
+                    "No savepoint should be provided if a throwable is passed.");
+            handleSavepointCreationFailure(throwable);
+        } else {
+            handleSavepointCreationSuccess(checkNotNull(completedSavepoint));
+        }
+    }
+
+    @Override
+    public void handleExecutionsTermination(Collection<ExecutionState> terminatedExecutionStates) {
+        final Set<ExecutionState> notFinishedExecutionStates =
+                checkNotNull(terminatedExecutionStates).stream()
+                        .filter(state -> state != ExecutionState.FINISHED)
+                        .collect(Collectors.toSet());
+
+        if (notFinishedExecutionStates.isEmpty()) {
+            handleExecutionsFinished();
+        } else {
+            handleAnyExecutionNotFinished(notFinishedExecutionStates);
+        }
+    }
+
+    private void handleSavepointCreationSuccess(CompletedCheckpoint completedCheckpoint) {
         final State oldState = state;
         state = state.onSavepointCreation(completedCheckpoint);
 
@@ -93,8 +122,7 @@ public class StopWithSavepointTerminationHandlerImpl
                 jobId);
     }
 
-    @Override
-    public void handleSavepointCreationFailure(Throwable throwable) {
+    private void handleSavepointCreationFailure(Throwable throwable) {
         final State oldState = state;
         state = state.onSavepointCreationFailure(throwable);
 
@@ -105,8 +133,7 @@ public class StopWithSavepointTerminationHandlerImpl
                 jobId);
     }
 
-    @Override
-    public void handleExecutionsFinished() {
+    private void handleExecutionsFinished() {
         final State oldState = state;
         state = state.onExecutionsFinished();
 
@@ -117,8 +144,7 @@ public class StopWithSavepointTerminationHandlerImpl
                 jobId);
     }
 
-    @Override
-    public void handleAnyExecutionNotFinished(Set<ExecutionState> notFinishedExecutionStates) {
+    private void handleAnyExecutionNotFinished(Set<ExecutionState> notFinishedExecutionStates) {
         final State oldState = state;
         state = state.onAnyExecutionNotFinished(notFinishedExecutionStates);
 

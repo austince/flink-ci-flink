@@ -84,7 +84,7 @@ public class StopWithSavepointTerminationHandlerImplTest extends TestLogger {
 
         final EmptyStreamStateHandle streamStateHandle = new EmptyStreamStateHandle();
         final CompletedCheckpoint completedSavepoint = createCompletedSavepoint(streamStateHandle);
-        testInstance.handleSavepointCreationSuccess(completedSavepoint);
+        testInstance.handleSavepointCreation(completedSavepoint, null);
         testInstance.handleExecutionsTermination(Collections.singleton(ExecutionState.FINISHED));
 
         assertThat(
@@ -101,7 +101,7 @@ public class StopWithSavepointTerminationHandlerImplTest extends TestLogger {
                 createTestInstanceFailingOnGlobalFailOver();
 
         final String expectedErrorMessage = "Expected exception during savepoint creation.";
-        testInstance.handleSavepointCreationFailure(new Exception(expectedErrorMessage));
+        testInstance.handleSavepointCreation(null, new Exception(expectedErrorMessage));
 
         try {
             testInstance.getSavepointPath().get();
@@ -133,7 +133,7 @@ public class StopWithSavepointTerminationHandlerImplTest extends TestLogger {
         final EmptyStreamStateHandle streamStateHandle = new EmptyStreamStateHandle();
         final CompletedCheckpoint completedSavepoint = createCompletedSavepoint(streamStateHandle);
 
-        testInstance.handleSavepointCreationSuccess(completedSavepoint);
+        testInstance.handleSavepointCreation(completedSavepoint, null);
         testInstance.handleExecutionsTermination(
                 Collections.singletonList(expectedNonFinishedState));
 
@@ -164,6 +164,25 @@ public class StopWithSavepointTerminationHandlerImplTest extends TestLogger {
     public void testInvalidExecutionTerminationCall() {
         createTestInstanceFailingOnGlobalFailOver()
                 .handleExecutionsTermination(Collections.singletonList(ExecutionState.FINISHED));
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void testSavepointCreationParameterBothNull() {
+        createTestInstanceFailingOnGlobalFailOver().handleSavepointCreation(null, null);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testSavepointCreationParameterBothSet() {
+        createTestInstanceFailingOnGlobalFailOver()
+                .handleSavepointCreation(
+                        createCompletedSavepoint(new EmptyStreamStateHandle()),
+                        new Exception(
+                                "No exception should be passed if a savepoint is available."));
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void testExecutionTerminationWithNull() {
+        createTestInstanceFailingOnGlobalFailOver().handleExecutionsTermination(null);
     }
 
     private static CompletedCheckpoint createCompletedSavepoint(
