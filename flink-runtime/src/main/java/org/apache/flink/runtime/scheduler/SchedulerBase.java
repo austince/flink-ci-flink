@@ -930,15 +930,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
         savepointFuture
                 .whenCompleteAsync(
-                        (completedSavepoint, throwable) -> {
-                            if (throwable != null) {
-                                stopWithSavepointTerminationHandler.handleSavepointCreationFailure(
-                                        throwable);
-                            } else {
-                                stopWithSavepointTerminationHandler.handleSavepointCreation(
-                                        completedSavepoint);
-                            }
-                        },
+                        stopWithSavepointTerminationHandler::handleSavepointCreation,
                         mainThreadExecutor)
                 .thenRun(
                         () ->

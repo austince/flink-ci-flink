@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.Set;
@@ -39,7 +40,16 @@ public interface StopWithSavepointTerminationHandler {
 
     CompletableFuture<String> getSavepointPath();
 
-    void handleSavepointCreation(CompletedCheckpoint completedCheckpoint);
+    default void handleSavepointCreation(
+            CompletedCheckpoint completedSavepoint, Throwable throwable) {
+        if (throwable != null) {
+            handleSavepointCreationFailure(throwable);
+        } else {
+            handleSavepointCreationSuccess(Preconditions.checkNotNull(completedSavepoint));
+        }
+    }
+
+    void handleSavepointCreationSuccess(CompletedCheckpoint completedCheckpoint);
 
     void handleSavepointCreationFailure(Throwable throwable);
 

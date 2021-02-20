@@ -82,7 +82,7 @@ public class StopWithSavepointTerminationHandlerImpl
     }
 
     @Override
-    public void handleSavepointCreation(CompletedCheckpoint completedCheckpoint) {
+    public void handleSavepointCreationSuccess(CompletedCheckpoint completedCheckpoint) {
         final State oldState = state;
         state = state.onSavepointCreation(completedCheckpoint);
 

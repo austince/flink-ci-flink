@@ -84,7 +84,7 @@ public class StopWithSavepointTerminationHandlerImplTest extends TestLogger {
 
         final EmptyStreamStateHandle streamStateHandle = new EmptyStreamStateHandle();
         final CompletedCheckpoint completedSavepoint = createCompletedSavepoint(streamStateHandle);
-        testInstance.handleSavepointCreation(completedSavepoint);
+        testInstance.handleSavepointCreationSuccess(completedSavepoint);
         testInstance.handleExecutionsTermination(Collections.singleton(ExecutionState.FINISHED));
 
         assertThat(
@@ -133,7 +133,7 @@ public class StopWithSavepointTerminationHandlerImplTest extends TestLogger {
         final EmptyStreamStateHandle streamStateHandle = new EmptyStreamStateHandle();
         final CompletedCheckpoint completedSavepoint = createCompletedSavepoint(streamStateHandle);
 
-        testInstance.handleSavepointCreation(completedSavepoint);
+        testInstance.handleSavepointCreationSuccess(completedSavepoint);
         testInstance.handleExecutionsTermination(
                 Collections.singletonList(expectedNonFinishedState));
 
