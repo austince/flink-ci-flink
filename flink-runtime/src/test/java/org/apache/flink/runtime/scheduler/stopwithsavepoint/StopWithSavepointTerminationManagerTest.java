@@ -157,7 +157,7 @@ public class StopWithSavepointTerminationManagerTest extends TestLogger {
         return new Exception("Expected exception during savepoint creation.");
     }
 
-    private class TestingStopWithSavepointTerminationHandler
+    private static class TestingStopWithSavepointTerminationHandler
             implements StopWithSavepointTerminationHandler {
 
         private int savepointCompletedCallCount = 0;
