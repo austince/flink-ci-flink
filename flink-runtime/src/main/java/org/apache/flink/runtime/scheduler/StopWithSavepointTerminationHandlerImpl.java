@@ -28,10 +28,8 @@ import org.apache.flink.util.FlinkException;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 
-import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -104,15 +102,28 @@ public class StopWithSavepointTerminationHandlerImpl
     }
 
     @Override
-    public void handleExecutionsTermination(Collection<ExecutionState> executionStates) {
+    public void handleExecutionsFinished() {
         final State oldState = state;
-        state = state.onExecutionsTermination(executionStates);
+        state = state.onExecutionsFinished();
 
         log.debug(
-                "Stop-with-savepoint transitioned from {} to {} on execution termination handling for job {}.",
+                "Stop-with-savepoint transitioned from {} to {} on execution termination handling with all executions being finished for job {}.",
                 oldState,
                 state,
                 jobId);
+    }
+
+    @Override
+    public void handleAnyExecutionNotFinished(Set<ExecutionState> notFinishedExecutionStates) {
+        final State oldState = state;
+        state = state.onAnyExecutionNotFinished(notFinishedExecutionStates);
+
+        log.warn(
+                "Stop-with-savepoint transitioned from {} to {} on execution termination handling for job {} with some executions being in an not-finished state: {}",
+                oldState,
+                state,
+                jobId,
+                notFinishedExecutionStates);
     }
 
     /**
@@ -165,13 +176,6 @@ public class StopWithSavepointTerminationHandlerImpl
         result.complete(completedSavepoint);
     }
 
-    private static Set<ExecutionState> extractUnfinishedStates(
-            Collection<ExecutionState> executionStates) {
-        return executionStates.stream()
-                .filter(state -> state != ExecutionState.FINISHED)
-                .collect(Collectors.toSet());
-    }
-
     private final class WaitingForSavepoint implements State {
 
         @Override
@@ -195,15 +199,16 @@ public class StopWithSavepointTerminationHandlerImpl
         }
 
         @Override
-        public State onExecutionsTermination(Collection<ExecutionState> executionStates) {
-            final Set<ExecutionState> unfinishedStates = extractUnfinishedStates(executionStates);
+        public State onExecutionsFinished() {
+            terminateSuccessfully(completedSavepoint);
+            return new FinalState();
+        }
 
-            if (unfinishedStates.isEmpty()) {
-                terminateSuccessfully(completedSavepoint);
-                return new FinalState();
-            }
-
-            terminateExceptionallyWithGlobalFailover(completedSavepoint, unfinishedStates);
+        @Override
+        public State onAnyExecutionNotFinished(
+                Iterable<ExecutionState> notFinishedExecutionStates) {
+            terminateExceptionallyWithGlobalFailover(
+                    completedSavepoint, notFinishedExecutionStates);
             return new FinalState();
         }
     }
@@ -211,7 +216,13 @@ public class StopWithSavepointTerminationHandlerImpl
     private final class FinalState implements State {
 
         @Override
-        public State onExecutionsTermination(Collection<ExecutionState> executionStates) {
+        public State onExecutionsFinished() {
+            return this;
+        }
+
+        @Override
+        public State onAnyExecutionNotFinished(
+                Iterable<ExecutionState> notFinishedExecutionStates) {
             return this;
         }
     }
@@ -230,10 +241,17 @@ public class StopWithSavepointTerminationHandlerImpl
                             + " state does not support onSavepointCreationFailure.");
         }
 
-        default State onExecutionsTermination(Collection<ExecutionState> executionStates) {
+        default State onExecutionsFinished() {
             throw new UnsupportedOperationException(
                     this.getClass().getSimpleName()
-                            + " state does not support onExecutionsTermination.");
+                            + " state does not support onExecutionsFinished.");
+        }
+
+        default State onAnyExecutionNotFinished(
+                Iterable<ExecutionState> notFinishedExecutionStates) {
+            throw new UnsupportedOperationException(
+                    this.getClass().getSimpleName()
+                            + " state does not support onAnyExecutionNotFinished.");
         }
     }
 }

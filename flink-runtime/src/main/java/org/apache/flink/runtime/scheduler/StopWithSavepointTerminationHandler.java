@@ -22,7 +22,9 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.execution.ExecutionState;
 
 import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * {@code StopWithSavepointTerminationHandler} handles the termination of the steps needed for the
@@ -41,5 +43,20 @@ public interface StopWithSavepointTerminationHandler {
 
     void handleSavepointCreationFailure(Throwable throwable);
 
-    void handleExecutionsTermination(Collection<ExecutionState> executionStates);
+    default void handleExecutionsTermination(Collection<ExecutionState> executionStates) {
+        final Set<ExecutionState> notFinishedExecutionStates =
+                executionStates.stream()
+                        .filter(state -> state != ExecutionState.FINISHED)
+                        .collect(Collectors.toSet());
+
+        if (notFinishedExecutionStates.isEmpty()) {
+            handleExecutionsFinished();
+        } else {
+            handleAnyExecutionNotFinished(notFinishedExecutionStates);
+        }
+    }
+
+    void handleExecutionsFinished();
+
+    void handleAnyExecutionNotFinished(Set<ExecutionState> notFinishedExecutionStates);
 }
