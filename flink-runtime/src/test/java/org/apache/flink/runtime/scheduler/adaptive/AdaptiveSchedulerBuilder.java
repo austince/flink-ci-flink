@@ -19,6 +19,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.failurelistener.FailureListener;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -42,6 +43,8 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -72,6 +75,7 @@ public class AdaptiveSchedulerBuilder {
             error ->
                     FatalExitExceptionHandler.INSTANCE.uncaughtException(
                             Thread.currentThread(), error);
+    private Set<FailureListener> failureListeners = new HashSet<>();
     private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC, ignoredD) -> {};
 
     public AdaptiveSchedulerBuilder(
@@ -165,6 +169,11 @@ public class AdaptiveSchedulerBuilder {
         return this;
     }
 
+    public AdaptiveSchedulerBuilder setFailureListeners(Set<FailureListener> failureListeners) {
+        this.failureListeners = failureListeners;
+        return this;
+    }
+
     public AdaptiveScheduler build() throws Exception {
         return new AdaptiveScheduler(
                 jobGraph,
@@ -184,6 +193,7 @@ public class AdaptiveSchedulerBuilder {
                 System.currentTimeMillis(),
                 mainThreadExecutor,
                 fatalErrorHandler,
-                jobStatusListener);
+                jobStatusListener,
+                failureListeners);
     }
 }

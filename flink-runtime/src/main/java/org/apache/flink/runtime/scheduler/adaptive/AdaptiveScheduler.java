@@ -25,6 +25,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.failurelistener.FailureListener;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
@@ -119,6 +120,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -180,6 +182,7 @@ public class AdaptiveScheduler
 
     private final ComponentMainThreadExecutor componentMainThreadExecutor;
     private final FatalErrorHandler fatalErrorHandler;
+    private final Set<FailureListener> failureListeners;
 
     private final JobStatusListener jobStatusListener;
 
@@ -211,7 +214,8 @@ public class AdaptiveScheduler
             long initializationTimestamp,
             ComponentMainThreadExecutor mainThreadExecutor,
             FatalErrorHandler fatalErrorHandler,
-            JobStatusListener jobStatusListener)
+            JobStatusListener jobStatusListener,
+            Set<FailureListener> failureListeners)
             throws JobExecutionException {
 
         ensureFullyPipelinedStreamingJob(jobGraph);
@@ -231,6 +235,7 @@ public class AdaptiveScheduler
         this.executionDeploymentTracker = executionDeploymentTracker;
         this.jobManagerJobMetricGroup = jobManagerJobMetricGroup;
         this.fatalErrorHandler = fatalErrorHandler;
+        this.failureListeners = failureListeners;
         this.completedCheckpointStore =
                 SchedulerUtils.createCompletedCheckpointStoreIfCheckpointingIsEnabled(
                         jobGraph,
@@ -866,6 +871,15 @@ public class AdaptiveScheduler
 
     @Override
     public Executing.FailureResult howToHandleFailure(Throwable failure) {
+        try {
+            for (FailureListener listener : failureListeners) {
+                listener.onFailure(failure, false);
+            }
+        } catch (Throwable e) {
+            return Executing.FailureResult.canNotRestart(
+                    new JobException("Unexpected exception in FailureListener", e));
+        }
+
         if (ExecutionFailureHandler.isUnrecoverableError(failure)) {
             return Executing.FailureResult.canNotRestart(
                     new JobException("The failure is not recoverable", failure));

@@ -125,7 +125,9 @@ public class ExecutionFailureHandler {
             }
         } catch (Throwable e) {
             return FailureHandlingResult.unrecoverable(
-                    new JobException("Unexpected exception in FailureListener", e), false);
+                    failingExecutionVertexId,
+                    new JobException("Unexpected exception in FailureListener", e),
+                    false);
         }
 
         if (isUnrecoverableError(cause)) {
