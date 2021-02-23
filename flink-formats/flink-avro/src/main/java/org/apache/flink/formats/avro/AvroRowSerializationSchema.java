@@ -157,7 +157,7 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
 
     // --------------------------------------------------------------------------------------------
 
-    private GenericRecord convertRowToAvroRecord(Schema schema, Row row) {
+    public GenericRecord convertRowToAvroRecord(Schema schema, Row row) {
         final List<Schema.Field> fields = schema.getFields();
         final int length = fields.size();
         final GenericRecord record = new GenericData.Record(schema);
