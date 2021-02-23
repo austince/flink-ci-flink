@@ -37,16 +37,16 @@ public class ParquetAvroInputFormat extends ParquetInputFormat<GenericRecord> {
 
     private static final Logger LOG = LoggerFactory.getLogger(ParquetAvroInputFormat.class);
 
-    private MessageType parquetSchema;
+    private Schema avroSchema;
 
     public ParquetAvroInputFormat(Path filePath, MessageType messageType) {
         super(filePath, messageType);
-        parquetSchema = messageType;
+        avroSchema = new AvroSchemaConverter().convert(messageType);
     }
 
     @Override
     protected GenericRecord convert(Row row) {
-        final Schema avroSchema = new AvroSchemaConverter().convert(parquetSchema);
+
         AvroRowSerializationSchema avroRowSerializationSchema =
                 new AvroRowSerializationSchema(avroSchema.toString());
         return avroRowSerializationSchema.convertRowToAvroRecord(avroSchema, row);
