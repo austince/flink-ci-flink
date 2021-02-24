@@ -18,6 +18,8 @@
 
 package org.apache.flink.formats.parquet;
 
+import org.apache.avro.AvroRuntimeException;
+
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
@@ -29,7 +31,9 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.parquet.schema.MessageType;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -38,13 +42,15 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 /** Test cases for reading Parquet files and convert parquet records to Avro GenericRecords. */
 @RunWith(Parameterized.class)
 public class ParquetAvroInputFormatTest extends TestUtil {
-    @ClassRule public static TemporaryFolder tempRoot = new TemporaryFolder();
+    @ClassRule
+    public static TemporaryFolder tempRoot = new TemporaryFolder();
 
     public ParquetAvroInputFormatTest(boolean useLegacyMode) {
         super(useLegacyMode);
@@ -75,8 +81,8 @@ public class ParquetAvroInputFormatTest extends TestUtil {
         assertArrayEquals(((List<Long>)testData.f1.get(2)).toArray(), ((List<Long>) genericRecord.get("arr")).toArray());
     }
 
-    @Test
-    public void testProjectedReadPojoFromSimpleRecord() throws IOException, NoSuchFieldError {
+    @Test(expected = AvroRuntimeException.class)
+    public void testProjectedReadFromSimpleRecord() throws IOException, NoSuchFieldError, AvroRuntimeException {
         Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> testData =
                 TestUtil.getSimpleRecordTestData();
         MessageType messageType = getSchemaConverter().convert(SIMPLE_SCHEMA);
@@ -98,7 +104,7 @@ public class ParquetAvroInputFormatTest extends TestUtil {
 
         final GenericRecord genericRecord = inputFormat.nextRecord(null);
         assertEquals(testData.f1.get(0), genericRecord.get("foo"));
-        assertEquals("", genericRecord.get("bar"));
-        assertArrayEquals(new Long[0], ((List<Long>)genericRecord.get("arr")).toArray());
+        //should throw AvroRuntimeException("Not a valid schema field: bar")
+        genericRecord.get("bar");
     }
 }
