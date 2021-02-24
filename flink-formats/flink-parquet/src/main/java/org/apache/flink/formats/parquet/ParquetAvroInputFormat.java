@@ -29,6 +29,12 @@ import org.apache.parquet.schema.MessageType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 /**
  * An implementation of {@link ParquetInputFormat} to read records from Parquet files and convert
  * them to Avro GenericRecord.
@@ -45,10 +51,36 @@ public class ParquetAvroInputFormat extends ParquetInputFormat<GenericRecord> {
     }
 
     @Override
-    protected GenericRecord convert(Row row) {
+    public void selectFields(String[] fieldNames) {
+        super.selectFields(fieldNames);
+        avroSchema = getProjectedSchema(fieldNames, avroSchema);
+    }
 
+    @Override
+    protected GenericRecord convert(Row row) {
         AvroRowSerializationSchema avroRowSerializationSchema =
                 new AvroRowSerializationSchema(avroSchema.toString());
         return avroRowSerializationSchema.convertRowToAvroRecord(avroSchema, row);
+    }
+
+    private Schema getProjectedSchema(String[] names, Schema schema) {
+        Set<String> projectedFieldNames = new HashSet<>();
+        Collections.addAll(projectedFieldNames, names);
+
+        List<Schema.Field> projectedFields = new ArrayList<>();
+        for (Schema.Field f : schema.getFields()) {
+            if (projectedFieldNames.contains(f.name())) {
+                projectedFields.add(
+                        new Schema.Field(f.name(), f.schema(), f.doc(), f.defaultVal()));
+            }
+        }
+        Schema schemaProjected =
+                Schema.createRecord(schema.getName() + "_projected", null, null, false);
+        schemaProjected.setFields(projectedFields);
+        return schemaProjected;
+    }
+
+    public Schema getAvroSchema() {
+        return avroSchema;
     }
 }
