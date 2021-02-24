@@ -347,6 +347,48 @@ class GroupWindowITCase(mode: StateBackendMode)
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
+  @Test
+  def testWindowAggregateOnRetractStream(): Unit = {
+    val stream = failingDataSource(data)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(
+          Long, Int, Double, Float, BigDecimal, String, String)](10L))
+    val table =
+      stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
+    tEnv.registerTable("T1", table)
+    val sql =
+      """
+        |SELECT
+        |`string`,
+        |TUMBLE_START(rowtime, INTERVAL '0.005' SECOND) as w_start,
+        |TUMBLE_END(rowtime, INTERVAL '0.005' SECOND) as w_end,
+        |COUNT(1) AS cnt
+        |FROM
+        | (
+        | SELECT `string`, rowtime
+        | FROM (
+        |  SELECT *,
+        |  ROW_NUMBER() OVER (PARTITION BY `string` ORDER BY rowtime DESC) as rowNum
+        |   FROM T1
+        | )
+        | WHERE rowNum = 1
+        |)
+        |GROUP BY `string`, TUMBLE(rowtime, INTERVAL '0.005' SECOND)
+        |""".stripMargin
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+    val expected = Seq(
+      "Hi,1970-01-01T00:00,1970-01-01T00:00:00.005,1",
+      "Hallo,1970-01-01T00:00,1970-01-01T00:00:00.005,1",
+      "Hello,1970-01-01T00:00,1970-01-01T00:00:00.005,0",
+      "Hello,1970-01-01T00:00:00.005,1970-01-01T00:00:00.010,1",
+      "Hello world,1970-01-01T00:00:00.005,1970-01-01T00:00:00.010,0",
+      "Hello world,1970-01-01T00:00:00.015,1970-01-01T00:00:00.020,1",
+      "null,1970-01-01T00:00:00.030,1970-01-01T00:00:00.035,1")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
   private def withLateFireDelay(tableConfig: TableConfig, interval: Time): Unit = {
     val intervalInMillis = interval.toMilliseconds
     val lateFireDelay: Duration = tableConfig.getConfiguration
