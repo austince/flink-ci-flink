@@ -21,7 +21,7 @@ package org.apache.flink.yarn.entrypoint;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.client.deployment.application.ApplicationClusterEntryPoint;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
-import org.apache.flink.client.deployment.application.ClassPathPackagedProgramRetriever;
+import org.apache.flink.client.deployment.application.PackagedProgramRetrieverAdapter.Builder;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
 import org.apache.flink.configuration.Configuration;
@@ -46,6 +46,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.client.deployment.application.PackagedProgramRetrieverAdapter.newBuilder;
 
 /** An {@link ApplicationClusterEntryPoint} for Yarn. */
 @Internal
@@ -113,7 +115,6 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
 
     private static PackagedProgram getPackagedProgram(final Configuration configuration)
             throws IOException, FlinkException {
-
         final ApplicationConfiguration applicationConfiguration =
                 ApplicationConfiguration.fromConfiguration(configuration);
 
@@ -130,14 +131,14 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
             final String[] programArguments,
             @Nullable final String jobClassName)
             throws IOException {
-
         final File userLibDir = YarnEntrypointUtils.getUsrLibDir(configuration).orElse(null);
         final File userApplicationJar = getUserApplicationJar(userLibDir, configuration);
-        final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
-                ClassPathPackagedProgramRetriever.newBuilder(programArguments)
+        final Builder retrieverBuilder =
+                newBuilder(programArguments)
+                        .setConfiguration(configuration)
+                        .setJobClassName(jobClassName)
                         .setUserLibDirectory(userLibDir)
-                        .setJarFile(userApplicationJar)
-                        .setJobClassName(jobClassName);
+                        .setJarFile(userApplicationJar);
         return retrieverBuilder.build();
     }
 

@@ -21,7 +21,7 @@ package org.apache.flink.kubernetes.entrypoint;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.client.deployment.application.ApplicationClusterEntryPoint;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
-import org.apache.flink.client.deployment.application.ClassPathPackagedProgramRetriever;
+import org.apache.flink.client.deployment.application.PackagedProgramRetrieverAdapter.Builder;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgramUtils;
@@ -41,6 +41,8 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+
+import static org.apache.flink.client.deployment.application.PackagedProgramRetrieverAdapter.newBuilder;
 
 /** An {@link ApplicationClusterEntryPoint} for Kubernetes. */
 @Internal
@@ -108,10 +110,11 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
             throws IOException {
 
         final File userLibDir = ClusterEntrypointUtils.tryFindUserLibDirectory().orElse(null);
-        final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
-                ClassPathPackagedProgramRetriever.newBuilder(programArguments)
-                        .setUserLibDirectory(userLibDir)
-                        .setJobClassName(jobClassName);
+        final Builder retrieverBuilder =
+                newBuilder(programArguments)
+                        .setConfiguration(configuration)
+                        .setJobClassName(jobClassName)
+                        .setUserLibDirectory(userLibDir);
 
         // No need to do pipelineJars validation if it is a PyFlink job.
         if (!(PackagedProgramUtils.isPython(jobClassName)

@@ -25,8 +25,6 @@ import java.nio.file.Paths;
 public class TestJobInfo {
 
     public static final String JOB_CLASS = "org.apache.flink.client.testjar.TestUserClassLoaderJob";
-    public static final String JOB_LIB_CLASS =
-            "org.apache.flink.client.testjar.TestUserClassLoaderJobLib";
     public static final Path JOB_JAR_PATH =
             Paths.get("target", "maven-test-user-classloader-job-jar.jar");
     public static final Path JOB_LIB_JAR_PATH =
