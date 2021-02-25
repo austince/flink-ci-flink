@@ -37,7 +37,12 @@ import java.util.Set;
 
 /**
  * An implementation of {@link ParquetInputFormat} to read records from Parquet files and convert
- * them to Avro GenericRecord.
+ * them to Avro GenericRecord. Usage:
+ * <pre>
+ * final ParquetAvroInputFormat inputFormat = new ParquetAvroInputFormat(new Path(filePath), parquetSchema);
+ * DataSource<GenericRecord> source = env.createInput(inputFormat, new GenericRecordAvroTypeInfo(inputFormat.getAvroSchema()));
+ * </pre>
+ * .
  */
 public class ParquetAvroInputFormat extends ParquetInputFormat<GenericRecord> {
 
