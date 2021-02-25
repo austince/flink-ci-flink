@@ -21,6 +21,7 @@ package org.apache.flink.runtime.externalresource;
 import org.apache.flink.api.common.externalresource.ExternalResourceDriver;
 import org.apache.flink.api.common.externalresource.ExternalResourceDriverFactory;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
@@ -38,6 +39,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -155,6 +157,29 @@ public class ExternalResourceUtils {
         }
 
         return externalResourceAmountMap;
+    }
+
+    /** Get the map of resource name and Resources of all of enabled external resources. */
+    public static Map<String, ExternalResource> getExternalResourcesMap(Configuration config) {
+        return getExternalResourceAmountMap(config).entrySet().stream()
+                .collect(
+                        Collectors.toMap(
+                                Map.Entry::getKey,
+                                entry -> new ExternalResource(entry.getKey(), entry.getValue())));
+    }
+
+    /** Generate the string expression of the given external resources. */
+    public static String generateExternalResourcesString(
+            Map<String, ExternalResource> extendedResources) {
+        final StringBuilder extendedResourceStr = new StringBuilder(extendedResources.size() * 10);
+        for (Map.Entry<String, ExternalResource> resource : extendedResources.entrySet()) {
+            extendedResourceStr
+                    .append(", ")
+                    .append(resource.getKey())
+                    .append('=')
+                    .append(resource.getValue().getValue());
+        }
+        return extendedResourceStr.toString();
     }
 
     /**

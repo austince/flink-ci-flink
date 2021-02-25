@@ -19,13 +19,20 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.resources.CPUResource;
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Resource specification of a worker, mainly used by SlotManager requesting from ResourceManager.
@@ -48,13 +55,16 @@ public final class WorkerResourceSpec implements Serializable {
 
     private final int numSlots;
 
+    private final Map<String, ExternalResource> extendedResources;
+
     private WorkerResourceSpec(
             CPUResource cpuCores,
             MemorySize taskHeapSize,
             MemorySize taskOffHeapSize,
             MemorySize networkMemSize,
             MemorySize managedMemSize,
-            int numSlots) {
+            int numSlots,
+            Map<String, ExternalResource> extendedResources) {
 
         this.cpuCores = Preconditions.checkNotNull(cpuCores);
         this.taskHeapSize = Preconditions.checkNotNull(taskHeapSize);
@@ -62,6 +72,10 @@ public final class WorkerResourceSpec implements Serializable {
         this.networkMemSize = Preconditions.checkNotNull(networkMemSize);
         this.managedMemSize = Preconditions.checkNotNull(managedMemSize);
         this.numSlots = numSlots;
+        this.extendedResources =
+                Preconditions.checkNotNull(extendedResources).entrySet().stream()
+                        .filter(entry -> !Preconditions.checkNotNull(entry.getValue()).isZero())
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     public static WorkerResourceSpec fromTaskExecutorProcessSpec(
@@ -73,7 +87,8 @@ public final class WorkerResourceSpec implements Serializable {
                 taskExecutorProcessSpec.getTaskOffHeapSize(),
                 taskExecutorProcessSpec.getNetworkMemSize(),
                 taskExecutorProcessSpec.getManagedMemorySize(),
-                taskExecutorProcessSpec.getNumSlots());
+                taskExecutorProcessSpec.getNumSlots(),
+                taskExecutorProcessSpec.getExtendedResources());
     }
 
     public static WorkerResourceSpec fromTotalResourceProfile(
@@ -85,7 +100,8 @@ public final class WorkerResourceSpec implements Serializable {
                 resourceProfile.getTaskOffHeapMemory(),
                 resourceProfile.getNetworkMemory(),
                 resourceProfile.getManagedMemory(),
-                numSlots);
+                numSlots,
+                resourceProfile.getExtendedResources());
     }
 
     public CPUResource getCpuCores() {
@@ -116,10 +132,20 @@ public final class WorkerResourceSpec implements Serializable {
         return numSlots;
     }
 
+    public Map<String, ExternalResource> getExtendedResources() {
+        return Collections.unmodifiableMap(extendedResources);
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(
-                cpuCores, taskHeapSize, taskOffHeapSize, networkMemSize, managedMemSize, numSlots);
+                cpuCores,
+                taskHeapSize,
+                taskOffHeapSize,
+                networkMemSize,
+                managedMemSize,
+                numSlots,
+                extendedResources);
     }
 
     @Override
@@ -133,7 +159,8 @@ public final class WorkerResourceSpec implements Serializable {
                     && Objects.equals(this.taskOffHeapSize, that.taskOffHeapSize)
                     && Objects.equals(this.networkMemSize, that.networkMemSize)
                     && Objects.equals(this.managedMemSize, that.managedMemSize)
-                    && Objects.equals(this.numSlots, that.numSlots);
+                    && Objects.equals(this.numSlots, that.numSlots)
+                    && Objects.equals(this.extendedResources, that.extendedResources);
         }
         return false;
     }
@@ -153,6 +180,7 @@ public final class WorkerResourceSpec implements Serializable {
                 + managedMemSize.toHumanReadableString()
                 + ", numSlots="
                 + numSlots
+                + ExternalResourceUtils.generateExternalResourcesString(extendedResources)
                 + "}";
     }
 
@@ -164,6 +192,7 @@ public final class WorkerResourceSpec implements Serializable {
         private MemorySize networkMemSize = MemorySize.ZERO;
         private MemorySize managedMemSize = MemorySize.ZERO;
         private int numSlots = 1;
+        private Map<String, ExternalResource> extendedResources = new HashMap<>();
 
         public Builder() {}
 
@@ -197,6 +226,21 @@ public final class WorkerResourceSpec implements Serializable {
             return this;
         }
 
+        public Builder addExtendedResource(ExternalResource extendedResource) {
+            this.extendedResources.put(extendedResource.getName(), extendedResource);
+            return this;
+        }
+
+        public Builder addExtendedResources(Collection<ExternalResource> extendedResources) {
+            if (extendedResources != null) {
+                extendedResources.forEach(
+                        extendedResource ->
+                                this.extendedResources.put(
+                                        extendedResource.getName(), extendedResource));
+            }
+            return this;
+        }
+
         public WorkerResourceSpec build() {
             return new WorkerResourceSpec(
                     cpuCores,
@@ -204,7 +248,8 @@ public final class WorkerResourceSpec implements Serializable {
                     taskOffHeapSize,
                     networkMemSize,
                     managedMemSize,
-                    numSlots);
+                    numSlots,
+                    extendedResources);
         }
     }
 }

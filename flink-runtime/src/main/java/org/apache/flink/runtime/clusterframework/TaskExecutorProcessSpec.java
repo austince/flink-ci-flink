@@ -20,12 +20,18 @@ package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.resources.CPUResource;
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.runtime.util.config.memory.CommonProcessMemorySpec;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverhead;
 import org.apache.flink.runtime.util.config.memory.taskmanager.TaskExecutorFlinkMemory;
+import org.apache.flink.util.Preconditions;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Describe the specifics of different resource dimensions of the TaskExecutor process.
@@ -87,6 +93,8 @@ public class TaskExecutorProcessSpec extends CommonProcessMemorySpec<TaskExecuto
 
     private final int numSlots;
 
+    private final Map<String, ExternalResource> extendedResources;
+
     @VisibleForTesting
     public TaskExecutorProcessSpec(
             CPUResource cpuCores,
@@ -97,7 +105,8 @@ public class TaskExecutorProcessSpec extends CommonProcessMemorySpec<TaskExecuto
             MemorySize networkMemSize,
             MemorySize managedMemorySize,
             MemorySize jvmMetaspaceSize,
-            MemorySize jvmOverheadSize) {
+            MemorySize jvmOverheadSize,
+            Map<String, ExternalResource> extendedResources) {
 
         this(
                 cpuCores,
@@ -109,18 +118,24 @@ public class TaskExecutorProcessSpec extends CommonProcessMemorySpec<TaskExecuto
                         networkMemSize,
                         managedMemorySize),
                 new JvmMetaspaceAndOverhead(jvmMetaspaceSize, jvmOverheadSize),
-                1);
+                1,
+                extendedResources);
     }
 
     protected TaskExecutorProcessSpec(
             CPUResource cpuCores,
             TaskExecutorFlinkMemory flinkMemory,
             JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead,
-            int numSlots) {
+            int numSlots,
+            Map<String, ExternalResource> extendedResources) {
 
         super(flinkMemory, jvmMetaspaceAndOverhead);
         this.cpuCores = cpuCores;
         this.numSlots = numSlots;
+        this.extendedResources =
+                Preconditions.checkNotNull(extendedResources).entrySet().stream()
+                        .filter(entry -> !Preconditions.checkNotNull(entry.getValue()).isZero())
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     public CPUResource getCpuCores() {
@@ -155,6 +170,10 @@ public class TaskExecutorProcessSpec extends CommonProcessMemorySpec<TaskExecuto
         return numSlots;
     }
 
+    public Map<String, ExternalResource> getExtendedResources() {
+        return Collections.unmodifiableMap(extendedResources);
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (obj == this) {
@@ -165,14 +184,20 @@ public class TaskExecutorProcessSpec extends CommonProcessMemorySpec<TaskExecuto
                     && Objects.equals(
                             this.getJvmMetaspaceAndOverhead(), that.getJvmMetaspaceAndOverhead())
                     && Objects.equals(this.getFlinkMemory(), that.getFlinkMemory())
-                    && Objects.equals(this.numSlots, that.numSlots);
+                    && Objects.equals(this.numSlots, that.numSlots)
+                    && Objects.equals(this.getExtendedResources(), that.getExtendedResources());
         }
         return false;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getJvmMetaspaceAndOverhead(), getFlinkMemory(), cpuCores, numSlots);
+        return Objects.hash(
+                getJvmMetaspaceAndOverhead(),
+                getFlinkMemory(),
+                cpuCores,
+                numSlots,
+                extendedResources);
     }
 
     @Override
@@ -198,6 +223,7 @@ public class TaskExecutorProcessSpec extends CommonProcessMemorySpec<TaskExecuto
                 + getJvmOverheadSize().toHumanReadableString()
                 + ", numSlots="
                 + numSlots
+                + ExternalResourceUtils.generateExternalResourcesString(extendedResources)
                 + '}';
     }
 }

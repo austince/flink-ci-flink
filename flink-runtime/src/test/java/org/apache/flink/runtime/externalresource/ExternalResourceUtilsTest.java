@@ -20,6 +20,7 @@ package org.apache.flink.runtime.externalresource;
 
 import org.apache.flink.api.common.externalresource.ExternalResourceDriver;
 import org.apache.flink.api.common.externalresource.ExternalResourceDriverFactory;
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.core.plugin.PluginManager;
@@ -328,5 +329,25 @@ public class ExternalResourceUtilsTest extends TestLogger {
                 ExternalResourceUtils.getExternalResourceAmountMap(config);
 
         assertThat(externalResourceAmountMap.entrySet(), is(empty()));
+    }
+
+    @Test
+    public void testGetExternalResourcesMap() {
+        final Configuration config = new Configuration();
+        config.set(
+                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST,
+                Collections.singletonList(RESOURCE_NAME_1));
+        config.setLong(
+                ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1),
+                RESOURCE_AMOUNT_1);
+
+        final Map<String, ExternalResource> externalResourcesMap =
+                ExternalResourceUtils.getExternalResourcesMap(config);
+
+        assertThat(externalResourcesMap.size(), is(1));
+        assertTrue(externalResourcesMap.containsKey(RESOURCE_NAME_1));
+        assertThat(
+                externalResourcesMap.get(RESOURCE_NAME_1),
+                is(new ExternalResource(RESOURCE_NAME_1, RESOURCE_AMOUNT_1)));
     }
 }
