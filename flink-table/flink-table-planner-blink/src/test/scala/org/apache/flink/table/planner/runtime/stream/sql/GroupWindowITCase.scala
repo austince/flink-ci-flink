@@ -361,4 +361,106 @@ class GroupWindowITCase(mode: StateBackendMode)
     tableConfig.getConfiguration.set(
       TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofMillis(intervalInMillis))
   }
+
+  @Test
+  def testWindowAggregateWithGroupingSet(): Unit = {
+    val stream = failingDataSource(data)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(
+          Long, Int, Double, Float, BigDecimal, String, String)](10L))
+    val table =
+      stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
+    tEnv.registerTable("T1", table)
+    val sql =
+      """
+        |SELECT
+        |GROUP_ID(),
+        |GROUPING_ID(`int`),
+        |GROUPING(`int`),
+        |TUMBLE_END(rowtime, INTERVAL '0.003' SECOND), `int`, COUNT(name)
+        |FROM T1
+        |GROUP BY GROUPING SETS (`int`, ()), TUMBLE(rowtime, INTERVAL '0.003' SECOND)
+      """.stripMargin
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+    val expected = Seq(
+      "0,0,0,1970-01-01T00:00:00.003,1,1",
+      "0,0,0,1970-01-01T00:00:00.003,2,1",
+      "0,1,1,1970-01-01T00:00:00.003,null,2",
+      "0,0,0,1970-01-01T00:00:00.006,2,1",
+      "0,0,0,1970-01-01T00:00:00.006,5,1",
+      "0,1,1,1970-01-01T00:00:00.006,null,2",
+      "0,0,0,1970-01-01T00:00:00.009,3,2",
+      "0,0,0,1970-01-01T00:00:00.009,5,1",
+      "0,1,1,1970-01-01T00:00:00.009,null,3",
+      "0,0,0,1970-01-01T00:00:00.018,4,1",
+      "0,1,1,1970-01-01T00:00:00.018,null,1",
+      "0,0,0,1970-01-01T00:00:00.033,4,0",
+      "0,1,1,1970-01-01T00:00:00.033,null,0")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test(expected = classOf[RuntimeException])
+  def testWindowAggregateWithGroupingSetError(): Unit = {
+    // Each grouping by keys must contain same window
+    val stream = env.fromCollection(data)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(
+          Long, Int, Double, Float, BigDecimal, String, String)](10L))
+    val table =
+      stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
+    tEnv.registerTable("T1", table)
+    val sql =
+      """
+        |SELECT TUMBLE_END(rowtime, INTERVAL '0.003' SECOND), `int`, COUNT(name)
+        |FROM T1
+        |GROUP BY GROUPING SETS ((`int`, TUMBLE(rowtime, INTERVAL '0.003' SECOND)), ())
+      """.stripMargin
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+  }
+
+  @Test(expected = classOf[RuntimeException])
+  def testWindowAggregateWithCubeError(): Unit = {
+    // Each grouping by keys must contain same window
+    val stream = env.fromCollection(data)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(
+          Long, Int, Double, Float, BigDecimal, String, String)](10L))
+    val table =
+      stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
+    tEnv.registerTable("T1", table)
+    val sql =
+      """
+        |SELECT TUMBLE_END(rowtime, INTERVAL '0.003' SECOND), `int`, COUNT(name)
+        |FROM T1
+        |GROUP BY cube(`int`, TUMBLE(rowtime, INTERVAL '0.003' SECOND))
+      """.stripMargin
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+  }
+
+  @Test(expected = classOf[RuntimeException])
+  def testWindowAggregateWithRollupError(): Unit = {
+    // Each grouping by keys must contain same window
+    val stream = env.fromCollection(data)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(
+          Long, Int, Double, Float, BigDecimal, String, String)](10L))
+    val table =
+      stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
+    tEnv.registerTable("T1", table)
+    val sql =
+      """
+        |SELECT TUMBLE_END(rowtime, INTERVAL '0.003' SECOND), `int`, COUNT(name)
+        |FROM T1
+        |GROUP BY rollup(`int`, TUMBLE(rowtime, INTERVAL '0.003' SECOND))
+      """.stripMargin
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    env.execute()
+  }
 }
