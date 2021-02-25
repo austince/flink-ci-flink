@@ -103,6 +103,10 @@ class TtlListState<K, N, T>
     @Nullable
     @Override
     public List<TtlValue<T>> getUnexpiredOrNull(@Nonnull List<TtlValue<T>> ttlValues) {
+        if (ttlValues.isEmpty()) {
+            return ttlValues;
+        }
+
         long currentTimestamp = timeProvider.currentTimestamp();
         List<TtlValue<T>> unexpired = new ArrayList<>(ttlValues.size());
         TypeSerializer<TtlValue<T>> elementSerializer =
@@ -117,7 +121,7 @@ class TtlListState<K, N, T>
         if (!unexpired.isEmpty()) {
             return unexpired;
         } else {
-            return ttlValues.size() == unexpired.size() ? ttlValues : unexpired;
+            return ttlValues.size() == unexpired.size() ? ttlValues : null;
         }
     }
 

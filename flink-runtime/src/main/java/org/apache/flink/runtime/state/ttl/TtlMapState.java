@@ -134,6 +134,9 @@ class TtlMapState<K, N, UK, UV>
     @Nullable
     @Override
     public Map<UK, TtlValue<UV>> getUnexpiredOrNull(@Nonnull Map<UK, TtlValue<UV>> ttlValue) {
+        if (ttlValue.size() == 0) {
+            return ttlValue;
+        }
         Map<UK, TtlValue<UV>> unexpired = new HashMap<>();
         TypeSerializer<TtlValue<UV>> valueSerializer =
                 ((MapSerializer<UK, TtlValue<UV>>) original.getValueSerializer())
@@ -144,7 +147,11 @@ class TtlMapState<K, N, UK, UV>
                 unexpired.put(e.getKey(), valueSerializer.copy(e.getValue()));
             }
         }
-        return ttlValue.size() == unexpired.size() ? ttlValue : unexpired;
+        if (unexpired.size() == 0) {
+            return null;
+        } else {
+            return ttlValue.size() == unexpired.size() ? ttlValue : unexpired;
+        }
     }
 
     @Override
