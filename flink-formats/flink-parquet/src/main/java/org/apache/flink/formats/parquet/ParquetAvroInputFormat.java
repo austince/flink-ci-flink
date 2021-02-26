@@ -57,6 +57,7 @@ public class ParquetAvroInputFormat extends ParquetInputFormat<GenericRecord> {
 
     @Override
     public void selectFields(String[] fieldNames) {
+        //TODO debug, does not work
         super.selectFields(fieldNames);
         avroSchema = getProjectedSchema(fieldNames, avroSchema);
     }
