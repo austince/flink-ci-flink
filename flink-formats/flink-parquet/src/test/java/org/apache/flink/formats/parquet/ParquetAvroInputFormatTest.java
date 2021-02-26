@@ -18,22 +18,18 @@
 
 package org.apache.flink.formats.parquet;
 
-import org.apache.avro.AvroRuntimeException;
-
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.formats.parquet.pojo.PojoSimpleRecord;
 import org.apache.flink.formats.parquet.utils.TestUtil;
 import org.apache.flink.types.Row;
 
+import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.parquet.schema.MessageType;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -42,7 +38,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
@@ -76,9 +71,9 @@ public class ParquetAvroInputFormatTest extends TestUtil {
         inputFormat.open(splits[0]);
 
         final GenericRecord genericRecord = inputFormat.nextRecord(null);
-        assertEquals(testData.f1.get(0), genericRecord.get("foo"));
-        assertEquals(testData.f1.get(1), genericRecord.get("bar").toString());
-        assertArrayEquals(((List<Long>)testData.f1.get(2)).toArray(), ((List<Long>) genericRecord.get("arr")).toArray());
+        assertEquals(testData.f2.getField(0), genericRecord.get("foo"));
+        assertEquals(testData.f2.getField(1), genericRecord.get("bar").toString());
+        assertArrayEquals((Long[])testData.f2.getField(2), ((List<Long>) genericRecord.get("arr")).toArray());
     }
 
     @Test(expected = AvroRuntimeException.class)
@@ -103,7 +98,7 @@ public class ParquetAvroInputFormatTest extends TestUtil {
         inputFormat.open(splits[0]);
 
         final GenericRecord genericRecord = inputFormat.nextRecord(null);
-        assertEquals(testData.f1.get(0), genericRecord.get("foo"));
+        assertEquals(testData.f2.getField(0), genericRecord.get("foo"));
         //should throw AvroRuntimeException("Not a valid schema field: bar")
         genericRecord.get("bar");
     }
