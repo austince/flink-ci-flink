@@ -55,7 +55,7 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
         |SELECT
         |  o.amount * r.rate AS amount
         |FROM
-        |  (SELECT * FROM Orders UNION SELECT * FROM Orders2) AS o,
+        |  (SELECT * FROM Orders UNION ALL SELECT * FROM Orders2) AS o,
         |   TABLE (Rates(o.proctime)) AS r
         |WHERE r.currency = o.currency
         |""".stripMargin
