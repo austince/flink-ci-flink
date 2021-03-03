@@ -98,7 +98,12 @@ public class BatchingStateChangeStoreTest {
         DirectScheduledExecutorService scheduler = new DirectScheduledExecutorService();
         try (BatchingStateChangeStore store =
                 new BatchingStateChangeStore(
-                        0, 0, 1000, RetryPolicy.NONE, probe, scheduler, new RetryingExecutor())) {
+                        Integer.MAX_VALUE,
+                        Integer.MAX_VALUE,
+                        RetryPolicy.NONE,
+                        probe,
+                        scheduler,
+                        new RetryingExecutor())) {
             scheduler.shutdown();
             List<StateChangeSet> changes = getChanges();
             try {
@@ -117,7 +122,6 @@ public class BatchingStateChangeStoreTest {
         new BatchingStateChangeStore(
                         0,
                         0,
-                        1000,
                         RetryPolicy.NONE,
                         probe,
                         scheduler,
@@ -149,7 +153,6 @@ public class BatchingStateChangeStoreTest {
                 new BatchingStateChangeStore(
                         delayMs,
                         sizeThreshold,
-                        1000,
                         RetryPolicy.NONE,
                         probe,
                         new DirectScheduledExecutorService(),

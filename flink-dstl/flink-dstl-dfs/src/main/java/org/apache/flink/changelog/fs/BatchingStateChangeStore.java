@@ -20,30 +20,41 @@ package org.apache.flink.changelog.fs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.GuardedBy;
+import javax.annotation.concurrent.ThreadSafe;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ScheduledFuture;
 
+import static java.lang.Thread.holdsLock;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.rethrow;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@link StateChangeStore} that waits for some configured amount of time before passing the
  * accumulated state changes to the actual store.
  */
+@ThreadSafe
 class BatchingStateChangeStore implements StateChangeStore {
     private static final Logger LOG = LoggerFactory.getLogger(BatchingStateChangeStore.class);
 
     private final ScheduledExecutorService scheduler;
     private final long scheduleDelayMs;
-    private final BlockingQueue<StateChangeSet> scheduled;
-    private final AtomicBoolean drainScheduled;
+
+    @GuardedBy("scheduled")
+    private final Queue<StateChangeSet> scheduled;
+
+    @GuardedBy("scheduled")
+    private ScheduledFuture<?> scheduledFuture;
+
     private final RetryPolicy retryPolicy;
     private volatile Throwable error;
     private final int sizeThreshold;
@@ -53,31 +64,27 @@ class BatchingStateChangeStore implements StateChangeStore {
     BatchingStateChangeStore(
             long persistDelayMs,
             int sizeThreshold,
-            int requestQueueCapacity,
             RetryPolicy retryPolicy,
             StateChangeStore delegate) {
-        this.scheduleDelayMs = persistDelayMs;
-        this.scheduled = new ArrayBlockingQueue<>(requestQueueCapacity, true);
-        this.scheduler = SchedulerFactory.create(1, "ChangelogRetryScheduler", LOG);
-        this.drainScheduled = new AtomicBoolean(false);
-        this.retryPolicy = retryPolicy;
-        this.retryingExecutor = new RetryingExecutor();
-        this.sizeThreshold = sizeThreshold;
-        this.delegate = delegate;
+        this(
+                persistDelayMs,
+                sizeThreshold,
+                retryPolicy,
+                delegate,
+                SchedulerFactory.create(1, "ChangelogRetryScheduler", LOG),
+                new RetryingExecutor());
     }
 
     BatchingStateChangeStore(
             long persistDelayMs,
             int sizeThreshold,
-            int requestQueueCapacity,
             RetryPolicy retryPolicy,
             StateChangeStore delegate,
             ScheduledExecutorService scheduler,
             RetryingExecutor retryingExecutor) {
         this.scheduleDelayMs = persistDelayMs;
-        this.scheduled = new ArrayBlockingQueue<>(requestQueueCapacity, true);
+        this.scheduled = new LinkedList<>();
         this.scheduler = scheduler;
-        this.drainScheduled = new AtomicBoolean(false);
         this.retryPolicy = retryPolicy;
         this.retryingExecutor = retryingExecutor;
         this.sizeThreshold = sizeThreshold;
@@ -93,10 +100,10 @@ class BatchingStateChangeStore implements StateChangeStore {
         }
         LOG.debug("persist {} changeSets", changeSets.size());
         try {
-            for (StateChangeSet changeSet : changeSets) {
-                scheduled.put(changeSet); // blocks if no space in the queue
+            synchronized (scheduled) {
+                scheduled.addAll(changeSets);
+                scheduleUploadIfNeeded();
             }
-            scheduleUploadIfNeeded();
         } catch (Exception e) {
             changeSets.forEach(cs -> cs.setFailed(e));
             rethrow(e);
@@ -104,26 +111,29 @@ class BatchingStateChangeStore implements StateChangeStore {
     }
 
     private void scheduleUploadIfNeeded() {
+        checkState(holdsLock(scheduled));
         if (scheduleDelayMs == 0 || scheduled.size() >= sizeThreshold) {
-            scheduler.execute(this::drainAndSave);
-        } else if (drainScheduled.compareAndSet(false, true)) {
-            scheduler.schedule(this::drainAndSave, scheduleDelayMs, MILLISECONDS);
+            if (scheduledFuture != null) {
+                scheduledFuture.cancel(false);
+                scheduledFuture = null;
+            }
+            drainAndSave();
+        } else if (scheduledFuture == null) {
+            scheduledFuture = scheduler.schedule(this::drainAndSave, scheduleDelayMs, MILLISECONDS);
         }
     }
 
     private void drainAndSave() {
-        Collection<StateChangeSet> changeSets = new ArrayList<>();
-        scheduled.drainTo(changeSets);
+        Collection<StateChangeSet> changeSets;
+        synchronized (scheduled) {
+            changeSets = new ArrayList<>(scheduled);
+            scheduled.clear();
+            scheduledFuture = null;
+        }
         try {
             if (error != null) {
                 changeSets.forEach(changeSet -> changeSet.setFailed(error));
                 return;
-            }
-            drainScheduled.set(false); // allow other uploads to be scheduled and run
-            if (!scheduled.isEmpty()) {
-                // re-schedule in case if other thread added changes
-                // which weren't drained nor scheduled for upload
-                scheduleUploadIfNeeded();
             }
             retryingExecutor.execute(retryPolicy, () -> delegate.save(changeSets));
         } catch (Throwable t) {
@@ -144,8 +154,11 @@ class BatchingStateChangeStore implements StateChangeStore {
         if (!scheduler.awaitTermination(1, SECONDS)) {
             LOG.warn("Unable to cleanly shutdown scheduler in 1s");
         }
-        ArrayList<StateChangeSet> drained = new ArrayList<>();
-        scheduled.drainTo(drained);
+        ArrayList<StateChangeSet> drained;
+        synchronized (scheduled) {
+            drained = new ArrayList<>(scheduled);
+            scheduled.clear();
+        }
         drained.forEach(StateChangeSet::setCancelled);
         retryingExecutor.close();
         delegate.close();

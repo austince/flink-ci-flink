@@ -27,7 +27,6 @@ import static org.apache.flink.changelog.fs.FsStateChangelogOptions.BASE_PATH;
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.BATCH_ENABLED;
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.PERSIST_DELAY_MS;
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.PERSIST_SIZE_THRESHOLD;
-import static org.apache.flink.changelog.fs.FsStateChangelogOptions.REQUEST_QUEUE_CAPACITY;
 
 // todo in MVP or later: implement CheckpointStreamFactory / CheckpointStorageWorkerView - based
 // store
@@ -50,7 +49,6 @@ interface StateChangeStore extends AutoCloseable {
             return createBatchingStore(
                     config.get(PERSIST_DELAY_MS),
                     config.get(PERSIST_SIZE_THRESHOLD),
-                    config.get(REQUEST_QUEUE_CAPACITY),
                     RetryPolicy.fromConfig(config),
                     store);
         } else {
@@ -65,10 +63,9 @@ interface StateChangeStore extends AutoCloseable {
     static StateChangeStore createBatchingStore(
             long persistDelayMs,
             int persistSizeThreshold,
-            int requestQueueCapacity,
             RetryPolicy retryPolicy,
             StateChangeFsStore delegate) {
         return new BatchingStateChangeStore(
-                persistDelayMs, persistSizeThreshold, requestQueueCapacity, retryPolicy, delegate);
+                persistDelayMs, persistSizeThreshold, retryPolicy, delegate);
     }
 }

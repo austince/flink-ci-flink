@@ -60,22 +60,15 @@ public class FsStateChangelogWriterFactory
      *     BatchingStateChangeStore batching}
      * @param persistSizeThreshold when reached, persist is triggered regardless of persistDelayMs
      *     (number of pending state changes from any client)
-     * @param requestQueueCapacity size of the queue which holds the submitted data for batching.
-     *     Upon reaching this limit {@link StateChangelogWriter#persist persist} will block
      * @param retryPolicy to use when uploading
      */
     public FsStateChangelogWriterFactory(
-            Path basePath,
-            long persistDelayMs,
-            int persistSizeThreshold,
-            int requestQueueCapacity,
-            RetryPolicy retryPolicy)
+            Path basePath, long persistDelayMs, int persistSizeThreshold, RetryPolicy retryPolicy)
             throws IOException {
         this(
                 StateChangeStore.createBatchingStore(
                         persistDelayMs,
                         persistSizeThreshold,
-                        requestQueueCapacity,
                         retryPolicy,
                         new StateChangeFsStore(basePath, basePath.getFileSystem())));
     }

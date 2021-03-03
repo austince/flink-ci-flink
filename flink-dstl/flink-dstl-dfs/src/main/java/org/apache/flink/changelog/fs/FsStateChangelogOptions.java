@@ -34,8 +34,6 @@ public class FsStateChangelogOptions {
             ConfigOptions.key("dstl.dfs.batch.persist-delay-ms").longType().defaultValue(50L);
     public static final ConfigOption<Integer> PERSIST_SIZE_THRESHOLD =
             ConfigOptions.key("dstl.dfs.batch.persist-size-threshold").intType().defaultValue(100);
-    public static final ConfigOption<Integer> REQUEST_QUEUE_CAPACITY =
-            ConfigOptions.key("dstl.dfs.batch.request-queue-capacity").intType().defaultValue(1000);
     public static final ConfigOption<String> RETRY_POLICY_NAME =
             ConfigOptions.key("dstl.dfs.retry.policy-name").stringType().defaultValue("fixed");
     public static final ConfigOption<Integer> RETRY_TIMEOUT =
