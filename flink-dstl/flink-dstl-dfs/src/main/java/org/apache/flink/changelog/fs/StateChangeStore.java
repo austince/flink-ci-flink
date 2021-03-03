@@ -48,7 +48,7 @@ interface StateChangeStore extends AutoCloseable {
         if (config.get(BATCH_ENABLED)) {
             return createBatchingStore(
                     config.get(PERSIST_DELAY_MS),
-                    config.get(PERSIST_SIZE_THRESHOLD),
+                    config.get(PERSIST_SIZE_THRESHOLD).getBytes(),
                     RetryPolicy.fromConfig(config),
                     store);
         } else {
@@ -62,7 +62,7 @@ interface StateChangeStore extends AutoCloseable {
 
     static StateChangeStore createBatchingStore(
             long persistDelayMs,
-            int persistSizeThreshold,
+            long persistSizeThreshold,
             RetryPolicy retryPolicy,
             StateChangeFsStore delegate) {
         return new BatchingStateChangeStore(

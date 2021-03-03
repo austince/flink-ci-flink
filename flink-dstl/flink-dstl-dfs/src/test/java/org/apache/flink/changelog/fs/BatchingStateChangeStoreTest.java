@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.RejectedExecutionException;
 
@@ -41,16 +42,18 @@ import static org.junit.Assert.assertTrue;
 /** {@link BatchingStateChangeStore} test. */
 public class BatchingStateChangeStoreTest {
 
+    private final Random random = new Random();
+
     @Test
     public void testNoDelayAndThreshold() throws Exception {
         withStore(
                 0,
                 0,
                 (store, probe) -> {
-                    List<StateChangeSet> changes1 = getChanges();
+                    List<StateChangeSet> changes1 = getChanges(4);
                     store.save(changes1);
                     assertSaved(probe, changes1);
-                    List<StateChangeSet> changes2 = getChanges();
+                    List<StateChangeSet> changes2 = getChanges(4);
                     store.save(changes2);
                     assertSaved(probe, changes1, changes2);
                 });
@@ -58,17 +61,21 @@ public class BatchingStateChangeStoreTest {
 
     @Test
     public void testSizeThreshold() throws Exception {
-        int threshold = 5;
+        int numChanges = 7;
+        int changeSize = 11;
+        int threshold = changeSize * numChanges;
         withStore(
                 Integer.MAX_VALUE,
                 threshold,
                 (store, probe) -> {
                     List<StateChangeSet> expected = new ArrayList<>();
-                    for (int i = 1; i <= threshold; i++) {
-                        List<StateChangeSet> changes = getChanges();
+                    int runningSize = 0;
+                    for (int i = 0; i < numChanges; i++) {
+                        List<StateChangeSet> changes = getChanges(changeSize);
+                        runningSize += changes.stream().mapToLong(StateChangeSet::getSize).sum();
                         store.save(changes);
                         expected.addAll(changes);
-                        if (i == threshold) {
+                        if (runningSize >= threshold) {
                             assertSaved(probe, expected);
                         } else {
                             assertTrue(probe.getSaved().isEmpty());
@@ -84,7 +91,7 @@ public class BatchingStateChangeStoreTest {
                 delayMs,
                 Integer.MAX_VALUE,
                 (store, probe) -> {
-                    List<StateChangeSet> changeSets = getChanges();
+                    List<StateChangeSet> changeSets = getChanges(4);
                     store.save(changeSets);
                     assertTrue(probe.getSaved().isEmpty());
                     Thread.sleep(delayMs * 2);
@@ -105,7 +112,7 @@ public class BatchingStateChangeStoreTest {
                         scheduler,
                         new RetryingExecutor())) {
             scheduler.shutdown();
-            List<StateChangeSet> changes = getChanges();
+            List<StateChangeSet> changes = getChanges(4);
             try {
                 store.save(changes);
             } finally {
@@ -132,12 +139,14 @@ public class BatchingStateChangeStoreTest {
         assertTrue(retryScheduler.isShutdown());
     }
 
-    private List<StateChangeSet> getChanges() {
+    private List<StateChangeSet> getChanges(int size) {
+        byte[] change = new byte[size];
+        random.nextBytes(change);
         return singletonList(
                 new StateChangeSet(
                         UUID.randomUUID(),
                         SequenceNumber.of(0),
-                        singletonList(new StateChange(0, new byte[] {0, 1, 2, 3})),
+                        singletonList(new StateChange(0, change)),
                         StateChangeSet.Status.SCHEDULED));
     }
 

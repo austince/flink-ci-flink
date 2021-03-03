@@ -20,6 +20,7 @@ package org.apache.flink.changelog.fs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -46,29 +47,33 @@ import static org.apache.flink.util.Preconditions.checkState;
 class BatchingStateChangeStore implements StateChangeStore {
     private static final Logger LOG = LoggerFactory.getLogger(BatchingStateChangeStore.class);
 
+    private final RetryingExecutor retryingExecutor;
+    private final RetryPolicy retryPolicy;
+    private final StateChangeStore delegate;
     private final ScheduledExecutorService scheduler;
     private final long scheduleDelayMs;
+    private final long sizeThresholdBytes;
 
     @GuardedBy("scheduled")
     private final Queue<StateChangeSet> scheduled;
 
     @GuardedBy("scheduled")
+    private long scheduledSizeInBytes;
+
+    @Nullable
+    @GuardedBy("scheduled")
     private ScheduledFuture<?> scheduledFuture;
 
-    private final RetryPolicy retryPolicy;
     private volatile Throwable error;
-    private final int sizeThreshold;
-    private final RetryingExecutor retryingExecutor;
-    private final StateChangeStore delegate;
 
     BatchingStateChangeStore(
             long persistDelayMs,
-            int sizeThreshold,
+            long sizeThresholdBytes,
             RetryPolicy retryPolicy,
             StateChangeStore delegate) {
         this(
                 persistDelayMs,
-                sizeThreshold,
+                sizeThresholdBytes,
                 retryPolicy,
                 delegate,
                 SchedulerFactory.create(1, "ChangelogRetryScheduler", LOG),
@@ -77,7 +82,7 @@ class BatchingStateChangeStore implements StateChangeStore {
 
     BatchingStateChangeStore(
             long persistDelayMs,
-            int sizeThreshold,
+            long sizeThresholdBytes,
             RetryPolicy retryPolicy,
             StateChangeStore delegate,
             ScheduledExecutorService scheduler,
@@ -87,7 +92,7 @@ class BatchingStateChangeStore implements StateChangeStore {
         this.scheduler = scheduler;
         this.retryPolicy = retryPolicy;
         this.retryingExecutor = retryingExecutor;
-        this.sizeThreshold = sizeThreshold;
+        this.sizeThresholdBytes = sizeThresholdBytes;
         this.delegate = delegate;
     }
 
@@ -101,7 +106,10 @@ class BatchingStateChangeStore implements StateChangeStore {
         LOG.debug("persist {} changeSets", changeSets.size());
         try {
             synchronized (scheduled) {
-                scheduled.addAll(changeSets);
+                for (StateChangeSet changeSet : changeSets) {
+                    scheduled.add(changeSet);
+                    scheduledSizeInBytes += changeSet.getSize();
+                }
                 scheduleUploadIfNeeded();
             }
         } catch (Exception e) {
@@ -112,7 +120,7 @@ class BatchingStateChangeStore implements StateChangeStore {
 
     private void scheduleUploadIfNeeded() {
         checkState(holdsLock(scheduled));
-        if (scheduleDelayMs == 0 || scheduled.size() >= sizeThreshold) {
+        if (scheduleDelayMs == 0 || scheduledSizeInBytes >= sizeThresholdBytes) {
             if (scheduledFuture != null) {
                 scheduledFuture.cancel(false);
                 scheduledFuture = null;
@@ -128,6 +136,7 @@ class BatchingStateChangeStore implements StateChangeStore {
         synchronized (scheduled) {
             changeSets = new ArrayList<>(scheduled);
             scheduled.clear();
+            scheduledSizeInBytes = 0;
             scheduledFuture = null;
         }
         try {
@@ -158,6 +167,7 @@ class BatchingStateChangeStore implements StateChangeStore {
         synchronized (scheduled) {
             drained = new ArrayList<>(scheduled);
             scheduled.clear();
+            scheduledSizeInBytes = 0;
         }
         drained.forEach(StateChangeSet::setCancelled);
         retryingExecutor.close();

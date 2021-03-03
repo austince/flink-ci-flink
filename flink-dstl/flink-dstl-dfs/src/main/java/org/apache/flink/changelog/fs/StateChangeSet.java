@@ -77,6 +77,14 @@ class StateChangeSet {
         return changes;
     }
 
+    public long getSize() {
+        long size = 0;
+        for (StateChange change : changes) {
+            size += change.getChange().length;
+        }
+        return size;
+    }
+
     boolean setScheduled() {
         return setStatus(SCHEDULED);
     }

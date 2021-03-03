@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.MemorySize;
 
 /** {@link ConfigOptions} for {@link FsStateChangelogWriterFactory}. */
 @Experimental
@@ -32,8 +33,10 @@ public class FsStateChangelogOptions {
             ConfigOptions.key("dstl.dfs.batch.enabled").booleanType().defaultValue(true);
     public static final ConfigOption<Long> PERSIST_DELAY_MS =
             ConfigOptions.key("dstl.dfs.batch.persist-delay-ms").longType().defaultValue(50L);
-    public static final ConfigOption<Integer> PERSIST_SIZE_THRESHOLD =
-            ConfigOptions.key("dstl.dfs.batch.persist-size-threshold").intType().defaultValue(100);
+    public static final ConfigOption<MemorySize> PERSIST_SIZE_THRESHOLD =
+            ConfigOptions.key("dstl.dfs.batch.persist-size-threshold-kb")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("100Kb"));
     public static final ConfigOption<String> RETRY_POLICY_NAME =
             ConfigOptions.key("dstl.dfs.retry.policy-name").stringType().defaultValue("fixed");
     public static final ConfigOption<Integer> RETRY_TIMEOUT =
