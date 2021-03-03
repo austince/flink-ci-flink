@@ -79,8 +79,8 @@ class FsStateChangelogWriter implements StateChangelogWriter<StateChangelogHandl
 
     @Override
     public SequenceNumber lastAppendedSequenceNumber() {
-        LOG.trace("query {} sqn: {}", logId, lastAppendedSequenceNumber);
         rollover();
+        LOG.trace("query {} sqn: {}", logId, lastAppendedSequenceNumber);
         return lastAppendedSequenceNumber;
     }
 

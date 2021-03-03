@@ -114,7 +114,7 @@ class BatchingStateChangeStore implements StateChangeStore {
             }
         } catch (Exception e) {
             changeSets.forEach(cs -> cs.setFailed(e));
-            rethrow(e);
+            throw e;
         }
     }
 
@@ -151,7 +151,7 @@ class BatchingStateChangeStore implements StateChangeStore {
                 LOG.warn("Caught IO exception while uploading", t);
             } else {
                 error = t;
-                rethrow(t);
+                throw t;
             }
         }
     }

@@ -20,6 +20,8 @@ package org.apache.flink.changelog.fs;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -44,6 +46,12 @@ import static org.apache.flink.changelog.fs.StateChangeSet.Status.UPLOADED;
 import static org.apache.flink.changelog.fs.StateChangeSet.Status.UPLOADING;
 import static org.apache.flink.util.Preconditions.checkState;
 
+/**
+ * A set of changes made to some state(s) by a single state backend during a single checkpoint.
+ * There can be zero or more change sets for a single checkpoint. Thread-safe with the assumption
+ * that constructor arguments are not modified outside.
+ */
+@ThreadSafe
 class StateChangeSet {
     private final UUID logId;
     private final AtomicReference<Status> status;
