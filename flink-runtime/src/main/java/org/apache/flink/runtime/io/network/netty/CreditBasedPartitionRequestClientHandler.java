@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ResumeConsumption;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
@@ -300,6 +301,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             try {
                 decodeBufferOrEvent(inputChannel, bufferOrEvent);
             } catch (Throwable t) {
+                t.printStackTrace();
                 inputChannel.onError(t);
             }
 
@@ -330,6 +332,15 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
                     }
                 }
             }
+        } else if (msgClazz == NettyMessage.BacklogAnnouncement.class) {
+            NettyMessage.BacklogAnnouncement announcement = (NettyMessage.BacklogAnnouncement) msg;
+
+            RemoteInputChannel inputChannel = inputChannels.get(announcement.receiverId);
+            if (inputChannel != null) {
+                inputChannel.onSenderBacklog(announcement.backlog);
+            } else {
+                cancelRequestFor(announcement.receiverId);
+            }
         } else {
             throw new IllegalStateException(
                     "Received unknown message from producer: " + msg.getClass());
@@ -341,6 +352,11 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             throws Throwable {
         if (bufferOrEvent.isBuffer() && bufferOrEvent.bufferSize == 0) {
             inputChannel.onEmptyBuffer(bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
+            // recycle the empty buffer directly
+            Buffer buffer = bufferOrEvent.getBuffer();
+            if (buffer != null) {
+                buffer.recycleBuffer();
+            }
         } else if (bufferOrEvent.getBuffer() != null) {
             inputChannel.onBuffer(
                     bufferOrEvent.getBuffer(), bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
@@ -433,6 +449,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 
         @Override
         Object buildMessage() {
+            inputChannel.onConsumptionResumed();
             return new ResumeConsumption(inputChannel.getInputChannelId());
         }
     }
