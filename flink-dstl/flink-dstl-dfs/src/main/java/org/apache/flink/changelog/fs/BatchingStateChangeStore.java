@@ -36,7 +36,6 @@ import static java.lang.Thread.holdsLock;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
-import static org.apache.flink.util.ExceptionUtils.rethrow;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
