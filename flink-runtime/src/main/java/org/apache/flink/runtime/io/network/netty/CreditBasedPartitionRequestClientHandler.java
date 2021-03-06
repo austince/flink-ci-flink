@@ -301,7 +301,6 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             try {
                 decodeBufferOrEvent(inputChannel, bufferOrEvent);
             } catch (Throwable t) {
-                t.printStackTrace();
                 inputChannel.onError(t);
             }
 
@@ -336,10 +335,15 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             NettyMessage.BacklogAnnouncement announcement = (NettyMessage.BacklogAnnouncement) msg;
 
             RemoteInputChannel inputChannel = inputChannels.get(announcement.receiverId);
-            if (inputChannel != null) {
-                inputChannel.onSenderBacklog(announcement.backlog);
-            } else {
+            if (inputChannel == null || inputChannel.isReleased()) {
                 cancelRequestFor(announcement.receiverId);
+                return;
+            }
+
+            try {
+                inputChannel.onSenderBacklog(announcement.backlog);
+            } catch (Throwable throwable) {
+                inputChannel.onError(throwable);
             }
         } else {
             throw new IllegalStateException(
@@ -351,11 +355,14 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             RemoteInputChannel inputChannel, NettyMessage.BufferResponse bufferOrEvent)
             throws Throwable {
         if (bufferOrEvent.isBuffer() && bufferOrEvent.bufferSize == 0) {
-            inputChannel.onEmptyBuffer(bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
-            // recycle the empty buffer directly
-            Buffer buffer = bufferOrEvent.getBuffer();
-            if (buffer != null) {
-                buffer.recycleBuffer();
+            try {
+                inputChannel.onEmptyBuffer(bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
+            } finally {
+                // recycle the empty buffer directly
+                Buffer buffer = bufferOrEvent.getBuffer();
+                if (buffer != null) {
+                    buffer.recycleBuffer();
+                }
             }
         } else if (bufferOrEvent.getBuffer() != null) {
             inputChannel.onBuffer(

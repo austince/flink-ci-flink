@@ -62,6 +62,7 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
             int numDataBuffers,
             int numDataAndEventBuffers)
             throws IOException {
+        checkArgument(numDataAndEventBuffers - numDataBuffers == 1, "Too many event buffers.");
 
         this.parent = checkNotNull(parent);
 
@@ -114,7 +115,7 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
     public boolean isAvailable(int numCreditsAvailable) {
         // We simply assume there are no events except EndOfPartitionEvent for bath jobs,
         // then it has no essential effect to ignore the judgement of next event buffer.
-        return numCreditsAvailable > 0 && numDataAndEventBuffers > 0;
+        return (numCreditsAvailable > 0 || numDataBuffers == 0) && numDataAndEventBuffers > 0;
     }
 
     @Override
