@@ -25,7 +25,9 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.streaming.api.operators.CountingOutput;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -72,7 +74,7 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         // input processors
         sourceOperator.initReader();
 
-        final SourceReader<T, ?> sourceReader = mainOperator.getSourceReader();
+        final SourceReader<T, ?> sourceReader = sourceOperator.getSourceReader();
         final StreamTaskInput<T> input;
 
         if (sourceReader instanceof ExternallyInducedSourceReader) {
@@ -88,11 +90,15 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
             input = new StreamTaskSourceInput<>(sourceOperator, 0, 0);
         }
 
+        CountingOutput<T> countingOutput =
+                new CountingOutput<T>(
+                        operatorChain.getMainOperatorOutput(),
+                        ((OperatorMetricGroup) sourceOperator.getMetricGroup())
+                                .getIOMetricGroup()
+                                .getNumRecordsOutCounter());
         // The SourceOperatorStreamTask doesn't have any inputs, so there is no need for
         // a WatermarkGauge on the input.
-        output =
-                new AsyncDataOutputToOutput<>(
-                        operatorChain.getMainOperatorOutput(), getStreamStatusMaintainer(), null);
+        output = new AsyncDataOutputToOutput<>(countingOutput, getStreamStatusMaintainer(), null);
 
         inputProcessor = new StreamOneInputProcessor<>(input, output, operatorChain);
     }
