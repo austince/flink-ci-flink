@@ -48,6 +48,6 @@ public interface OnlyExecutionGraphJsonArchivist extends JsonArchivist {
     @Override
     default Collection<ArchivedJson> archiveJsonWithPath(ExecutionGraphInfo executionGraphInfo)
             throws IOException {
-        return archiveJsonWithPath(executionGraphInfo.getArchivedExecutionGraph());
+        return archiveJsonWithPath(executionGraphInfo.getExecutionGraph());
     }
 }

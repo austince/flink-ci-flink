@@ -136,7 +136,7 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
                 onCompletionActions
                         .getJobReachedGloballyTerminalStateFuture()
                         .get()
-                        .getArchivedExecutionGraph()
+                        .getExecutionGraph()
                         .getState(),
                 is(JobStatus.FAILED));
     }

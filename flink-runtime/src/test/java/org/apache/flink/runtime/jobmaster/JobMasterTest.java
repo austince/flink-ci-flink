@@ -52,8 +52,8 @@ import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategyFactoryLoader;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -1033,8 +1033,8 @@ public class JobMasterTest extends TestLogger {
 
     private static Collection<AccessExecution> getExecutions(
             final JobMasterGateway jobMasterGateway) {
-        final ArchivedExecutionGraph archivedExecutionGraph =
-                requestExecutionGraph(jobMasterGateway).getArchivedExecutionGraph();
+        final AccessExecutionGraph archivedExecutionGraph =
+                requestExecutionGraph(jobMasterGateway).getExecutionGraph();
 
         return archivedExecutionGraph.getAllVertices().values().stream()
                 .flatMap(vertex -> Arrays.stream(vertex.getTaskVertices()))
@@ -1044,8 +1044,8 @@ public class JobMasterTest extends TestLogger {
 
     private static List<AccessExecution> getExecutions(
             final JobMasterGateway jobMasterGateway, final JobVertexID jobVertexId) {
-        final ArchivedExecutionGraph archivedExecutionGraph =
-                requestExecutionGraph(jobMasterGateway).getArchivedExecutionGraph();
+        final AccessExecutionGraph archivedExecutionGraph =
+                requestExecutionGraph(jobMasterGateway).getExecutionGraph();
 
         return Optional.ofNullable(archivedExecutionGraph.getAllVertices().get(jobVertexId))
                 .map(
@@ -1649,11 +1649,11 @@ public class JobMasterTest extends TestLogger {
 
             jobReachedRunningState.accept(taskManagerUnresolvedLocation, jobMasterGateway);
 
-            final ArchivedExecutionGraph archivedExecutionGraph =
+            final AccessExecutionGraph archivedExecutionGraph =
                     onCompletionActions
                             .getJobReachedGloballyTerminalStateFuture()
                             .get()
-                            .getArchivedExecutionGraph();
+                            .getExecutionGraph();
 
             assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED));
         } finally {

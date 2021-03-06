@@ -21,8 +21,8 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
@@ -115,8 +115,7 @@ public class JobExceptionsHandler
 
     private static JobExceptionsInfoWithHistory createJobExceptionsInfo(
             ExecutionGraphInfo executionGraphInfo, int exceptionToReportMaxSize) {
-        final ArchivedExecutionGraph executionGraph =
-                executionGraphInfo.getArchivedExecutionGraph();
+        final AccessExecutionGraph executionGraph = executionGraphInfo.getExecutionGraph();
         if (executionGraph.getFailureInfo() == null) {
             return new JobExceptionsInfoWithHistory();
         }

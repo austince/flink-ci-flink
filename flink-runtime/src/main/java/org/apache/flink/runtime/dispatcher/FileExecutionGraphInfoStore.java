@@ -23,7 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
@@ -160,10 +160,9 @@ public class FileExecutionGraphInfoStore implements ExecutionGraphInfoStore {
     public void put(ExecutionGraphInfo executionGraphInfo) throws IOException {
         final JobID jobId = executionGraphInfo.getJobId();
 
-        final ArchivedExecutionGraph archivedExecutionGraph =
-                executionGraphInfo.getArchivedExecutionGraph();
-        final JobStatus jobStatus = archivedExecutionGraph.getState();
-        final String jobName = archivedExecutionGraph.getJobName();
+        final AccessExecutionGraph executionGraph = executionGraphInfo.getExecutionGraph();
+        final JobStatus jobStatus = executionGraph.getState();
+        final String jobName = executionGraph.getJobName();
 
         Preconditions.checkArgument(
                 jobStatus.isGloballyTerminalState(),
@@ -200,7 +199,7 @@ public class FileExecutionGraphInfoStore implements ExecutionGraphInfoStore {
         // write the ArchivedExecutionGraph to disk
         storeExecutionGraphInfo(executionGraphInfo);
 
-        final JobDetails detailsForJob = JobDetails.createDetailsForJob(archivedExecutionGraph);
+        final JobDetails detailsForJob = JobDetails.createDetailsForJob(executionGraph);
 
         jobDetailsCache.put(jobId, detailsForJob);
         executionGraphInfoCache.put(jobId, executionGraphInfo);
@@ -248,8 +247,8 @@ public class FileExecutionGraphInfoStore implements ExecutionGraphInfoStore {
             LOG.debug(
                     "Could not find execution graph information file for {}. Estimating the size instead.",
                     jobId);
-            final ArchivedExecutionGraph serializableExecutionGraph =
-                    serializableExecutionGraphInfo.getArchivedExecutionGraph();
+            final AccessExecutionGraph serializableExecutionGraph =
+                    serializableExecutionGraphInfo.getExecutionGraph();
             return serializableExecutionGraph.getAllVertices().size() * 1000
                     + serializableExecutionGraph.getAccumulatorsSerialized().size() * 1000;
         }

@@ -38,6 +38,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -293,7 +294,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final long initializationTimestamp =
                 adaptiveScheduler
                         .requestJob()
-                        .getArchivedExecutionGraph()
+                        .getExecutionGraph()
                         .getStatusTimestamp(JobStatus.INITIALIZING);
 
         assertThat(initializationTimestamp, is(expectedInitializationTimestamp));
@@ -734,12 +735,12 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 createSlotOffersForResourceRequirements(
                         ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1)));
 
-        final ArchivedExecutionGraph archivedExecutionGraph =
-                adaptiveScheduler.requestJob().getArchivedExecutionGraph();
+        final AccessExecutionGraph executionGraph =
+                adaptiveScheduler.requestJob().getExecutionGraph();
 
-        assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED));
+        assertThat(executionGraph.getState(), is(JobStatus.FAILED));
         assertThat(
-                archivedExecutionGraph.getFailureInfo().getException(),
+                executionGraph.getFailureInfo().getException(),
                 FlinkMatchers.containsMessage("Failed to rollback to checkpoint/savepoint"));
     }
 

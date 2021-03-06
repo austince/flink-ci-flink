@@ -23,7 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -121,8 +121,7 @@ public class MiniDispatcher extends Dispatcher {
     @Override
     protected CleanupJobState jobReachedGloballyTerminalState(
             ExecutionGraphInfo executionGraphInfo) {
-        final ArchivedExecutionGraph archivedExecutionGraph =
-                executionGraphInfo.getArchivedExecutionGraph();
+        final AccessExecutionGraph executionGraph = executionGraphInfo.getExecutionGraph();
         final CleanupJobState cleanupHAState =
                 super.jobReachedGloballyTerminalState(executionGraphInfo);
 
@@ -131,11 +130,10 @@ public class MiniDispatcher extends Dispatcher {
             // retrieval
             log.info(
                     "Shutting down cluster with state {}, jobCancelled: {}, executionMode: {}",
-                    archivedExecutionGraph.getState(),
+                    executionGraph.getState(),
                     jobCancelled,
                     executionMode);
-            shutDownFuture.complete(
-                    ApplicationStatus.fromJobStatus(archivedExecutionGraph.getState()));
+            shutDownFuture.complete(ApplicationStatus.fromJobStatus(executionGraph.getState()));
         }
 
         return cleanupHAState;

@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 
 import java.io.Serializable;
@@ -33,16 +33,15 @@ public class ExecutionGraphInfo implements Serializable {
 
     private static final long serialVersionUID = -6134203195124124202L;
 
-    private final ArchivedExecutionGraph executionGraph;
+    private final AccessExecutionGraph executionGraph;
     private final Iterable<ExceptionHistoryEntry> exceptionHistory;
 
-    public ExecutionGraphInfo(ArchivedExecutionGraph executionGraph) {
+    public ExecutionGraphInfo(AccessExecutionGraph executionGraph) {
         this(executionGraph, Collections.emptyList());
     }
 
     public ExecutionGraphInfo(
-            ArchivedExecutionGraph executionGraph,
-            Iterable<ExceptionHistoryEntry> exceptionHistory) {
+            AccessExecutionGraph executionGraph, Iterable<ExceptionHistoryEntry> exceptionHistory) {
         this.executionGraph = executionGraph;
         this.exceptionHistory = exceptionHistory;
     }
@@ -51,7 +50,7 @@ public class ExecutionGraphInfo implements Serializable {
         return executionGraph.getJobID();
     }
 
-    public ArchivedExecutionGraph getArchivedExecutionGraph() {
+    public AccessExecutionGraph getExecutionGraph() {
         return executionGraph;
     }
 

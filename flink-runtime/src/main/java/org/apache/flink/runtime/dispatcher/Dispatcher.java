@@ -34,7 +34,7 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
@@ -645,7 +645,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                 return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
             } else {
                 return CompletableFuture.completedFuture(
-                        JobResult.createFrom(executionGraphInfo.getArchivedExecutionGraph()));
+                        JobResult.createFrom(executionGraphInfo.getExecutionGraph()));
             }
         } else {
             return job.getResultFuture()
@@ -654,7 +654,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                                     JobResult.createFrom(
                                             dispatcherJobResult
                                                     .getExecutionGraphInfo()
-                                                    .getArchivedExecutionGraph()));
+                                                    .getExecutionGraph()));
         }
     }
 
@@ -827,18 +827,17 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     protected CleanupJobState jobReachedGloballyTerminalState(
             ExecutionGraphInfo executionGraphInfo) {
-        ArchivedExecutionGraph archivedExecutionGraph =
-                executionGraphInfo.getArchivedExecutionGraph();
+        AccessExecutionGraph executionGraph = executionGraphInfo.getExecutionGraph();
         Preconditions.checkArgument(
-                archivedExecutionGraph.getState().isGloballyTerminalState(),
+                executionGraph.getState().isGloballyTerminalState(),
                 "Job %s is in state %s which is not globally terminal.",
-                archivedExecutionGraph.getJobID(),
-                archivedExecutionGraph.getState());
+                executionGraph.getJobID(),
+                executionGraph.getState());
 
         log.info(
                 "Job {} reached globally terminal state {}.",
-                archivedExecutionGraph.getJobID(),
-                archivedExecutionGraph.getState());
+                executionGraph.getJobID(),
+                executionGraph.getState());
 
         archiveExecutionGraph(executionGraphInfo);
 
@@ -851,8 +850,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         } catch (IOException e) {
             log.info(
                     "Could not store completed job {}({}).",
-                    executionGraphInfo.getArchivedExecutionGraph().getJobName(),
-                    executionGraphInfo.getArchivedExecutionGraph().getJobID(),
+                    executionGraphInfo.getExecutionGraph().getJobName(),
+                    executionGraphInfo.getExecutionGraph().getJobID(),
                     e);
         }
 
@@ -864,8 +863,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                     if (throwable != null) {
                         log.info(
                                 "Could not archive completed job {}({}) to the history server.",
-                                executionGraphInfo.getArchivedExecutionGraph().getJobName(),
-                                executionGraphInfo.getArchivedExecutionGraph().getJobID(),
+                                executionGraphInfo.getExecutionGraph().getJobName(),
+                                executionGraphInfo.getExecutionGraph().getJobID(),
                                 throwable);
                     }
                 });

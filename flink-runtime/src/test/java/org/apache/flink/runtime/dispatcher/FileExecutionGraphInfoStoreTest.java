@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
@@ -118,8 +118,8 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
 
         final List<JobStatus> jobStatuses =
                 executionGraphInfos.stream()
-                        .map(ExecutionGraphInfo::getArchivedExecutionGraph)
-                        .map(ArchivedExecutionGraph::getState)
+                        .map(ExecutionGraphInfo::getExecutionGraph)
+                        .map(AccessExecutionGraph::getState)
                         .collect(Collectors.toList());
 
         final JobsOverview expectedJobsOverview = JobsOverview.create(jobStatuses);
@@ -384,9 +384,9 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
             }
             ExecutionGraphInfo that = (ExecutionGraphInfo) o;
 
-            ArchivedExecutionGraph thisExecutionGraph =
-                    expectedExecutionGraphInfo.getArchivedExecutionGraph();
-            ArchivedExecutionGraph thatExecutionGraph = that.getArchivedExecutionGraph();
+            AccessExecutionGraph thisExecutionGraph =
+                    expectedExecutionGraphInfo.getExecutionGraph();
+            AccessExecutionGraph thatExecutionGraph = that.getExecutionGraph();
             return thisExecutionGraph.isStoppable() == thatExecutionGraph.isStoppable()
                     && Objects.equals(thisExecutionGraph.getJobID(), thatExecutionGraph.getJobID())
                     && Objects.equals(
@@ -422,7 +422,7 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
     private static Collection<JobDetails> generateJobDetails(
             Collection<ExecutionGraphInfo> executionGraphInfos) {
         return executionGraphInfos.stream()
-                .map(ExecutionGraphInfo::getArchivedExecutionGraph)
+                .map(ExecutionGraphInfo::getExecutionGraph)
                 .map(JobDetails::createDetailsForJob)
                 .collect(Collectors.toList());
     }

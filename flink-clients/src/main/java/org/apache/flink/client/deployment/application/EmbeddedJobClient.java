@@ -28,7 +28,7 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
@@ -107,7 +107,7 @@ public class EmbeddedJobClient implements JobClient, CoordinationRequestGateway 
 
         return dispatcherGateway
                 .requestJob(jobId, timeout)
-                .thenApply(ArchivedExecutionGraph::getAccumulatorsSerialized)
+                .thenApply(AccessExecutionGraph::getAccumulatorsSerialized)
                 .thenApply(
                         accumulators -> {
                             try {

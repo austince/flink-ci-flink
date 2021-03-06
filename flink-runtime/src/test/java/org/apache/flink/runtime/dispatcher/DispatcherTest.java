@@ -34,6 +34,7 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -532,7 +533,7 @@ public class DispatcherTest extends TestLogger {
         dispatcherGateway.requestJobResult(jobId, TIMEOUT).get();
 
         // get failure cause
-        ArchivedExecutionGraph execGraph =
+        AccessExecutionGraph execGraph =
                 dispatcherGateway.requestJob(jobGraph.getJobID(), TIMEOUT).get();
         assertThat(execGraph.getState(), is(JobStatus.FAILED));
 
@@ -822,7 +823,7 @@ public class DispatcherTest extends TestLogger {
         // wait till job is failed
         dispatcherGateway.requestJobResult(jobGraph.getJobID(), TIMEOUT).get();
 
-        ArchivedExecutionGraph execGraph =
+        AccessExecutionGraph execGraph =
                 dispatcherGateway.requestJob(jobGraph.getJobID(), TIMEOUT).get();
         Assert.assertNotNull(execGraph.getFailureInfo());
         assertThat(

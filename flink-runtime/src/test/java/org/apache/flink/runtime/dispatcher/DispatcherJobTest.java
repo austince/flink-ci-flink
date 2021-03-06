@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -90,7 +91,7 @@ public class DispatcherJobTest extends TestLogger {
         DispatcherJobResult result = dispatcherJob.getResultFuture().get();
 
         assertThat(
-                result.getExecutionGraphInfo().getArchivedExecutionGraph().getState(),
+                result.getExecutionGraphInfo().getExecutionGraph().getState(),
                 is(JobStatus.FINISHED));
     }
 
@@ -121,7 +122,7 @@ public class DispatcherJobTest extends TestLogger {
                         .getResultFuture()
                         .get()
                         .getExecutionGraphInfo()
-                        .getArchivedExecutionGraph()
+                        .getExecutionGraph()
                         .getState(),
                 is(JobStatus.CANCELED));
     }
@@ -144,7 +145,7 @@ public class DispatcherJobTest extends TestLogger {
                         .getResultFuture()
                         .get()
                         .getExecutionGraphInfo()
-                        .getArchivedExecutionGraph()
+                        .getExecutionGraph()
                         .getState(),
                 is(JobStatus.CANCELED));
     }
@@ -181,12 +182,8 @@ public class DispatcherJobTest extends TestLogger {
         assertThat(dispatcherJob.isInitialized(), is(true));
         assertJobStatus(dispatcherJob, JobStatus.FAILED);
 
-        ArchivedExecutionGraph aeg =
-                dispatcherJob
-                        .getResultFuture()
-                        .get()
-                        .getExecutionGraphInfo()
-                        .getArchivedExecutionGraph();
+        AccessExecutionGraph aeg =
+                dispatcherJob.getResultFuture().get().getExecutionGraphInfo().getExecutionGraph();
         assertThat(
                 aeg.getFailureInfo()
                         .getException()
@@ -204,7 +201,7 @@ public class DispatcherJobTest extends TestLogger {
         DispatcherJobResult result = dispatcherJob.getResultFuture().get();
         assertThat(result.isInitializationFailure(), is(true));
         assertThat(
-                result.getExecutionGraphInfo().getArchivedExecutionGraph().getState(),
+                result.getExecutionGraphInfo().getExecutionGraph().getState(),
                 is(JobStatus.FAILED));
         assertThat(
                 result.getInitializationFailure().getMessage(),
@@ -403,7 +400,7 @@ public class DispatcherJobTest extends TestLogger {
             throws Exception {
         assertThat(dispatcherJob.requestJobDetails(TIMEOUT).get().getStatus(), is(expectedStatus));
         assertThat(
-                dispatcherJob.requestJob(TIMEOUT).get().getArchivedExecutionGraph().getState(),
+                dispatcherJob.requestJob(TIMEOUT).get().getExecutionGraph().getState(),
                 is(expectedStatus));
         assertThat(dispatcherJob.requestJobStatus(TIMEOUT).get(), is(expectedStatus));
     }
