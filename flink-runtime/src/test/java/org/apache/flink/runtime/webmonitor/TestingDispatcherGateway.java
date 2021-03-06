@@ -26,7 +26,7 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -57,7 +57,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
             () -> CompletableFuture.completedFuture(Collections.emptyList());
     static final int DEFAULT_BLOB_SERVER_PORT = 1234;
     static final DispatcherId DEFAULT_FENCING_TOKEN = DispatcherId.generate();
-    static final Function<JobID, CompletableFuture<ArchivedExecutionGraph>>
+    static final Function<JobID, CompletableFuture<? extends AccessExecutionGraph>>
             DEFAULT_REQUEST_ARCHIVED_JOB_FUNCTION =
                     jobID -> CompletableFuture.completedFuture(null);
     static final Function<ApplicationStatus, CompletableFuture<Acknowledge>>
@@ -68,7 +68,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
     private Supplier<CompletableFuture<Collection<JobID>>> listFunction;
     private int blobServerPort;
     private DispatcherId fencingToken;
-    private Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestArchivedJobFunction;
+    private Function<JobID, CompletableFuture<? extends AccessExecutionGraph>>
+            requestArchivedJobFunction;
     private Function<ApplicationStatus, CompletableFuture<Acknowledge>>
             clusterShutdownWithStatusFunction;
 
@@ -86,7 +87,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
             String address,
             String hostname,
             Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction,
-            Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction,
+            Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction,
             Function<JobID, CompletableFuture<ExecutionGraphInfo>>
                     requestExecutionGraphInfoFunction,
             Function<JobID, CompletableFuture<JobResult>> requestJobResultFunction,
@@ -103,7 +104,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
             Supplier<CompletableFuture<Collection<JobID>>> listFunction,
             int blobServerPort,
             DispatcherId fencingToken,
-            Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestArchivedJobFunction,
+            Function<JobID, CompletableFuture<? extends AccessExecutionGraph>>
+                    requestArchivedJobFunction,
             Supplier<CompletableFuture<Acknowledge>> clusterShutdownSupplier,
             Function<ApplicationStatus, CompletableFuture<Acknowledge>>
                     clusterShutdownWithStatusFunction,
@@ -157,7 +159,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
         return DEFAULT_FENCING_TOKEN;
     }
 
-    public CompletableFuture<ArchivedExecutionGraph> requestJob(
+    public CompletableFuture<? extends AccessExecutionGraph> requestJob(
             JobID jobId, @RpcTimeout Time timeout) {
         return requestArchivedJobFunction.apply(jobId);
     }
@@ -174,7 +176,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
         private Supplier<CompletableFuture<Collection<JobID>>> listFunction;
         private int blobServerPort;
         private DispatcherId fencingToken;
-        private Function<JobID, CompletableFuture<ArchivedExecutionGraph>>
+        private Function<JobID, CompletableFuture<? extends AccessExecutionGraph>>
                 requestArchivedJobFunction;
         private Function<ApplicationStatus, CompletableFuture<Acknowledge>>
                 clusterShutdownWithStatusFunction = DEFAULT_SHUTDOWN_WITH_STATUS_FUNCTION;
@@ -192,7 +194,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
         }
 
         public Builder setRequestArchivedJobFunction(
-                Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction) {
+                Function<JobID, CompletableFuture<? extends AccessExecutionGraph>>
+                        requestJobFunction) {
             requestArchivedJobFunction = requestJobFunction;
             return this;
         }
@@ -206,7 +209,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
 
         @Override
         public Builder setRequestJobFunction(
-                Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction) {
+                Function<JobID, CompletableFuture<? extends AccessExecutionGraph>>
+                        requestJobFunction) {
             // signature clash
             throw new UnsupportedOperationException("Use setRequestArchivedJobFunction() instead.");
         }

@@ -65,7 +65,7 @@ public abstract class AbstractAccessExecutionGraphHandler<
     protected R handleRequest(
             HandlerRequest<EmptyRequestBody, M> request, ExecutionGraphInfo executionGraphInfo)
             throws RestHandlerException {
-        return handleRequest(request, executionGraphInfo.getArchivedExecutionGraph());
+        return handleRequest(request, executionGraphInfo.getExecutionGraph());
     }
 
     protected abstract R handleRequest(

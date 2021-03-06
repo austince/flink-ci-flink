@@ -169,7 +169,7 @@ public final class DispatcherJob implements AutoCloseableAsync {
                         executionGraphInfo -> {
                             synchronized (lock) {
                                 return JobDetails.createDetailsForJob(
-                                        executionGraphInfo.getArchivedExecutionGraph());
+                                        executionGraphInfo.getExecutionGraph());
                             }
                         });
     }
@@ -207,9 +207,7 @@ public final class DispatcherJob implements AutoCloseableAsync {
 
     public CompletableFuture<JobStatus> requestJobStatus(Time timeout) {
         return requestJob(timeout)
-                .thenApply(
-                        executionGraphInfo ->
-                                executionGraphInfo.getArchivedExecutionGraph().getState());
+                .thenApply(executionGraphInfo -> executionGraphInfo.getExecutionGraph().getState());
     }
 
     /** Returns a future completing to the ExecutionGraphInfo of the job. */

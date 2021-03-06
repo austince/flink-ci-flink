@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
@@ -62,8 +63,8 @@ public class MemoryExecutionGraphInfoStore implements ExecutionGraphInfoStore {
     public JobsOverview getStoredJobsOverview() {
         Collection<JobStatus> allJobStatus =
                 serializableExecutionGraphInfos.values().stream()
-                        .map(ExecutionGraphInfo::getArchivedExecutionGraph)
-                        .map(ArchivedExecutionGraph::getState)
+                        .map(ExecutionGraphInfo::getExecutionGraph)
+                        .map(AccessExecutionGraph::getState)
                         .collect(Collectors.toList());
 
         return JobsOverview.create(allJobStatus);
@@ -72,7 +73,7 @@ public class MemoryExecutionGraphInfoStore implements ExecutionGraphInfoStore {
     @Override
     public Collection<JobDetails> getAvailableJobDetails() {
         return serializableExecutionGraphInfos.values().stream()
-                .map(ExecutionGraphInfo::getArchivedExecutionGraph)
+                .map(ExecutionGraphInfo::getExecutionGraph)
                 .map(JobDetails::createDetailsForJob)
                 .collect(Collectors.toList());
     }
@@ -80,12 +81,10 @@ public class MemoryExecutionGraphInfoStore implements ExecutionGraphInfoStore {
     @Nullable
     @Override
     public JobDetails getAvailableJobDetails(JobID jobId) {
-        final ExecutionGraphInfo archivedExecutionGraphInfo =
-                serializableExecutionGraphInfos.get(jobId);
+        final ExecutionGraphInfo executionGraphInfo = serializableExecutionGraphInfos.get(jobId);
 
-        if (archivedExecutionGraphInfo != null) {
-            return JobDetails.createDetailsForJob(
-                    archivedExecutionGraphInfo.getArchivedExecutionGraph());
+        if (executionGraphInfo != null) {
+            return JobDetails.createDetailsForJob(executionGraphInfo.getExecutionGraph());
         } else {
             return null;
         }
