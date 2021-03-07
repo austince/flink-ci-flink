@@ -22,6 +22,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackendFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -96,7 +97,7 @@ public class StateBackendLoader {
         checkNotNull(config, "config");
         checkNotNull(classLoader, "classLoader");
 
-        final String backendName = config.get(CheckpointingOptions.STATE_BACKEND);
+        final String backendName = config.get(StateBackendOptions.STATE_BACKEND);
         if (backendName == null) {
             return null;
         }
@@ -162,7 +163,7 @@ public class StateBackendLoader {
                 } catch (ClassCastException | InstantiationException | IllegalAccessException e) {
                     throw new DynamicCodeLoadingException(
                             "The class configured under '"
-                                    + CheckpointingOptions.STATE_BACKEND.key()
+                                    + StateBackendOptions.STATE_BACKEND.key()
                                     + "' is not a valid state backend factory ("
                                     + backendName
                                     + ')',

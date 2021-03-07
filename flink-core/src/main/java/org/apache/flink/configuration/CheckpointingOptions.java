@@ -26,41 +26,8 @@ import org.apache.flink.configuration.description.TextElement;
 public class CheckpointingOptions {
 
     // ------------------------------------------------------------------------
-    //  general checkpoint and state backend options
+    //  general checkpoint options
     // ------------------------------------------------------------------------
-
-    /**
-     * The checkpoint storage used to store operator state locally within the cluster during
-     * execution.
-     *
-     * <p>The implementation can be specified either via their shortcut name, or via the class name
-     * of a {@code StateBackendFactory}. If a StateBackendFactory class name is specified, the
-     * factory is instantiated (via its zero-argument constructor) and its {@code
-     * StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)} method is called.
-     *
-     * <p>Recognized shortcut names are 'hashmap' and 'rocksdb'.
-     */
-    @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 1)
-    public static final ConfigOption<String> STATE_BACKEND =
-            ConfigOptions.key("state.backend")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            Description.builder()
-                                    .text("The state backend to be used to store state.")
-                                    .linebreak()
-                                    .text(
-                                            "The implementation can be specified either via their shortcut "
-                                                    + " name, or via the class name of a %s. "
-                                                    + "If a factory is specified it is instantiated via its "
-                                                    + "zero argument constructor and its %s "
-                                                    + "method is called.",
-                                            TextElement.code("StateBackendFactory"),
-                                            TextElement.code(
-                                                    "StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)"))
-                                    .linebreak()
-                                    .text("Recognized shortcut names are 'hashmap' and 'rocksdb'.")
-                                    .build());
 
     /**
      * The checkpoint storage used to checkpoint state for recovery.
