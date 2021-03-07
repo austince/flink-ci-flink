@@ -74,7 +74,8 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
     @Override
     public void close() throws Exception {
         closed = true;
-        coordinator.closeAsync(closingTimeoutMs);
+        // Wait for coordinator close before destructing any user class loader.
+        coordinator.closeAsync(closingTimeoutMs).get();
     }
 
     @Override
@@ -256,7 +257,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
     /**
      * A class that helps realize the fully async {@link #resetToCheckpoint(long, byte[])} behavior.
      * The class wraps an {@link OperatorCoordinator} instance. It is going to be accessed by two
-     * different thread: the scheduler thread and the closing thread created in {@link
+     * different threads: the scheduler thread and the closing thread created in {@link
      * #closeAsync(long)}. A DeferrableCoordinator could be in three states:
      *
      * <ul>
