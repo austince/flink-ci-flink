@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
@@ -61,4 +62,34 @@ public class StateBackendOptions {
                                     .linebreak()
                                     .text("Recognized shortcut names are 'hashmap' and 'rocksdb'.")
                                     .build());
+
+    @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
+    public static final ConfigOption<Boolean> LATENCY_TRACK_ENABLED =
+            ConfigOptions.key("state.backend.latency-track-enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether to track latency of state operations, e.g value state put/get/clear.");
+
+    @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
+    public static final ConfigOption<Integer> LATENCY_TRACK_SAMPLE_INTERVAL =
+            ConfigOptions.key("state.backend.latency-track-sample-interval")
+                    .intType()
+                    .defaultValue(100)
+                    .withDescription(
+                            String.format(
+                                    "The sample interval of latency track once '%s' is enabled. "
+                                            + "The default value is 100, which means we would track the latency every 100 access requests.",
+                                    LATENCY_TRACK_ENABLED.key()));
+
+    @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
+    public static final ConfigOption<Long> LATENCY_TRACK_SLIDING_WINDOW =
+            ConfigOptions.key("state.backend.latency-track-sliding-window")
+                    .longType()
+                    .defaultValue(Time.seconds(10).toMilliseconds())
+                    .withDescription(
+                            String.format(
+                                    "The sliding window of histogram to record the latency once '%s' is enabled. "
+                                            + "The default value is 10 seconds, which means we stores only the measurements made in the last 10 seconds.",
+                                    LATENCY_TRACK_ENABLED.key()));
 }

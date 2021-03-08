@@ -39,6 +39,24 @@
             <td>Option whether the state backend should create incremental checkpoints, if possible. For an incremental checkpoint, only a diff from the previous checkpoint is stored, rather than the complete checkpoint state. Once enabled, the state size shown in web UI or fetched from rest API only represents the delta checkpoint size instead of full checkpoint size. Some state backends may not support incremental checkpoints and ignore this option.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.latency-track-enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to track latency of state operations, e.g value state put/get/clear.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.latency-track-sample-interval</h5></td>
+            <td style="word-wrap: break-word;">100</td>
+            <td>Integer</td>
+            <td>The sample interval of latency track once 'state.backend.latency-track-enabled' is enabled. The default value is 100, which means we would track the latency every 100 access requests.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.latency-track-sliding-window</h5></td>
+            <td style="word-wrap: break-word;">10000</td>
+            <td>Long</td>
+            <td>The sliding window of histogram to record the latency once 'state.backend.latency-track-enabled' is enabled. The default value is 10 seconds, which means we stores only the measurements made in the last 10 seconds.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.local-recovery</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>

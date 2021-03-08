@@ -56,6 +56,12 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
+		<dependency>
+			<groupId>io.dropwizard.metrics</groupId>
+			<artifactId>metrics-core</artifactId>
+			<version>${dropwizard.version}</version>
+		</dependency>
+
 		<!-- The Hadoop FS support has only an optional dependency on Hadoop and
 			gracefully handles absence of Hadoop classes -->
 

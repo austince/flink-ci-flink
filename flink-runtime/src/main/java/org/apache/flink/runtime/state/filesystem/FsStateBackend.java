@@ -43,6 +43,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.TernaryBoolean;
@@ -560,6 +561,8 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
         HeapPriorityQueueSetFactory priorityQueueSetFactory =
                 new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
 
+        LatencyTrackingStateConfig latencyTrackingStateConfig =
+                latencyTrackingConfigBuilder.setMetricGroup(metricGroup).build();
         return new HeapKeyedStateBackendBuilder<>(
                         kvStateRegistry,
                         keySerializer,
@@ -568,6 +571,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
                         keyGroupRange,
                         env.getExecutionConfig(),
                         ttlTimeProvider,
+                        latencyTrackingStateConfig,
                         stateHandles,
                         AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
                         localRecoveryConfig,

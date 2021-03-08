@@ -30,6 +30,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
@@ -87,6 +89,8 @@ public abstract class AbstractKeyedStateBackend<K>
 
     protected final TtlTimeProvider ttlTimeProvider;
 
+    protected final LatencyTrackingStateConfig latencyTrackingStateConfig;
+
     /** Decorates the input and output streams to write key-groups compressed. */
     protected final StreamCompressionDecorator keyGroupCompressionDecorator;
 
@@ -99,6 +103,7 @@ public abstract class AbstractKeyedStateBackend<K>
             ClassLoader userCodeClassLoader,
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
+            LatencyTrackingStateConfig latencyTrackingStateConfig,
             CloseableRegistry cancelStreamRegistry,
             InternalKeyContext<K> keyContext) {
         this(
@@ -107,6 +112,7 @@ public abstract class AbstractKeyedStateBackend<K>
                 userCodeClassLoader,
                 executionConfig,
                 ttlTimeProvider,
+                latencyTrackingStateConfig,
                 cancelStreamRegistry,
                 determineStreamCompression(executionConfig),
                 keyContext);
@@ -118,6 +124,7 @@ public abstract class AbstractKeyedStateBackend<K>
             ClassLoader userCodeClassLoader,
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
+            LatencyTrackingStateConfig latencyTrackingStateConfig,
             CloseableRegistry cancelStreamRegistry,
             StreamCompressionDecorator keyGroupCompressionDecorator,
             InternalKeyContext<K> keyContext) {
@@ -141,6 +148,7 @@ public abstract class AbstractKeyedStateBackend<K>
         this.executionConfig = executionConfig;
         this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
         this.ttlTimeProvider = Preconditions.checkNotNull(ttlTimeProvider);
+        this.latencyTrackingStateConfig = Preconditions.checkNotNull(latencyTrackingStateConfig);
         this.keySelectionListeners = new ArrayList<>(1);
     }
 
@@ -270,8 +278,11 @@ public abstract class AbstractKeyedStateBackend<K>
                 stateDescriptor.initializeSerializerUnlessSet(executionConfig);
             }
             kvState =
-                    TtlStateFactory.createStateAndWrapWithTtlIfEnabled(
-                            namespaceSerializer, stateDescriptor, this, ttlTimeProvider);
+                    LatencyTrackingStateFactory.trackLatencyIfEnabled(
+                            TtlStateFactory.createStateAndWrapWithTtlIfEnabled(
+                                    namespaceSerializer, stateDescriptor, this, ttlTimeProvider),
+                            stateDescriptor,
+                            latencyTrackingStateConfig);
             keyValueStatesByName.put(stateDescriptor.getName(), kvState);
             publishQueryableStateIfEnabled(stateDescriptor, kvState);
         }

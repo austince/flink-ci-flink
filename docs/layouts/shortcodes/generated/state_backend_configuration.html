@@ -14,5 +14,23 @@
             <td>String</td>
             <td>The state backend to be used to store state.<br />The implementation can be specified either via their shortcut  name, or via the class name of a <span markdown="span">`StateBackendFactory`</span>. If a factory is specified it is instantiated via its zero argument constructor and its <span markdown="span">`StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)`</span> method is called.<br />Recognized shortcut names are 'hashmap' and 'rocksdb'.</td>
         </tr>
+        <tr>
+            <td><h5>state.backend.latency-track-enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to track latency of state operations, e.g value state put/get/clear.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.latency-track-sample-interval</h5></td>
+            <td style="word-wrap: break-word;">100</td>
+            <td>Integer</td>
+            <td>The sample interval of latency track once 'state.backend.latency-track-enabled' is enabled. The default value is 100, which means we would track the latency every 100 access requests.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.latency-track-sliding-window</h5></td>
+            <td style="word-wrap: break-word;">10000</td>
+            <td>Long</td>
+            <td>The sliding window of histogram to record the latency once 'state.backend.latency-track-enabled' is enabled. The default value is 10 seconds, which means we stores only the measurements made in the last 10 seconds.</td>
+        </tr>
     </tbody>
 </table>
