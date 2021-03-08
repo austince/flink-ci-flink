@@ -44,8 +44,7 @@ import static org.junit.Assert.assertEquals;
 /** Test cases for reading Parquet files and convert parquet records to Avro GenericRecords. */
 @RunWith(Parameterized.class)
 public class ParquetAvroInputFormatTest extends TestUtil {
-    @ClassRule
-    public static TemporaryFolder tempRoot = new TemporaryFolder();
+    @ClassRule public static TemporaryFolder tempRoot = new TemporaryFolder();
 
     public ParquetAvroInputFormatTest(boolean useLegacyMode) {
         super(useLegacyMode);
@@ -73,11 +72,14 @@ public class ParquetAvroInputFormatTest extends TestUtil {
         final GenericRecord genericRecord = inputFormat.nextRecord(null);
         assertEquals(testData.f2.getField(0), genericRecord.get("foo"));
         assertEquals(testData.f2.getField(1), genericRecord.get("bar").toString());
-        assertArrayEquals((Long[])testData.f2.getField(2), ((List<Long>) genericRecord.get("arr")).toArray());
+        assertArrayEquals(
+                (Long[]) testData.f2.getField(2),
+                ((List<Long>) genericRecord.get("arr")).toArray());
     }
 
     @Test(expected = AvroRuntimeException.class)
-    public void testProjectedReadFromSimpleRecord() throws IOException, NoSuchFieldError, AvroRuntimeException {
+    public void testProjectedReadFromSimpleRecord()
+            throws IOException, NoSuchFieldError, AvroRuntimeException {
         Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> testData =
                 TestUtil.getSimpleRecordTestData();
         MessageType messageType = getSchemaConverter().convert(SIMPLE_SCHEMA);
@@ -99,7 +101,7 @@ public class ParquetAvroInputFormatTest extends TestUtil {
 
         final GenericRecord genericRecord = inputFormat.nextRecord(null);
         assertEquals(testData.f2.getField(0), genericRecord.get("foo"));
-        //should throw AvroRuntimeException("Not a valid schema field: bar")
+        // should throw AvroRuntimeException("Not a valid schema field: bar")
         genericRecord.get("bar");
     }
 }
