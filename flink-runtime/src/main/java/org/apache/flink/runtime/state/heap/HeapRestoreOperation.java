@@ -253,7 +253,7 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
             }
 
             StateSnapshotKeyGroupReader keyGroupReader =
-                    registeredState.keyGroupReader(readVersion);
+                    registeredState.keyGroupReader(readVersion, inView);
             keyGroupReader.readMappingsInKeyGroup(inView, keyGroupIndex);
         }
     }

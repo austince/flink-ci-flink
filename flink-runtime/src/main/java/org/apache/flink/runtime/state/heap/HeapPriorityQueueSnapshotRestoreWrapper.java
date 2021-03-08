@@ -29,6 +29,8 @@ import org.apache.flink.runtime.state.StateSnapshotRestore;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
+import java.io.DataInputStream;
+
 /**
  * This wrapper combines a HeapPriorityQueue with backend meta data.
  *
@@ -73,7 +75,8 @@ public class HeapPriorityQueueSnapshotRestoreWrapper<T extends HeapPriorityQueue
 
     @Nonnull
     @Override
-    public StateSnapshotKeyGroupReader keyGroupReader(int readVersionHint) {
+    public StateSnapshotKeyGroupReader keyGroupReader(
+            int readVersionHint, DataInputStream dataInputStream) {
         final TypeSerializer<T> elementSerializer = metaInfo.getElementSerializer();
         return KeyGroupPartitioner.createKeyGroupPartitionReader(
                 elementSerializer

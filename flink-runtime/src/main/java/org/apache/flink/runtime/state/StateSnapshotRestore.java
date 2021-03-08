@@ -22,6 +22,9 @@ import org.apache.flink.annotation.Internal;
 
 import javax.annotation.Nonnull;
 
+import java.io.DataInputStream;
+import java.io.IOException;
+
 /** Interface to deal with state snapshot and restore of state. TODO find better name? */
 @Internal
 public interface StateSnapshotRestore {
@@ -36,8 +39,10 @@ public interface StateSnapshotRestore {
      * hint.
      *
      * @param readVersionHint the required version of the state to read.
+     * @param dataInputStream the current dataInputStream.
      * @return a reader that reads state by key-groups, for the given read version.
      */
     @Nonnull
-    StateSnapshotKeyGroupReader keyGroupReader(int readVersionHint);
+    StateSnapshotKeyGroupReader keyGroupReader(int readVersionHint, DataInputStream dataInputStream)
+            throws IOException;
 }

@@ -33,6 +33,8 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
+import java.io.DataInputStream;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
@@ -382,7 +384,8 @@ public abstract class StateTable<K, N, S>
 
     @Nonnull
     @Override
-    public StateSnapshotKeyGroupReader keyGroupReader(int readVersion) {
+    public StateSnapshotKeyGroupReader keyGroupReader(
+            int readVersion, DataInputStream dataInputStream) throws IOException {
         return StateTableByKeyGroupReaders.readerForVersion(this, readVersion);
     }
 
