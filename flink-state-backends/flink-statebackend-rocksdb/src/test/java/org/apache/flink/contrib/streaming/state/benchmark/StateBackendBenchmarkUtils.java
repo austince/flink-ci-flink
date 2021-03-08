@@ -105,6 +105,12 @@ public class StateBackendBenchmarkUtils {
         File dbPathFile = prepareDirectory(dbDirName, rootDir);
         ExecutionConfig executionConfig = new ExecutionConfig();
         RocksDBResourceContainer resourceContainer = new RocksDBResourceContainer();
+        UnregisteredMetricsGroup metricsGroup = new UnregisteredMetricsGroup();
+        LatencyTrackingStateConfig latencyTrackingStateConfig =
+                LatencyTrackingStateConfig.newBuilder()
+                        .setEnabled(true)
+                        .setMetricGroup(metricsGroup)
+                        .build();
         RocksDBKeyedStateBackendBuilder<Long> builder =
                 new RocksDBKeyedStateBackendBuilder<>(
                         "Test",
@@ -123,7 +129,7 @@ public class StateBackendBenchmarkUtils {
                                         recoveryBaseDir, new JobID(), new JobVertexID(), 0)),
                         EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
                         TtlTimeProvider.DEFAULT,
-                        LatencyTrackingStateConfig.disabled(),
+                        latencyTrackingStateConfig,
                         new UnregisteredMetricsGroup(),
                         Collections.emptyList(),
                         AbstractStateBackend.getCompressionDecorator(executionConfig),
@@ -144,6 +150,12 @@ public class StateBackendBenchmarkUtils {
         ExecutionConfig executionConfig = new ExecutionConfig();
         HeapPriorityQueueSetFactory priorityQueueSetFactory =
                 new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
+        UnregisteredMetricsGroup metricsGroup = new UnregisteredMetricsGroup();
+        LatencyTrackingStateConfig latencyTrackingStateConfig =
+                LatencyTrackingStateConfig.newBuilder()
+                        .setEnabled(true)
+                        .setMetricGroup(metricsGroup)
+                        .build();
         HeapKeyedStateBackendBuilder<Long> backendBuilder =
                 new HeapKeyedStateBackendBuilder<>(
                         null,
@@ -153,7 +165,7 @@ public class StateBackendBenchmarkUtils {
                         keyGroupRange,
                         executionConfig,
                         TtlTimeProvider.DEFAULT,
-                        LatencyTrackingStateConfig.disabled(),
+                        latencyTrackingStateConfig,
                         Collections.emptyList(),
                         AbstractStateBackend.getCompressionDecorator(executionConfig),
                         new LocalRecoveryConfig(

@@ -108,6 +108,7 @@ public class LatencyTrackingStateConfig {
             if (enabled) {
                 Preconditions.checkNotNull(
                         metricGroup, "Metric group cannot be null if latency tracking is enabled.");
+                Preconditions.checkArgument(sampleInterval >= 1);
             }
             return new LatencyTrackingStateConfig(
                     metricGroup, enabled, sampleInterval, slidingWindow);
