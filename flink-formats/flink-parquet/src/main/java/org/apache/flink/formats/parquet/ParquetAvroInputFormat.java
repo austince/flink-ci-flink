@@ -70,21 +70,21 @@ public class ParquetAvroInputFormat extends ParquetInputFormat<GenericRecord> {
         return avroRowSerializationSchema.convertRowToAvroRecord(avroSchema, row);
     }
 
-    private Schema getProjectedSchema(String[] names, Schema schema) {
+    private Schema getProjectedSchema(String[] fieldNames, Schema sourceAvroSchema) {
         Set<String> projectedFieldNames = new HashSet<>();
-        Collections.addAll(projectedFieldNames, names);
+        Collections.addAll(projectedFieldNames, fieldNames);
 
         List<Schema.Field> projectedFields = new ArrayList<>();
-        for (Schema.Field f : schema.getFields()) {
+        for (Schema.Field f : sourceAvroSchema.getFields()) {
             if (projectedFieldNames.contains(f.name())) {
                 projectedFields.add(
                         new Schema.Field(f.name(), f.schema(), f.doc(), f.defaultVal()));
             }
         }
-        Schema schemaProjected =
-                Schema.createRecord(schema.getName() + "_projected", null, null, false);
-        schemaProjected.setFields(projectedFields);
-        return schemaProjected;
+        Schema projectedAvroSchema =
+                Schema.createRecord(sourceAvroSchema.getName() + "_projected", null, null, false);
+        projectedAvroSchema.setFields(projectedFields);
+        return projectedAvroSchema;
     }
 
     public Schema getAvroSchema() {
