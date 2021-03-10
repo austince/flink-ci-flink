@@ -96,12 +96,13 @@ public class ParquetAvroInputFormatTest extends TestUtil {
         FileInputSplit[] splits = inputFormat.createInputSplits(1);
         assertEquals(1, splits.length);
 
-        inputFormat.selectFields(new String[] {"foo"});
+        inputFormat.selectFields(new String[] {"foo", "bar"});
         inputFormat.open(splits[0]);
 
         final GenericRecord genericRecord = inputFormat.nextRecord(null);
         assertEquals(testData.f2.getField(0), genericRecord.get("foo"));
-        // should throw AvroRuntimeException("Not a valid schema field: bar")
-        genericRecord.get("bar");
+        assertEquals(testData.f2.getField(1), genericRecord.get("bar").toString());
+        // should throw AvroRuntimeException("Not a valid schema field: arr")
+        genericRecord.get("arr");
     }
 }
