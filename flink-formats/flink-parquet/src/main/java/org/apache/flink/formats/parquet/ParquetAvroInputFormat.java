@@ -30,10 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * An implementation of {@link ParquetInputFormat} to read records from Parquet files and convert
@@ -60,28 +57,33 @@ public class ParquetAvroInputFormat extends ParquetInputFormat<GenericRecord> {
 
     @Override
     public void selectFields(String[] fieldNames) {
-        super.selectFields(fieldNames);
         avroSchema = getProjectedSchema(fieldNames, avroSchema);
         avroRowSerializationSchema = new AvroRowSerializationSchema(avroSchema.toString());
+        super.selectFields(fieldNames);
     }
 
     @Override
     protected GenericRecord convert(Row row) {
-        // TODO row has to be in the same order than avro schema.
         return avroRowSerializationSchema.convertRowToAvroRecord(avroSchema, row);
     }
 
-    private Schema getProjectedSchema(String[] fieldNames, Schema sourceAvroSchema) {
-        Set<String> projectedFieldNames = new HashSet<>();
-        Collections.addAll(projectedFieldNames, fieldNames);
+    private Schema getProjectedSchema(String[] projectedFieldNames, Schema sourceAvroSchema) {
+        // Avro fields need to be in the same order than row field for compatibility with flink 1.12
+        // (row
+        // fields not accessible by name). Row field order now is the order of
+        // ParquetInputFormat.selectFields()
+        // for flink 1.13+ where row fields are accessible by name, we will match the fields names
+        // between avro schema and row schema.
 
         List<Schema.Field> projectedFields = new ArrayList<>();
-        for (Schema.Field f : sourceAvroSchema.getFields()) {
-            if (projectedFieldNames.contains(f.name())) {
+        for (String fieldName : projectedFieldNames) {
+            final Schema.Field f = sourceAvroSchema.getField(fieldName);
+            if (f != null) {
                 projectedFields.add(
                         new Schema.Field(f.name(), f.schema(), f.doc(), f.defaultVal()));
             }
         }
+
         Schema projectedAvroSchema =
                 Schema.createRecord(sourceAvroSchema.getName() + "_projected", null, null, false);
         projectedAvroSchema.setFields(projectedFields);
