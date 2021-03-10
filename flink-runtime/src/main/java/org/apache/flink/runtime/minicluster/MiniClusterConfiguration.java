@@ -22,9 +22,11 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.scheduler.adaptive.ReactiveModeUtils;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -66,6 +68,10 @@ public class MiniClusterConfiguration {
         final Configuration modifiedConfig = new Configuration(configuration);
 
         TaskExecutorResourceUtils.adjustForLocalExecution(modifiedConfig);
+        if (configuration.get(JobManagerOptions.SCHEDULER_MODE)
+                == SchedulerExecutionMode.REACTIVE) {
+            ReactiveModeUtils.configureClusterForReactiveMode(modifiedConfig);
+        }
 
         return new UnmodifiableConfiguration(modifiedConfig);
     }

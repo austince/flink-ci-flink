@@ -19,11 +19,15 @@
 package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.time.Duration;
 
 /** Utilities for reactive mode. */
 public final class ReactiveModeUtils {
@@ -44,6 +48,21 @@ public final class ReactiveModeUtils {
             } else {
                 vertex.setParallelism(vertex.getMaxParallelism());
             }
+        }
+    }
+
+    public static void configureClusterForReactiveMode(Configuration configuration) {
+        LOG.info("Modifying Cluster configuration for reactive mode");
+
+        if (!configuration.contains(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT)) {
+            // Configure adaptive scheduler to schedule job even if desired resources are not
+            // available (but sufficient resources)
+            configuration.set(
+                    JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(0));
+        }
+        if (!configuration.contains(JobManagerOptions.RESOURCE_WAIT_TIMEOUT)) {
+            // configure adaptive scheduler to wait forever for TaskManagers to register
+            configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(-1));
         }
     }
 

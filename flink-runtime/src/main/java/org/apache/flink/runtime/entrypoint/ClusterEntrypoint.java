@@ -58,6 +58,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.scheduler.adaptive.ReactiveModeUtils;
 import org.apache.flink.runtime.security.FlinkSecurityManager;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -153,14 +154,18 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         this.configuration = generateClusterConfiguration(configuration);
         this.terminationFuture = new CompletableFuture<>();
 
-        if (configuration.get(JobManagerOptions.SCHEDULER_MODE) == SchedulerExecutionMode.REACTIVE
-                && !supportsReactiveMode()) {
-            final String msg =
-                    "Reactive mode is configured for an unsupported cluster type. At the moment, reactive mode is only supported by standalone application clusters (bin/standalone-job.sh).";
-            // log message as well, otherwise the error is only shown in the .out file of the
-            // cluster
-            LOG.error(msg);
-            throw new IllegalConfigurationException(msg);
+        if (configuration.get(JobManagerOptions.SCHEDULER_MODE)
+                == SchedulerExecutionMode.REACTIVE) {
+            if (supportsReactiveMode()) {
+                ReactiveModeUtils.configureClusterForReactiveMode(this.configuration);
+            } else {
+                final String msg =
+                        "Reactive mode is configured for an unsupported cluster type. At the moment, reactive mode is only supported by standalone application clusters (bin/standalone-job.sh).";
+                // log message as well, otherwise the error is only shown in the .out file of the
+                // cluster
+                LOG.error(msg);
+                throw new IllegalConfigurationException(msg);
+            }
         }
 
         shutDownHook =
