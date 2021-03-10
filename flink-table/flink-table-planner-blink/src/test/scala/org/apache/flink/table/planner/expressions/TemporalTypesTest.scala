@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.planner.{JInt, JLong}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
+import org.junit.Assert.{assertTrue, fail}
 import org.junit.Test
 
 class TemporalTypesTest extends ExpressionTestBase {
@@ -260,6 +261,30 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(
       s"CAST(${timestampTz("2018-03-14 01:02:03")} AS DATE)",
       "2018-03-14")
+  }
+
+  private def expectExceptionThrown(
+      sqlExpr: String,
+      expected: String,
+      keywords: String,
+      clazz: Class[_ <: Throwable] = classOf[ValidationException])
+  : Unit = {
+    try {
+      testSqlApi(sqlExpr, expected)
+      super.evaluateExprs()
+      fail(s"Expected a $clazz, but no exception is thrown.")
+    } catch {
+      case e if e.getClass == clazz =>
+        if (keywords != null) {
+          assertTrue(
+            s"The actual exception message \n${e.getMessage}\n" +
+              s"doesn't contain expected keyword \n$keywords\n",
+            e.getMessage.contains(keywords))
+        }
+      case e: Throwable =>
+        e.printStackTrace()
+        fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
+    }
   }
 
   @Test
@@ -1127,6 +1152,90 @@ class TemporalTypesTest extends ExpressionTestBase {
         "'yyyy-MM-dd HH:mm:ss.SSSSSSSSS')",
       "2018-03-14 01:02:03.123456789")
 
+  }
+
+  @Test
+  def testToTimestampLtzShanghai(): Unit = {
+     config.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
+
+    //INT -> TIMESTAMP_LTZ
+    testSqlApi(
+      "TO_TIMESTAMP_LTZ(100)",
+      "1970-01-01 08:01:40.000")
+
+    //TINYINT -> TIMESTAMP_LTZ
+    testSqlApi(
+      "TO_TIMESTAMP_LTZ(CAST(100 AS TINYINT))",
+      "1970-01-01 08:01:40.000")
+
+    //BIGINT -> TIMESTAMP_LTZ
+    testSqlApi(
+      "TO_TIMESTAMP_LTZ(CAST(100 AS BIGINT))",
+      "1970-01-01 08:01:40.000")
+
+    //FLOAT -> TIMESTAMP_LTZ
+    testSqlApi(
+      "TO_TIMESTAMP_LTZ(CAST(100.01 AS FLOAT))",
+      "1970-01-01 08:01:40.000")
+
+    //FLOAT -> TIMESTAMP_LTZ
+    testSqlApi(
+      "TO_TIMESTAMP_LTZ(CAST(100.0 AS DOUBLE))",
+      "1970-01-01 08:01:40.000")
+
+    //DECIMAL -> TIMESTAMP_LTZ
+    testSqlApi(
+      "TO_TIMESTAMP_LTZ(100.0)",
+      "1970-01-01 08:01:40.000")
+
+    testSqlApi(
+      "TO_TIMESTAMP_LTZ(100, 0)",
+      "1970-01-01 08:01:40.000")
+
+    testSqlApi(
+      "TO_TIMESTAMP_LTZ(1234, 3)",
+      "1970-01-01 08:00:01.234")
+
+    testSqlApi(
+      "TO_TIMESTAMP_LTZ(-100)",
+      "1970-01-01 07:58:20.000")
+  }
+
+  @Test
+  def testInvalidToTimestampLtz(): Unit = {
+    expectExceptionThrown(
+      "TO_TIMESTAMP_LTZ(12, 1)",
+      "1970-01-01 08:00:01.200",
+      "The precision value '1' for function TO_TIMESTAMP_LTZ(numeric, precision) is unsupported," +
+        " the supported value is '0' for second or '3' for millisecond.",
+      classOf[TableException])
+
+    expectExceptionThrown(
+      "TO_TIMESTAMP_LTZ(1000000000, 9)",
+      "1970-01-01 08:00:01.000",
+      "The precision value '9' for function TO_TIMESTAMP_LTZ(numeric, precision) is unsupported," +
+        " the supported value is '0' for second or '3' for millisecond.",
+      classOf[TableException])
+  }
+
+  @Test
+  def testToTimestampLtzUTC(): Unit = {
+    config.setLocalTimeZone(ZoneId.of("UTC"))
+    testSqlApi(
+      "TO_TIMESTAMP_LTZ(100)",
+      "1970-01-01 00:01:40.000")
+
+    testSqlApi(
+      "TO_TIMESTAMP_LTZ(100, 0)",
+      "1970-01-01 00:01:40.000")
+
+    testSqlApi(
+      "TO_TIMESTAMP_LTZ(1234, 3)",
+      "1970-01-01 00:00:01.234")
+
+    testSqlApi(
+      "TO_TIMESTAMP_LTZ(-100)",
+      "1969-12-31 23:58:20.000")
   }
 
   @Test
