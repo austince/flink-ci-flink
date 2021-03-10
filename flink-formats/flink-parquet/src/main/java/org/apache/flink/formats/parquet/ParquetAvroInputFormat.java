@@ -50,7 +50,7 @@ public class ParquetAvroInputFormat extends ParquetInputFormat<GenericRecord> {
     private static final Logger LOG = LoggerFactory.getLogger(ParquetAvroInputFormat.class);
 
     private Schema avroSchema;
-    private final AvroRowSerializationSchema avroRowSerializationSchema;
+    private AvroRowSerializationSchema avroRowSerializationSchema;
 
     public ParquetAvroInputFormat(Path filePath, MessageType messageType) {
         super(filePath, messageType);
@@ -60,13 +60,14 @@ public class ParquetAvroInputFormat extends ParquetInputFormat<GenericRecord> {
 
     @Override
     public void selectFields(String[] fieldNames) {
-        // TODO debug, does not work
         super.selectFields(fieldNames);
         avroSchema = getProjectedSchema(fieldNames, avroSchema);
+        avroRowSerializationSchema = new AvroRowSerializationSchema(avroSchema.toString());
     }
 
     @Override
     protected GenericRecord convert(Row row) {
+        // TODO row has to be in the same order than avro schema.
         return avroRowSerializationSchema.convertRowToAvroRecord(avroSchema, row);
     }
 
