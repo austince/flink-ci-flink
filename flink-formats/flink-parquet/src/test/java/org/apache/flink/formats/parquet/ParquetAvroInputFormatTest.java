@@ -44,10 +44,13 @@ import static org.junit.Assert.assertEquals;
 /** Test cases for reading Parquet files and convert parquet records to Avro GenericRecords. */
 @RunWith(Parameterized.class)
 public class ParquetAvroInputFormatTest extends TestUtil {
+
     @ClassRule public static TemporaryFolder tempRoot = new TemporaryFolder();
 
     public ParquetAvroInputFormatTest(boolean useLegacyMode) {
-        super(useLegacyMode);
+        // AvroRowSerializationSchema does not work with parquet.avro.write-old-list-structure set
+        // to false
+        super(true);
     }
 
     @Test
