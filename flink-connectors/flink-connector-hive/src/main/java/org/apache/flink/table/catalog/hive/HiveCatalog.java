@@ -118,6 +118,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.ALTER_COL_CASCADE;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.ALTER_TABLE_OP;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_FILE_FORMAT;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.IDENTIFIER;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_COLS;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_CONSTRAINT_TRAITS;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.PK_CONSTRAINT_TRAIT;
@@ -125,6 +126,8 @@ import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERT
 import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveIntStat;
 import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveLongStat;
 import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.getHadoopConfiguration;
+import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
+import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.apache.flink.table.utils.PartitionPathUtils.unescapePathName;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -678,9 +681,9 @@ public class HiveCatalog extends AbstractCatalog {
         boolean isView = TableType.valueOf(hiveTable.getTableType()) == TableType.VIRTUAL_VIEW;
 
         // Table properties
-        Map<String, String> properties = hiveTable.getParameters();
+        Map<String, String> properties = new HashMap<>(hiveTable.getParameters());
 
-        boolean isGeneric = isGenericForGet(hiveTable.getParameters());
+        boolean isGeneric = isGenericForGet(properties);
 
         TableSchema tableSchema;
         // Partition keys
@@ -709,7 +712,7 @@ public class HiveCatalog extends AbstractCatalog {
             // remove the schema from properties
             properties = CatalogTableImpl.removeRedundant(properties, tableSchema, partitionKeys);
         } else {
-            properties.put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(false));
+            properties.put(CONNECTOR.key(), IDENTIFIER);
             // Table schema
             List<FieldSchema> fields = getNonPartitionFields(hiveConf, hiveTable);
             Set<String> notNullColumns =
@@ -737,6 +740,9 @@ public class HiveCatalog extends AbstractCatalog {
         }
 
         String comment = properties.remove(HiveCatalogConfig.COMMENT);
+
+        // remove this flag since we don't need it for tables
+        properties.remove(CatalogPropertiesUtil.IS_GENERIC);
 
         if (isView) {
             return new CatalogViewImpl(
@@ -768,10 +774,7 @@ public class HiveCatalog extends AbstractCatalog {
     private static Map<String, String> retrieveFlinkProperties(
             Map<String, String> hiveTableParams) {
         return hiveTableParams.entrySet().stream()
-                .filter(
-                        e ->
-                                e.getKey().startsWith(FLINK_PROPERTY_PREFIX)
-                                        || e.getKey().equals(CatalogPropertiesUtil.IS_GENERIC))
+                .filter(e -> e.getKey().startsWith(FLINK_PROPERTY_PREFIX))
                 .collect(
                         Collectors.toMap(
                                 e -> e.getKey().replace(FLINK_PROPERTY_PREFIX, ""),
@@ -811,18 +814,15 @@ public class HiveCatalog extends AbstractCatalog {
         checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
         checkNotNull(partition, "Partition cannot be null");
 
-        boolean isGeneric =
-                Boolean.valueOf(partition.getProperties().get(CatalogPropertiesUtil.IS_GENERIC));
+        Table hiveTable = getHiveTable(tablePath);
+        ensurePartitionedTable(tablePath, hiveTable);
+
+        // partition inherits 'is_generic' from table
+        boolean isGeneric = isGenericForGet(hiveTable.getParameters());
 
         if (isGeneric) {
             throw new CatalogException("Currently only supports non-generic CatalogPartition");
         }
-
-        Table hiveTable = getHiveTable(tablePath);
-
-        ensureTableAndPartitionMatch(hiveTable, partition);
-
-        ensurePartitionedTable(tablePath, hiveTable);
 
         try {
             client.add_partition(instantiateHivePartition(hiveTable, partitionSpec, partition));
@@ -1010,18 +1010,16 @@ public class HiveCatalog extends AbstractCatalog {
         checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
         checkNotNull(newPartition, "New partition cannot be null");
 
-        boolean isGeneric = isGenericForGet(newPartition.getProperties());
-
-        if (isGeneric) {
-            throw new CatalogException("Currently only supports non-generic CatalogPartition");
-        }
-
         // Explicitly check if the partition exists or not
         // because alter_partition() doesn't throw NoSuchObjectException like dropPartition() when
         // the target doesn't exist
         try {
             Table hiveTable = getHiveTable(tablePath);
-            ensureTableAndPartitionMatch(hiveTable, newPartition);
+            boolean isGeneric = isGenericForGet(hiveTable.getParameters());
+            if (isGeneric) {
+                throw new CatalogException("Currently only supports non-generic CatalogPartition");
+            }
+
             Partition hivePartition = getHivePartition(hiveTable, partitionSpec);
             if (hivePartition == null) {
                 if (ignoreIfNotExists) {
@@ -1058,21 +1056,6 @@ public class HiveCatalog extends AbstractCatalog {
                             "Failed to alter existing partition with new partition %s of table %s",
                             partitionSpec, tablePath),
                     e);
-        }
-    }
-
-    // make sure both table and partition are generic, or neither is
-    private static void ensureTableAndPartitionMatch(
-            Table hiveTable, CatalogPartition catalogPartition) {
-        boolean tableIsGeneric = isGenericForGet(hiveTable.getParameters());
-        boolean partitionIsGeneric = isGenericForGet(catalogPartition.getProperties());
-
-        if (tableIsGeneric != partitionIsGeneric) {
-            throw new CatalogException(
-                    String.format(
-                            "Cannot handle %s partition for %s table",
-                            catalogPartition.getClass().getName(),
-                            tableIsGeneric ? "generic" : "non-generic"));
         }
     }
 
@@ -1664,30 +1647,29 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     public static boolean isGenericForCreate(Map<String, String> properties) {
-        // When creating an object, a hive object needs explicitly have a key is_generic = false
-        // otherwise, this is a generic object if 1) the key is missing 2) is_generic = true
-        // this is opposite to reading an object. See getObjectIsGeneric().
+        // When creating an object, a hive object needs explicitly have connector = hive
+        // otherwise, this is a generic object.
         if (properties == null) {
             return true;
         }
-        boolean isGeneric;
-        if (!properties.containsKey(CatalogPropertiesUtil.IS_GENERIC)) {
-            // must be a generic object
-            isGeneric = true;
-            properties.put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(true));
-        } else {
-            isGeneric = Boolean.parseBoolean(properties.get(CatalogPropertiesUtil.IS_GENERIC));
-        }
-        return isGeneric;
+        String connector = properties.get(CONNECTOR.key());
+        return !IDENTIFIER.equalsIgnoreCase(connector);
     }
 
     public static boolean isGenericForGet(Map<String, String> properties) {
-        // When retrieving an object, a generic object needs explicitly have a key is_generic = true
-        // otherwise, this is a Hive object if 1) the key is missing 2) is_generic = false
-        // this is opposite to creating an object. See createObjectIsGeneric()
-        return properties != null
-                && Boolean.parseBoolean(
-                        properties.getOrDefault(CatalogPropertiesUtil.IS_GENERIC, "false"));
+        // When retrieving an object from catalog, a generic object needs explicitly have a key  of
+        // 'connector' or 'connector.type', otherwise, this is a Hive object.
+        if (properties != null) {
+            // we still check is_generic to be backward compatible
+            String isGeneric = properties.get(CatalogPropertiesUtil.IS_GENERIC);
+            if (isGeneric == null) {
+                return properties.containsKey(FLINK_PROPERTY_PREFIX + CONNECTOR.key())
+                        || properties.containsKey(FLINK_PROPERTY_PREFIX + CONNECTOR_TYPE);
+            } else {
+                return Boolean.parseBoolean(isGeneric);
+            }
+        }
+        return false;
     }
 
     public static void disallowChangeIsGeneric(boolean oldIsGeneric, boolean newIsGeneric) {

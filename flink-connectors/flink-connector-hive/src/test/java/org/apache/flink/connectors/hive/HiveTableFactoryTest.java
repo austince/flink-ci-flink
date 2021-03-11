@@ -19,10 +19,10 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
-import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -74,8 +74,7 @@ public class HiveTableFactoryTest {
                         .build();
 
         Map<String, String> properties = new HashMap<>();
-        properties.put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(true));
-        properties.put("connector", "COLLECTION");
+        properties.put(FactoryUtil.CONNECTOR.key(), "COLLECTION");
 
         catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
         ObjectPath path = new ObjectPath("mydb", "mytable");
@@ -112,7 +111,7 @@ public class HiveTableFactoryTest {
                         .build();
 
         Map<String, String> properties = new HashMap<>();
-        properties.put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(false));
+        properties.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
 
         catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
         ObjectPath path = new ObjectPath("mydb", "mytable");

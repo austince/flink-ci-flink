@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.connectors.hive.HiveDynamicTableFactory;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -25,6 +26,7 @@ import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPropertiesUtil;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -40,6 +42,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -96,7 +99,7 @@ public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase 
                             tablePath.getDatabaseName(), tablePath.getObjectName());
             hiveTable.setDbName(tablePath.getDatabaseName());
             hiveTable.setTableName(tablePath.getObjectName());
-            hiveTable.getParameters().putAll(getBatchTableProperties());
+            setLegacyGeneric(hiveTable.getParameters());
             hiveTable.getParameters().put("flink.generic.table.schema.0.name", "ti");
             hiveTable.getParameters().put("flink.generic.table.schema.0.data-type", "TINYINT");
             hiveTable.getParameters().put("flink.generic.table.schema.1.name", "si");
@@ -118,9 +121,7 @@ public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase 
             hiveTable.getParameters().put("flink.generic.table.schema.7.data-type", "DOUBLE");
             ((HiveCatalog) catalog).client.createTable(hiveTable);
             CatalogBaseTable catalogBaseTable = catalog.getTable(tablePath);
-            assertTrue(
-                    Boolean.parseBoolean(
-                            catalogBaseTable.getOptions().get(CatalogPropertiesUtil.IS_GENERIC)));
+            assertTrue(HiveDynamicTableFactory.isGeneric((CatalogTable) catalogBaseTable));
             TableSchema expectedSchema =
                     TableSchema.builder()
                             .fields(
@@ -145,7 +146,7 @@ public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase 
                             tablePath.getDatabaseName(), tablePath.getObjectName());
             hiveTable.setDbName(tablePath.getDatabaseName());
             hiveTable.setTableName(tablePath.getObjectName());
-            hiveTable.getParameters().putAll(getBatchTableProperties());
+            setLegacyGeneric(hiveTable.getParameters());
             hiveTable.setTableName(tablePath.getObjectName());
             hiveTable.getParameters().put("flink.generic.table.schema.0.name", "c");
             hiveTable.getParameters().put("flink.generic.table.schema.0.data-type", "CHAR(265)");
@@ -195,7 +196,7 @@ public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase 
                             tablePath.getDatabaseName(), tablePath.getObjectName());
             hiveTable.setDbName(tablePath.getDatabaseName());
             hiveTable.setTableName(tablePath.getObjectName());
-            hiveTable.getParameters().putAll(getBatchTableProperties());
+            setLegacyGeneric(hiveTable.getParameters());
             hiveTable.setTableName(tablePath.getObjectName());
             hiveTable.getParameters().put("flink.generic.table.schema.0.name", "dt");
             hiveTable.getParameters().put("flink.generic.table.schema.0.data-type", "DATE");
@@ -241,7 +242,7 @@ public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase 
                             tablePath.getDatabaseName(), tablePath.getObjectName());
             hiveTable.setDbName(tablePath.getDatabaseName());
             hiveTable.setTableName(tablePath.getObjectName());
-            hiveTable.getParameters().putAll(getBatchTableProperties());
+            setLegacyGeneric(hiveTable.getParameters());
             hiveTable.setTableName(tablePath.getObjectName());
             hiveTable.getParameters().put("flink.generic.table.schema.0.name", "a");
             hiveTable.getParameters().put("flink.generic.table.schema.0.data-type", "ARRAY<INT>");
@@ -455,5 +456,9 @@ public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase 
     protected CatalogFunction createAnotherFunction() {
         return new CatalogFunctionImpl(
                 TestSimpleUDF.class.getCanonicalName(), FunctionLanguage.SCALA);
+    }
+
+    private static void setLegacyGeneric(Map<String, String> properties) {
+        properties.put(CatalogPropertiesUtil.IS_GENERIC, "true");
     }
 }

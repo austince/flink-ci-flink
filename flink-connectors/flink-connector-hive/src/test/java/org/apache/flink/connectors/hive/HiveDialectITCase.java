@@ -26,7 +26,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
-import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
@@ -124,7 +123,7 @@ public class HiveDialectITCase {
         tableEnv.executeSql("create database db1 comment 'db1 comment'");
         Database db = hiveCatalog.getHiveDatabase("db1");
         assertEquals("db1 comment", db.getDescription());
-        assertFalse(Boolean.parseBoolean(db.getParameters().get(CatalogPropertiesUtil.IS_GENERIC)));
+        assertFalse(HiveCatalog.isGenericForGet(db.getParameters()));
 
         String db2Location = warehouse + "/db2_location";
         tableEnv.executeSql(

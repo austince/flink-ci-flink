@@ -25,7 +25,6 @@ import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowForma
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.CatalogBaseTable;
-import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -79,6 +78,7 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableS
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_IS_EXTERNAL;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
+import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Utils to for Hive-backed table. */
@@ -226,7 +226,7 @@ public class HiveTableUtil {
      * Extract DDL semantics from properties and use it to initiate the table. The related
      * properties will be removed from the map after they're used.
      */
-    public static void initiateTableFromProperties(
+    private static void initiateTableFromProperties(
             Table hiveTable, Map<String, String> properties, HiveConf hiveConf) {
         extractExternal(hiveTable, properties);
         extractRowFormat(hiveTable.getSd(), properties);
@@ -394,6 +394,8 @@ public class HiveTableUtil {
             } else {
                 sd.setCols(allColumns);
             }
+            // remove the 'connector' option for hive table
+            properties.remove(CONNECTOR.key());
             // Table properties
             hiveTable.getParameters().putAll(properties);
         }
@@ -413,18 +415,11 @@ public class HiveTableUtil {
 
     /**
      * Add a prefix to Flink-created properties to distinguish them from Hive-created properties.
-     * Note that 'is_generic' is a special key and this method will leave it as-is.
      */
-    public static Map<String, String> maskFlinkProperties(Map<String, String> properties) {
+    private static Map<String, String> maskFlinkProperties(Map<String, String> properties) {
         return properties.entrySet().stream()
                 .filter(e -> e.getKey() != null && e.getValue() != null)
-                .map(
-                        e ->
-                                new Tuple2<>(
-                                        e.getKey().equals(CatalogPropertiesUtil.IS_GENERIC)
-                                                ? e.getKey()
-                                                : FLINK_PROPERTY_PREFIX + e.getKey(),
-                                        e.getValue()))
+                .map(e -> new Tuple2<>(FLINK_PROPERTY_PREFIX + e.getKey(), e.getValue()))
                 .collect(Collectors.toMap(t -> t.f0, t -> t.f1));
     }
 
