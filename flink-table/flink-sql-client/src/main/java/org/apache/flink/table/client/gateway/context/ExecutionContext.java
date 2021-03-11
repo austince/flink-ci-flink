@@ -43,7 +43,6 @@ import org.apache.flink.util.TemporaryClassLoaderContext;
 import java.lang.reflect.Method;
 import java.net.URLClassLoader;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.client.gateway.context.SessionContext.SessionState;
@@ -216,30 +215,5 @@ public class ExecutionContext {
         ExecutionEnvironment execEnv = ExecutionEnvironment.getExecutionEnvironment();
         execEnv.getConfiguration().addAll(flinkConfig);
         return execEnv;
-    }
-
-    // ------------------------------------------------------------------------------------------------------------------
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(environment, flinkConfig, sessionState, tableEnv, classLoader);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj == this) {
-            return true;
-        }
-
-        if (!(obj instanceof ExecutionContext)) {
-            return false;
-        }
-
-        ExecutionContext context = (ExecutionContext) obj;
-        return Objects.equals(environment, context.environment)
-                && Objects.equals(flinkConfig, context.flinkConfig)
-                && Objects.equals(sessionState, context.sessionState)
-                && Objects.equals(tableEnv, context.tableEnv)
-                && Objects.equals(classLoader, context.classLoader);
     }
 }

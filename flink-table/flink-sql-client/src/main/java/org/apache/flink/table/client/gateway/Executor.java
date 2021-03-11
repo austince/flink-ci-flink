@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.client.gateway.context.SessionContext;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.types.Row;
 
@@ -33,10 +32,10 @@ public interface Executor {
     void start() throws SqlExecutionException;
 
     /**
-     * Open a new session by using the given {@link SessionContext}.
+     * Open a new session by using the given session id.
      *
-     * @param session context to create new session.
-     * @return session identifier to track the session.
+     * @param sessionId session identifier.
+     * @return used session identifier to track the session.
      * @throws SqlExecutionException if any error happen
      */
     String openSession(String sessionId) throws SqlExecutionException;
