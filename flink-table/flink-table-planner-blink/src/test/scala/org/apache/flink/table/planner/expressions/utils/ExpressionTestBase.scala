@@ -125,7 +125,8 @@ abstract class ExpressionTestBase {
         new VarCharType(VarCharType.MAX_LENGTH)): _*)
 
       val exprs = stringTestExprs.map(exprGenerator.generateExpression)
-      val genExpr = exprGenerator.generateResultExpression(exprs, resultType, classOf[BinaryRowData])
+      val genExpr = exprGenerator
+        .generateResultExpression(exprs, resultType, classOf[BinaryRowData])
 
       val bodyCode =
         s"""
