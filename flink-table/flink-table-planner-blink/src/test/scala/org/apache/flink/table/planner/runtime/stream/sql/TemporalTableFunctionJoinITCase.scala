@@ -55,7 +55,7 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
         |SELECT
         |  o.amount * r.rate AS amount
         |FROM
-        |  (SELECT * FROM Orders UNION ALL SELECT * FROM Orders2) AS o,
+        |   AllOrders AS o,
         |   TABLE (Rates(o.proctime)) AS r
         |WHERE r.currency = o.currency
         |""".stripMargin
@@ -87,6 +87,8 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     tEnv.registerTable("Orders", orders)
     tEnv.registerTable("Orders2", orders2)
     tEnv.registerTable("RatesHistory", ratesHistory)
+    tEnv.registerTable("AllOrders",
+      tEnv.sqlQuery("SELECT * FROM Orders UNION ALL SELECT * FROM Orders2"))
     tEnv.registerFunction(
       "Rates",
       ratesHistory.createTemporalTableFunction($"proctime", $"currency"))
