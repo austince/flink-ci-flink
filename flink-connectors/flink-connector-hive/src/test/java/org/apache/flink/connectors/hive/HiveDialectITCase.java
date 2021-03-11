@@ -308,7 +308,7 @@ public class HiveDialectITCase {
         // change location
         String newLocation = warehouse + "/tbl1_new_location";
         tableEnv.executeSql(
-                String.format("alter table `default`.tbl1 set location '%s'", newLocation));
+                String.format("alter table default.tbl1 set location '%s'", newLocation));
         hiveTable = hiveCatalog.getHiveTable(tablePath);
         assertEquals(newLocation, locationPath(hiveTable.getSd().getLocation()));
 
@@ -537,6 +537,35 @@ public class HiveDialectITCase {
         tableEnv.executeSql("drop function my_abs");
         assertFalse(hiveCatalog.functionExists(new ObjectPath("default", "my_abs")));
         tableEnv.executeSql("drop function if exists foo");
+    }
+
+    @Test
+    public void testTemporaryFunction() throws Exception {
+        // create temp function
+        tableEnv.executeSql(
+                String.format(
+                        "create temporary function temp_abs as '%s'",
+                        GenericUDFAbs.class.getName()));
+        List<Row> functions =
+                CollectionUtil.iteratorToList(tableEnv.executeSql("show functions").collect());
+        assertTrue(functions.toString().contains("temp_abs"));
+        // call the function
+        tableEnv.executeSql("create table src(x int)");
+        tableEnv.executeSql("insert into src values (1),(-1)").await();
+        assertEquals(
+                "[+I[1], +I[1]]",
+                queryResult(tableEnv.sqlQuery("select temp_abs(x) from src")).toString());
+        // switch DB and the temp function can still be used
+        tableEnv.executeSql("create database db1");
+        tableEnv.useDatabase("db1");
+        assertEquals(
+                "[+I[1], +I[1]]",
+                queryResult(tableEnv.sqlQuery("select temp_abs(x) from `default`.src")).toString());
+        // drop the function
+        tableEnv.executeSql("drop temporary function temp_abs");
+        functions = CollectionUtil.iteratorToList(tableEnv.executeSql("show functions").collect());
+        assertFalse(functions.toString().contains("temp_abs"));
+        tableEnv.executeSql("drop temporary function if exists foo");
     }
 
     @Test
