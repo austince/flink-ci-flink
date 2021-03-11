@@ -48,6 +48,7 @@ import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
+import org.apache.flink.table.operations.ddl.CreateTempSystemInlineFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogOperation;
@@ -169,7 +170,8 @@ public final class SqlCommandParser {
         } else if (operation instanceof ShowPartitionsOperation) {
             cmd = SqlCommand.SHOW_PARTITIONS;
         } else if (operation instanceof CreateCatalogFunctionOperation
-                || operation instanceof CreateTempSystemFunctionOperation) {
+                || operation instanceof CreateTempSystemFunctionOperation
+                || operation instanceof CreateTempSystemInlineFunctionOperation) {
             cmd = SqlCommand.CREATE_FUNCTION;
         } else if (operation instanceof DropCatalogFunctionOperation
                 || operation instanceof DropTempSystemFunctionOperation) {

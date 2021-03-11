@@ -125,6 +125,7 @@ import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
+import org.apache.flink.table.operations.ddl.CreateTempSystemInlineFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogOperation;
@@ -1055,6 +1056,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             }
         } else if (operation instanceof CreateCatalogFunctionOperation) {
             return createCatalogFunction((CreateCatalogFunctionOperation) operation);
+        } else if (operation instanceof CreateTempSystemInlineFunctionOperation) {
+            return createSystemInlineFunction((CreateTempSystemInlineFunctionOperation) operation);
         } else if (operation instanceof CreateTempSystemFunctionOperation) {
             return createSystemFunction((CreateTempSystemFunctionOperation) operation);
         } else if (operation instanceof DropCatalogFunctionOperation) {
@@ -1631,6 +1634,22 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             throw e;
         } catch (FunctionNotExistException e) {
             throw new ValidationException(e.getMessage(), e);
+        } catch (Exception e) {
+            throw new TableException(exMsg, e);
+        }
+    }
+
+    private TableResult createSystemInlineFunction(
+            CreateTempSystemInlineFunctionOperation operation) {
+        String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
+        try {
+            functionCatalog.registerTemporarySystemFunction(
+                    operation.getFunctionName(),
+                    operation.getCatalogFunction(),
+                    operation.ifNotExists());
+            return TableResultImpl.TABLE_RESULT_OK;
+        } catch (ValidationException e) {
+            throw e;
         } catch (Exception e) {
             throw new TableException(exMsg, e);
         }
