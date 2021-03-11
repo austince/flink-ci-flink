@@ -123,7 +123,7 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
         final DefaultExecutionVertex vertexB0 =
                 topology.getVertex(new ExecutionVertexID(b.getID(), 0));
         final IntermediateResultPartitionID b0ConsumedResultPartition =
-                Iterables.getOnlyElement(vertexB0.getConsumedResults()).getId();
+                Iterables.getOnlyElement(vertexB0.getConsumerPartitionGroups().get(0));
 
         final Set<IntermediateResultPartitionID> secondPipelinedRegionConsumedResults =
                 IterableUtils.toStream(secondPipelinedRegion.getConsumedResults())

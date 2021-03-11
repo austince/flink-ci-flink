@@ -19,12 +19,16 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import static org.apache.flink.runtime.scheduler.SchedulerUtils.createFlattenIterator;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A simple scheduling execution vertex for testing purposes. */
@@ -32,21 +36,27 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 
     private final ExecutionVertexID executionVertexId;
 
-    private final Collection<TestingSchedulingResultPartition> consumedPartitions;
+    private final List<ConsumedPartitionGroup> consumedPartitionGroups;
 
     private final Collection<TestingSchedulingResultPartition> producedPartitions;
+
+    private final Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
+            resultPartitionsById;
 
     private ExecutionState executionState;
 
     public TestingSchedulingExecutionVertex(
             JobVertexID jobVertexId,
             int subtaskIndex,
-            Collection<TestingSchedulingResultPartition> consumedPartitions,
+            List<ConsumedPartitionGroup> consumedPartitionGroups,
+            Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
+                    resultPartitionsById,
             ExecutionState executionState) {
 
         this.executionVertexId = new ExecutionVertexID(jobVertexId, subtaskIndex);
-        this.consumedPartitions = checkNotNull(consumedPartitions);
+        this.consumedPartitionGroups = checkNotNull(consumedPartitionGroups);
         this.producedPartitions = new ArrayList<>();
+        this.resultPartitionsById = checkNotNull(resultPartitionsById);
         this.executionState = executionState;
     }
 
@@ -66,7 +76,9 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 
     @Override
     public Iterable<TestingSchedulingResultPartition> getConsumedResults() {
-        return consumedPartitions;
+        return () ->
+                createFlattenIterator(
+                        this::getConsumerPartitionGroups, this::getResultPartitionOrThrow);
     }
 
     @Override
@@ -74,8 +86,29 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
         return producedPartitions;
     }
 
-    void addConsumedPartition(TestingSchedulingResultPartition partition) {
-        consumedPartitions.add(partition);
+    @Override
+    public List<ConsumedPartitionGroup> getConsumerPartitionGroups() {
+        return consumedPartitionGroups;
+    }
+
+    @Override
+    public TestingSchedulingResultPartition getResultPartitionOrThrow(
+            IntermediateResultPartitionID id) {
+        return resultPartitionsById.get(id);
+    }
+
+    void addConsumedPartition(TestingSchedulingResultPartition consumedPartition) {
+        this.consumedPartitionGroups.add(
+                ConsumedPartitionGroup.fromSinglePartition(consumedPartition.getId()));
+        this.resultPartitionsById.putIfAbsent(consumedPartition.getId(), consumedPartition);
+    }
+
+    void addConsumedPartitionGroup(
+            ConsumedPartitionGroup consumedResultIdGroup,
+            Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
+                    consumedResultPartitionById) {
+        this.consumedPartitionGroups.add(consumedResultIdGroup);
+        this.resultPartitionsById.putAll(consumedResultPartitionById);
     }
 
     void addProducedPartition(TestingSchedulingResultPartition partition) {
@@ -95,7 +128,9 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
     public static class Builder {
         private JobVertexID jobVertexId = new JobVertexID();
         private int subtaskIndex = 0;
-        private List<TestingSchedulingResultPartition> partitions = new ArrayList<>();
+        private final List<ConsumedPartitionGroup> partitions = new ArrayList<>();
+        private final Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
+                resultPartitionsById = new HashMap<>();
         private ExecutionState executionState = ExecutionState.CREATED;
 
         Builder withExecutionVertexID(JobVertexID jobVertexId, int subtaskIndex) {
@@ -104,8 +139,20 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
             return this;
         }
 
-        public Builder withConsumedPartitions(List<TestingSchedulingResultPartition> partitions) {
-            this.partitions = partitions;
+        public Builder withConsumedPartitions(
+                List<ConsumedPartitionGroup> partitions,
+                Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
+                        resultPartitionsById) {
+            this.resultPartitionsById.putAll(resultPartitionsById);
+
+            for (ConsumedPartitionGroup partitionGroup : partitions) {
+                List<IntermediateResultPartitionID> partitionIds =
+                        new ArrayList<>(partitionGroup.size());
+                for (IntermediateResultPartitionID partitionId : partitionGroup) {
+                    partitionIds.add(partitionId);
+                }
+                this.partitions.add(ConsumedPartitionGroup.fromMultiplePartitions(partitionIds));
+            }
             return this;
         }
 
@@ -116,7 +163,7 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 
         public TestingSchedulingExecutionVertex build() {
             return new TestingSchedulingExecutionVertex(
-                    jobVertexId, subtaskIndex, partitions, executionState);
+                    jobVertexId, subtaskIndex, partitions, resultPartitionsById, executionState);
         }
     }
 }

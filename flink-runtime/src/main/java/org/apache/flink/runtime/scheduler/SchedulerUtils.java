@@ -33,6 +33,11 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import org.slf4j.Logger;
 
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
 /** Utils class for Flink's scheduler implementations. */
 public final class SchedulerUtils {
 
@@ -111,5 +116,34 @@ public final class SchedulerUtils {
     private static CheckpointIDCounter createCheckpointIdCounter(
             CheckpointRecoveryFactory recoveryFactory, JobID jobId) throws Exception {
         return recoveryFactory.createCheckpointIDCounter(jobId);
+    }
+
+    public static <ID, GROUP extends Iterable<ID>, RESULT> Iterator<RESULT> createFlattenIterator(
+            Supplier<Iterable<GROUP>> groupSupplier, Function<ID, RESULT> mapping) {
+        return new Iterator<RESULT>() {
+            private final Iterator<GROUP> groupIterator = groupSupplier.get().iterator();
+            private Iterator<ID> idIterator;
+
+            @Override
+            public boolean hasNext() {
+                while (idIterator == null || !idIterator.hasNext()) {
+                    if (!groupIterator.hasNext()) {
+                        return false;
+                    } else {
+                        idIterator = groupIterator.next().iterator();
+                    }
+                }
+                return true;
+            }
+
+            @Override
+            public RESULT next() {
+                if (hasNext()) {
+                    return mapping.apply(idIterator.next());
+                } else {
+                    throw new NoSuchElementException();
+                }
+            }
+        };
     }
 }
