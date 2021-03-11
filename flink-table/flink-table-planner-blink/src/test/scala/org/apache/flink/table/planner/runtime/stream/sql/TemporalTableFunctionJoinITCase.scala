@@ -55,8 +55,8 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
         |SELECT
         |  o.amount * r.rate AS amount
         |FROM
-        |   AllOrders AS o,
-        |   TABLE (Rates(o.proctime)) AS r
+        |  Orders AS o,
+        |  LATERAL TABLE (Rates(o.proctime)) AS r
         |WHERE r.currency = o.currency
         |""".stripMargin
 
@@ -74,7 +74,7 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     ratesHistoryData.+=(("Euro", 116L))
     ratesHistoryData.+=(("Euro", 119L))
 
-    val orders = env
+    val orders1 = env
       .fromCollection(ordersData)
       .toTable(tEnv, 'amount, 'currency, 'proctime.proctime)
     val orders2 = env
@@ -84,15 +84,15 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
       .fromCollection(ratesHistoryData)
       .toTable(tEnv, 'currency, 'rate, 'proctime.proctime)
 
-    tEnv.registerTable("Orders", orders)
+    tEnv.registerTable("Orders1", orders1)
     tEnv.registerTable("Orders2", orders2)
     tEnv.registerTable("RatesHistory", ratesHistory)
-    tEnv.registerTable("AllOrders",
-      tEnv.sqlQuery("SELECT * FROM Orders UNION ALL SELECT * FROM Orders2"))
     tEnv.registerFunction(
       "Rates",
       ratesHistory.createTemporalTableFunction($"proctime", $"currency"))
-
+    tEnv.registerTable(
+      "Orders",
+      tEnv.sqlQuery("SELECT * FROM Orders1 UNION ALL SELECT * FROM Orders2"))
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new TestingAppendSink)
     env.execute()
