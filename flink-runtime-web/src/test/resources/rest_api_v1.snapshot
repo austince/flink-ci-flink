@@ -1875,7 +1875,10 @@
       } ]
     },
     "query-parameters" : {
-      "queryParameters" : [ ]
+      "queryParameters" : [ {
+        "key" : "type",
+        "mandatory" : false
+      } ]
     },
     "request" : {
       "type" : "any"
@@ -1981,7 +1984,10 @@
       } ]
     },
     "query-parameters" : {
-      "queryParameters" : [ ]
+      "queryParameters" : [ {
+        "key" : "type",
+        "mandatory" : false
+      } ]
     },
     "request" : {
       "type" : "any"
@@ -2026,7 +2032,10 @@
       } ]
     },
     "query-parameters" : {
-      "queryParameters" : [ ]
+      "queryParameters" : [ {
+        "key" : "type",
+        "mandatory" : false
+      } ]
     },
     "request" : {
       "type" : "any"
@@ -2074,6 +2083,55 @@
       }
     }
   }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid/flamegraph",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "type",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexFlameGraphInfo",
+      "properties" : {
+        "end-timestamp" : {
+          "type" : "integer"
+        },
+        "data" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:threadinfo:OperatorFlameGraph:Node",
+          "properties" : {
+            "name" : {
+              "type" : "string"
+            },
+            "value" : {
+              "type" : "integer"
+            },
+            "children" : {
+              "type" : "array",
+              "items" : {
+                "type" : "object",
+                "$ref" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:threadinfo:OperatorFlameGraph:Node"
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
     "url" : "/jobs/:jobid/vertices/:vertexid/metrics",
     "method" : "GET",
     "status-code" : "200 OK",
@@ -2110,7 +2168,10 @@
       } ]
     },
     "query-parameters" : {
-      "queryParameters" : [ ]
+      "queryParameters" : [ {
+        "key" : "type",
+        "mandatory" : false
+      } ]
     },
     "request" : {
       "type" : "any"
@@ -2208,7 +2269,10 @@
       } ]
     },
     "query-parameters" : {
-      "queryParameters" : [ ]
+      "queryParameters" : [ {
+        "key" : "type",
+        "mandatory" : false
+      } ]
     },
     "request" : {
       "type" : "any"
@@ -2294,7 +2358,10 @@
       } ]
     },
     "query-parameters" : {
-      "queryParameters" : [ ]
+      "queryParameters" : [ {
+        "key" : "type",
+        "mandatory" : false
+      } ]
     },
     "request" : {
       "type" : "any"
@@ -2380,7 +2447,10 @@
       } ]
     },
     "query-parameters" : {
-      "queryParameters" : [ ]
+      "queryParameters" : [ {
+        "key" : "type",
+        "mandatory" : false
+      } ]
     },
     "request" : {
       "type" : "any"
@@ -2457,7 +2527,10 @@
       } ]
     },
     "query-parameters" : {
-      "queryParameters" : [ ]
+      "queryParameters" : [ {
+        "key" : "type",
+        "mandatory" : false
+      } ]
     },
     "request" : {
       "type" : "any"
@@ -2514,7 +2587,10 @@
       } ]
     },
     "query-parameters" : {
-      "queryParameters" : [ ]
+      "queryParameters" : [ {
+        "key" : "type",
+        "mandatory" : false
+      } ]
     },
     "request" : {
       "type" : "any"
@@ -2611,7 +2687,10 @@
       } ]
     },
     "query-parameters" : {
-      "queryParameters" : [ ]
+      "queryParameters" : [ {
+        "key" : "type",
+        "mandatory" : false
+      } ]
     },
     "request" : {
       "type" : "any"
