@@ -101,6 +101,18 @@ public class SqlDateTimeUtils {
     /** The local time zone. */
     private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
 
+    /** The valid minimum epoch milliseconds ('0000-01-01 00:00:00.000 UTC+0'). */
+    private static final long MIN_EPOCH_MILLS = -62167219200000L;
+
+    /** The valid minimum epoch seconds ('0000-01-01 00:00:00 UTC+0'). */
+    private static final long MIN_EPOCH_SECONDS = -62167219200L;
+
+    /** The valid maximum epoch milliseconds ('9999-12-31 23:59:59.999 UTC+0'). */
+    private static final long MAX_EPOCH_MILLS = 253402300799999L;
+
+    /** The valid maximum epoch seconds ('9999-12-31 23:59:59 UTC+0'). */
+    private static final long MAX_EPOCH_SECONDS = 253402300799L;
+
     private static final String[] DEFAULT_DATETIME_FORMATS =
             new String[] {
                 "yyyy-MM-dd HH:mm:ss",
@@ -239,9 +251,13 @@ public class SqlDateTimeUtils {
     public static TimestampData toTimestampData(long v, int precision) {
         switch (precision) {
             case 0:
-                return TimestampData.fromEpochMillis(v * MILLIS_PER_SECOND);
+                if (MIN_EPOCH_SECONDS <= v && v <= MAX_EPOCH_SECONDS) {
+                    return timestampDataFromEpochMills(v * MILLIS_PER_SECOND);
+                } else {
+                    return null;
+                }
             case 3:
-                return TimestampData.fromEpochMillis(v);
+                return timestampDataFromEpochMills(v);
             default:
                 throw new TableException(
                         "The precision value '"
@@ -259,9 +275,13 @@ public class SqlDateTimeUtils {
     public static TimestampData toTimestampData(double v, int precision) {
         switch (precision) {
             case 0:
-                return TimestampData.fromEpochMillis((long) v * MILLIS_PER_SECOND);
+                if (MIN_EPOCH_SECONDS <= v && v <= MAX_EPOCH_SECONDS) {
+                    return timestampDataFromEpochMills((long) (v * MILLIS_PER_SECOND));
+                } else {
+                    return null;
+                }
             case 3:
-                return TimestampData.fromEpochMillis((long) v);
+                return timestampDataFromEpochMills((long) v);
             default:
                 throw new TableException(
                         "The precision value '"
@@ -277,12 +297,20 @@ public class SqlDateTimeUtils {
     }
 
     public static TimestampData toTimestampData(DecimalData v, int precision) {
+        long epochMills;
         switch (precision) {
             case 0:
-                return TimestampData.fromEpochMillis(
-                        DecimalDataUtils.castToLong(v) * MILLIS_PER_SECOND);
+                DecimalData timeInMills =
+                        DecimalDataUtils.multiply(
+                                v,
+                                DecimalData.fromUnscaledLong(MILLIS_PER_SECOND, 3, 0),
+                                v.precision() + 3,
+                                0);
+                epochMills = DecimalDataUtils.castToLong(timeInMills);
+                return timestampDataFromEpochMills(epochMills);
             case 3:
-                return TimestampData.fromEpochMillis(DecimalDataUtils.castToLong(v));
+                epochMills = DecimalDataUtils.castToLong(v);
+                return timestampDataFromEpochMills(epochMills);
             default:
                 throw new TableException(
                         "The precision value '"
@@ -291,6 +319,13 @@ public class SqlDateTimeUtils {
                                 + "TO_TIMESTAMP_LTZ(numeric, precision) is unsupported,"
                                 + " the supported value is '0' for second or '3' for millisecond.");
         }
+    }
+
+    private static TimestampData timestampDataFromEpochMills(long epochMills) {
+        if (MIN_EPOCH_MILLS <= epochMills && epochMills <= MAX_EPOCH_MILLS) {
+            return TimestampData.fromEpochMillis(epochMills);
+        }
+        return null;
     }
 
     // --------------------------------------------------------------------------------------------

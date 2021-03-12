@@ -33,7 +33,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl
-import org.apache.flink.table.api.{EnvironmentSettings, TableConfig}
+import org.apache.flink.table.api.{EnvironmentSettings, TableConfig, ValidationException}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.conversion.{DataStructureConverter, DataStructureConverters}
@@ -48,19 +48,21 @@ import org.apache.flink.table.types.AbstractDataType
 import org.apache.flink.table.types.logical.{RowType, VarCharType}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
-import org.junit.Assert.{assertEquals, fail}
+import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{After, Before, Rule}
 
-import scala.collection.mutable
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 abstract class ExpressionTestBase {
 
   val config = new TableConfig()
 
   // (originalExpr, optimizedExpr, expectedResult)
-  private val testExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
+  private val validExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
+  // (sqlExpr, optimizedExpr, keywords, exception class)
+  private val invalidExprs = mutable.ArrayBuffer[(String, String, Class[_ <: Throwable])]()
   private val env = StreamExecutionEnvironment.createLocalEnvironment(4)
   private val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
   // use impl class instead of interface class to avoid
@@ -103,116 +105,58 @@ abstract class ExpressionTestBase {
     relBuilder.scan(tableName)
 
     // reset test exprs
-    testExprs.clear()
+    validExprs.clear()
+    invalidExprs.clear()
   }
 
   @After
   def evaluateExprs(): Unit = {
-    try {
-      val ctx = CodeGeneratorContext(config)
-      val inputType = if (containsLegacyTypes) {
-        fromTypeInfoToLogicalType(typeInfo)
-      } else {
-        resolvedDataType.getLogicalType
-      }
-      val exprGenerator = new ExprCodeGenerator(ctx, nullableInput = false).bindInput(inputType)
 
-      // cast expressions to String
-      val stringTestExprs = testExprs.map(expr => relBuilder.cast(expr._2, VARCHAR))
+    evaluateGivenExprs(validExprs)
 
-      // generate code
-      val resultType = RowType.of(Seq.fill(testExprs.size)(
-        new VarCharType(VarCharType.MAX_LENGTH)): _*)
-
-      val exprs = stringTestExprs.map(exprGenerator.generateExpression)
-      val genExpr = exprGenerator
-        .generateResultExpression(exprs, resultType, classOf[BinaryRowData])
-
-      val bodyCode =
-        s"""
-           |${genExpr.code}
-           |return ${genExpr.resultTerm};
-          """.stripMargin
-
-      val genFunc = FunctionCodeGenerator.generateFunction[MapFunction[RowData, BinaryRowData]](
-        ctx,
-        "TestFunction",
-        classOf[MapFunction[RowData, BinaryRowData]],
-        bodyCode,
-        resultType,
-        inputType)
-
-      val mapper = genFunc.newInstance(getClass.getClassLoader)
-
-      val isRichFunction = mapper.isInstanceOf[RichFunction]
-
-      // call setRuntimeContext method and open method for RichFunction
-      if (isRichFunction) {
-        val richMapper = mapper.asInstanceOf[RichMapFunction[_, _]]
-        val t = new RuntimeUDFContext(
-          new TaskInfo("ExpressionTest", 1, 0, 1, 1),
-          classOf[ExpressionTestBase].getClassLoader,
-          env.getConfig,
-          Collections.emptyMap(),
-          Collections.emptyMap(),
-          null)
-        richMapper.setRuntimeContext(t)
-        richMapper.open(new Configuration())
-      }
-
-      val testRow = if (containsLegacyTypes) {
-        val converter = DataFormatConverters
-          .getConverterForDataType(resolvedDataType)
-          .asInstanceOf[DataFormatConverter[RowData, Row]]
-        converter.toInternal(testData)
-      } else {
-        val converter = DataStructureConverters
-          .getConverter(resolvedDataType)
-          .asInstanceOf[DataStructureConverter[RowData, Row]]
-        converter.toInternalOrNull(testData)
-      }
-
-      val result = mapper.map(testRow)
-
-      // call close method for RichFunction
-      if (isRichFunction) {
-        mapper.asInstanceOf[RichMapFunction[_, _]].close()
-      }
-
-      // compare
-      testExprs
-        .zipWithIndex
-        .foreach {
-          case ((originalExpr, optimizedExpr, expected), index) =>
-
-            // adapt string result
-            val actual = if(!result.asInstanceOf[BinaryRowData].isNullAt(index)) {
-              result.asInstanceOf[BinaryRowData].getString(index).toString
-            } else {
-              null
+    invalidExprs.foreach {
+      case (sqlExpr, keywords, clazz) => {
+        try {
+          val exprs = mutable.ArrayBuffer[(String, RexNode, String)]()
+          addSqlTestExpr(sqlExpr, keywords, clazz, exprs)
+          evaluateGivenExprs(exprs)
+          fail(s"Expected a $clazz, but no exception is thrown.")
+        } catch {
+          case e if e.getClass == clazz =>
+            if (keywords != null) {
+              assertTrue(
+                s"The actual exception message \n${e.getMessage}\n" +
+                  s"doesn't contain expected keyword \n$keywords\n",
+                e.getMessage.contains(keywords))
             }
-
-            val original = if (originalExpr == null) "" else s"for: [$originalExpr]"
-
-            assertEquals(
-              s"Wrong result $original optimized to: [$optimizedExpr]",
-              expected,
-              if (actual == null) "null" else actual)
+          case e: Throwable =>
+            e.printStackTrace()
+            fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
         }
-    } finally {
-      testExprs.clear()
+      }
     }
   }
 
-  private def addSqlTestExpr(sqlExpr: String, expected: String): Unit = {
+  private def addSqlTestExpr(
+    sqlExpr: String,
+    expected: String,
+    exceptionClass: Class[_ <: Throwable] = null,
+    exprsContainer: mutable.ArrayBuffer[_] = validExprs)
+  : Unit = {
     // create RelNode from SQL expression
     val parsed = parser.parse(s"SELECT $sqlExpr FROM $tableName")
     val validated = calcitePlanner.validate(parsed)
     val converted = calcitePlanner.rel(validated).rel
-    addTestExpr(converted, expected, sqlExpr)
+    addTestExpr(converted, expected, sqlExpr, exceptionClass, exprsContainer)
   }
 
-  private def addTestExpr(relNode: RelNode, expected: String, summaryString: String): Unit = {
+  private def addTestExpr(
+    relNode: RelNode,
+    expected: String,
+    summaryString: String,
+    exceptionClass: Class[_ <: Throwable],
+    exprs: mutable.ArrayBuffer[_])
+  : Unit = {
     val builder = new HepProgramBuilder()
     builder.addRuleInstance(CoreRules.PROJECT_TO_CALC)
     val hep = new HepPlanner(builder.build())
@@ -224,7 +168,8 @@ abstract class ExpressionTestBase {
       fail("Expression is converted into more than a Calc operation. Use a different test method.")
     }
 
-    testExprs += ((summaryString, extractRexNode(optimized), expected))
+    exprs.asInstanceOf[mutable.ArrayBuffer[(String, RexNode, String)]] +=
+      ((summaryString, extractRexNode(optimized), expected))
   }
 
   private def extractRexNode(node: RelNode): RexNode = {
@@ -257,13 +202,114 @@ abstract class ExpressionTestBase {
     val relNode = relBuilder
         .queryOperation(tEnv.from(tableName).select(tableApiExpr).getQueryOperation).build()
 
-    addTestExpr(relNode, expected, tableApiExpr.asSummaryString())
+    addTestExpr(relNode, expected, tableApiExpr.asSummaryString(), null, validExprs)
   }
 
   def testSqlApi(
       sqlExpr: String,
       expected: String): Unit = {
     addSqlTestExpr(sqlExpr, expected)
+  }
+
+  private def evaluateGivenExprs(exprArray: mutable.ArrayBuffer[(String, RexNode, String)])
+  : Unit = {
+    val ctx = CodeGeneratorContext(config)
+    val inputType = if (containsLegacyTypes) {
+      fromTypeInfoToLogicalType(typeInfo)
+    } else {
+      resolvedDataType.getLogicalType
+    }
+    val exprGenerator = new ExprCodeGenerator(ctx, nullableInput = false).bindInput(inputType)
+
+    // cast expressions to String
+    val stringTestExprs = exprArray.map(expr => relBuilder.cast(expr._2, VARCHAR))
+
+    // generate code
+    val resultType = RowType.of(Seq.fill(exprArray.size)(
+      new VarCharType(VarCharType.MAX_LENGTH)): _*)
+
+    val exprs = stringTestExprs.map(exprGenerator.generateExpression)
+    val genExpr = exprGenerator.generateResultExpression(exprs, resultType, classOf[BinaryRowData])
+
+    val bodyCode =
+      s"""
+         |${genExpr.code}
+         |return ${genExpr.resultTerm};
+          """.stripMargin
+
+    val genFunc = FunctionCodeGenerator.generateFunction[MapFunction[RowData, BinaryRowData]](
+      ctx,
+      "TestFunction",
+      classOf[MapFunction[RowData, BinaryRowData]],
+      bodyCode,
+      resultType,
+      inputType)
+
+    val mapper = genFunc.newInstance(getClass.getClassLoader)
+
+    val isRichFunction = mapper.isInstanceOf[RichFunction]
+
+    // call setRuntimeContext method and open method for RichFunction
+    if (isRichFunction) {
+      val richMapper = mapper.asInstanceOf[RichMapFunction[_, _]]
+      val t = new RuntimeUDFContext(
+        new TaskInfo("ExpressionTest", 1, 0, 1, 1),
+        classOf[ExpressionTestBase].getClassLoader,
+        env.getConfig,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        null)
+      richMapper.setRuntimeContext(t)
+      richMapper.open(new Configuration())
+    }
+
+    val testRow = if (containsLegacyTypes) {
+      val converter = DataFormatConverters
+        .getConverterForDataType(resolvedDataType)
+        .asInstanceOf[DataFormatConverter[RowData, Row]]
+      converter.toInternal(testData)
+    } else {
+      val converter = DataStructureConverters
+        .getConverter(resolvedDataType)
+        .asInstanceOf[DataStructureConverter[RowData, Row]]
+      converter.toInternalOrNull(testData)
+    }
+
+    val result = mapper.map(testRow)
+
+    // call close method for RichFunction
+    if (isRichFunction) {
+      mapper.asInstanceOf[RichMapFunction[_, _]].close()
+    }
+
+    // compare
+    exprArray
+      .zipWithIndex
+      .foreach {
+        case ((originalExpr, optimizedExpr, expected), index) =>
+
+          // adapt string result
+          val actual = if (!result.asInstanceOf[BinaryRowData].isNullAt(index)) {
+            result.asInstanceOf[BinaryRowData].getString(index).toString
+          } else {
+            null
+          }
+
+          val original = if (originalExpr == null) "" else s"for: [$originalExpr]"
+
+          assertEquals(
+            s"Wrong result $original optimized to: [$optimizedExpr]",
+            expected,
+            if (actual == null) "null" else actual)
+      }
+  }
+
+  def expectExceptionThrown(
+    sqlExpr: String,
+    keywords: String,
+    clazz: Class[_ <: Throwable] = classOf[ValidationException])
+  : Unit = {
+    invalidExprs += ((sqlExpr, keywords, clazz))
   }
 
   def testData: Row
