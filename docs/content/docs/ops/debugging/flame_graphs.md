@@ -27,9 +27,9 @@ under the License.
 
 # Flame Graphs
 
-[Flame Graphs](http://www.brendangregg.com/flamegraphs.html) are a visualization that effectively surfaces answers to the questions like:
+[Flame Graphs](http://www.brendangregg.com/flamegraphs.html) are a visualization that effectively surfaces answers to questions like:
 - Which methods are currently consuming CPU resources?
-- How consumption by one method compares to the others?
+- How does consumption by one method compare to the others?
 - Which series of calls on the stack led to executing a particular method?
 
 {{< img src="/fig/flame_graph_on_cpu.png" class="img-fluid" width="90%" >}}
@@ -68,7 +68,7 @@ Flame Graph in Mixed Mode
 
 ##  Sampling process
 
-Stack traces collection happens purely within a JVM, so only method calls within the Java runtime are visible (no system calls).
+The collection of stack traces is done purely within the JVM, so only method calls within the Java runtime are visible (no system calls).
 
 Flame Graph construction is performed at the level of an individual [operator]({{< ref "docs/concepts/glossary" >}}#operator), i.e. all [task]({{< ref "docs/concepts/glossary" >}}#task) threads of that operator are sampled in parallel and their stack traces are combined. 
 
@@ -76,8 +76,7 @@ Flame Graph construction is performed at the level of an individual [operator]({
 
 {{< hint info >}}
 **Note:** 
-Stack trace samples from all threads of an operator are combined together. If a method call consumes 100%  of resources in one of the parallel tasks but none in the others, the bottleneck might be obcured by averaging out.   
+Stack trace samples from all threads of an operator are combined together. If a method call consumes 100% of the resources in one of the parallel tasks but none in the others, the bottleneck might be obscured by being averaged out.   
 
 There are plans to address this limitation in the future by providing "drill down" visualizations to the task level.
 {{< /hint >}}
-
