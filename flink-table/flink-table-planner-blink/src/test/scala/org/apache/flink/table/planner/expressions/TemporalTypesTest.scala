@@ -1179,7 +1179,7 @@ class TemporalTypesTest extends ExpressionTestBase {
       "1970-01-01 08:00:00.000")
   }
 
-  def testBoundaryForToTimestampLtz() :Unit = {
+  def testBoundaryForToTimestampLtz(): Unit = {
     config.setLocalTimeZone(ZoneId.of("UTC"))
 
     // INT
