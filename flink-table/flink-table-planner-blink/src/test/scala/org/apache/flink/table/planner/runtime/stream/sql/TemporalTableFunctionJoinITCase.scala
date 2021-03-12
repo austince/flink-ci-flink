@@ -87,6 +87,7 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     tEnv.registerTable("Orders1", orders1)
     tEnv.registerTable("Orders2", orders2)
     tEnv.registerTable("RatesHistory", ratesHistory)
+
     tEnv.registerFunction(
       "Rates",
       ratesHistory.createTemporalTableFunction($"proctime", $"currency"))
