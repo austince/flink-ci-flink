@@ -23,6 +23,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.FileStateBackendTest;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogWriterFactory;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 
 /** Tests for {@link ChangelogStateBackend} delegating {@link FsStateBackend}. */
@@ -37,7 +38,8 @@ public class ChangelogDelegateFileStateBackendTest extends FileStateBackendTest 
             throws Exception {
 
         return ChangelogStateBackendTestUtils.createKeyedBackend(
-                new ChangelogStateBackend(getStateBackend()),
+                new ChangelogStateBackend(
+                        getStateBackend(), new InMemoryStateChangelogWriterFactory()),
                 keySerializer,
                 numberOfKeyGroups,
                 keyGroupRange,

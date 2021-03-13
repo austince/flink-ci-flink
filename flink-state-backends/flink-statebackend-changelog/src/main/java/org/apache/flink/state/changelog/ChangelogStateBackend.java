@@ -34,6 +34,7 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.changelog.StateChangelogWriterFactory;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.Preconditions;
@@ -51,9 +52,12 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
     private static final long serialVersionUID = 1000L;
 
     private final StateBackend delegatedStateBackend;
+    private final StateChangelogWriterFactory<?> stateChangelogWriterFactory;
 
-    public ChangelogStateBackend(StateBackend stateBackend) {
+    public ChangelogStateBackend(
+            StateBackend stateBackend, StateChangelogWriterFactory<?> stateChangelogWriterFactory) {
         this.delegatedStateBackend = Preconditions.checkNotNull(stateBackend);
+        this.stateChangelogWriterFactory = stateChangelogWriterFactory;
 
         Preconditions.checkArgument(
                 !(stateBackend instanceof ChangelogStateBackend),
@@ -155,7 +159,8 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
         if (delegatedStateBackend instanceof ConfigurableStateBackend) {
             return new ChangelogStateBackend(
                     ((ConfigurableStateBackend) delegatedStateBackend)
-                            .configure(config, classLoader));
+                            .configure(config, classLoader),
+                    this.stateChangelogWriterFactory);
         }
 
         return this;

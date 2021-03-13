@@ -23,6 +23,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.HashMapStateBackendTest;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogWriterFactory;
 
 /** Tests for {@link ChangelogStateBackend} delegating {@link HashMapStateBackendTest}. */
 public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
@@ -36,7 +37,8 @@ public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
             throws Exception {
 
         return ChangelogStateBackendTestUtils.createKeyedBackend(
-                new ChangelogStateBackend(getStateBackend()),
+                new ChangelogStateBackend(
+                        getStateBackend(), new InMemoryStateChangelogWriterFactory()),
                 keySerializer,
                 numberOfKeyGroups,
                 keyGroupRange,

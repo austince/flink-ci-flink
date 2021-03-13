@@ -22,6 +22,8 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.runtime.state.changelog.StateChangelogWriterFactory;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogWriterFactory;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackendFactory;
@@ -395,8 +397,8 @@ public class StateBackendLoader {
             Constructor<? extends DelegatingStateBackend> constructor =
                     Class.forName(CHANGELOG_STATE_BACKEND, false, classLoader)
                             .asSubclass(DelegatingStateBackend.class)
-                            .getConstructor(StateBackend.class);
-            return constructor.newInstance(backend);
+                            .getConstructor(StateBackend.class, StateChangelogWriterFactory.class);
+            return constructor.newInstance(backend, new InMemoryStateChangelogWriterFactory());
         } catch (ClassNotFoundException e) {
             throw new DynamicCodeLoadingException(
                     "Cannot find DelegateStateBackend class: " + CHANGELOG_STATE_BACKEND, e);
