@@ -45,7 +45,6 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SnapshotResult;
-import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.TestableKeyedStateBackend;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
@@ -306,15 +305,35 @@ class ChangelogKeyedStateBackend<K>
                         namespaceSerializer, stateDesc, snapshotTransformFactory);
 
         if (stateDesc instanceof ValueStateDescriptor) {
-            return (IS) new ChangelogValueState<>((InternalValueState) internalState);
+            return (IS)
+                    new ChangelogValueState<>(
+                            (InternalValueState) internalState,
+                            stateChangelogWriter,
+                            keyedStateBackend);
         } else if (stateDesc instanceof ListStateDescriptor) {
-            return (IS) new ChangelogListState<>((InternalListState) internalState);
+            return (IS)
+                    new ChangelogListState<>(
+                            (InternalListState) internalState,
+                            stateChangelogWriter,
+                            keyedStateBackend);
         } else if (stateDesc instanceof ReducingStateDescriptor) {
-            return (IS) new ChangelogReducingState((InternalReducingState) internalState);
+            return (IS)
+                    new ChangelogReducingState(
+                            (InternalReducingState) internalState,
+                            stateChangelogWriter,
+                            keyedStateBackend);
         } else if (stateDesc instanceof AggregatingStateDescriptor) {
-            return (IS) new ChangelogAggregatingState<>(((InternalAggregatingState) internalState));
+            return (IS)
+                    new ChangelogAggregatingState<>(
+                            (InternalAggregatingState) internalState,
+                            stateChangelogWriter,
+                            keyedStateBackend);
         } else if (stateDesc instanceof MapStateDescriptor) {
-            return (IS) new ChangelogMapState((InternalMapState) internalState);
+            return (IS)
+                    new ChangelogMapState(
+                            (InternalMapState) internalState,
+                            stateChangelogWriter,
+                            keyedStateBackend);
         } else {
             throw new FlinkRuntimeException(
                     String.format(

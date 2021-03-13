@@ -94,7 +94,7 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
                                 stateHandles,
                                 cancelStreamRegistry);
         StateChangelogWriter<?> stateChangelogWriter =
-            stateChangelogWriterFactory.createWriter(operatorIdentifier, keyGroupRange);
+                stateChangelogWriterFactory.createWriter(operatorIdentifier, keyGroupRange);
         return new ChangelogKeyedStateBackend<>(
                 keyedStateBackend, env.getExecutionConfig(), ttlTimeProvider, stateChangelogWriter);
     }
