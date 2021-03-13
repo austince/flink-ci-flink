@@ -19,9 +19,7 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.state.MapState;
-import org.apache.flink.api.common.state.State;
 import org.apache.flink.runtime.state.changelog.StateChange;
-import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 
 import java.util.Iterator;
@@ -97,11 +95,5 @@ class ChangelogMapState<K, N, UK, UV>
     @Override
     public void clear() {
         delegatedState.clear();
-    }
-
-    @SuppressWarnings("unchecked")
-    static <UK, UV, K, N, SV, S extends State, IS extends S> IS create(
-            InternalKvState<K, N, SV> mapState) {
-        return (IS) new ChangelogMapState<>((InternalMapState<K, N, UK, UV>) mapState);
     }
 }

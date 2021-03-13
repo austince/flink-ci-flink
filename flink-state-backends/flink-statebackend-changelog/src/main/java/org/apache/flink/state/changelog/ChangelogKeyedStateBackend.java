@@ -46,9 +46,15 @@ import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
+import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.TestableKeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.runtime.state.internal.InternalMapState;
+import org.apache.flink.runtime.state.internal.InternalReducingState;
+import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -57,9 +63,7 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.RunnableFuture;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -75,25 +79,6 @@ class ChangelogKeyedStateBackend<K>
         implements CheckpointableKeyedStateBackend<K>,
                 CheckpointListener,
                 TestableKeyedStateBackend {
-
-    private static final Map<Class<? extends StateDescriptor>, StateFactory> STATE_FACTORIES =
-            Stream.of(
-                            Tuple2.of(
-                                    ValueStateDescriptor.class,
-                                    (StateFactory) ChangelogValueState::create),
-                            Tuple2.of(
-                                    ListStateDescriptor.class,
-                                    (StateFactory) ChangelogListState::create),
-                            Tuple2.of(
-                                    ReducingStateDescriptor.class,
-                                    (StateFactory) ChangelogReducingState::create),
-                            Tuple2.of(
-                                    AggregatingStateDescriptor.class,
-                                    (StateFactory) ChangelogAggregatingState::create),
-                            Tuple2.of(
-                                    MapStateDescriptor.class,
-                                    (StateFactory) ChangelogMapState::create))
-                    .collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
     /** delegated keyedStateBackend. */
     private final AbstractKeyedStateBackend<K> keyedStateBackend;
@@ -304,33 +289,32 @@ class ChangelogKeyedStateBackend<K>
         return (S) kvState;
     }
 
-    @Nonnull
     @Override
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes", "NullableProblems"})
     public <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
-            @Nonnull TypeSerializer<N> namespaceSerializer,
-            @Nonnull StateDescriptor<S, SV> stateDesc,
-            @Nonnull
-                    StateSnapshotTransformer.StateSnapshotTransformFactory<SEV>
-                            snapshotTransformFactory)
+            TypeSerializer<N> namespaceSerializer,
+            StateDescriptor<S, SV> stateDesc,
+            StateSnapshotTransformFactory<SEV> snapshotTransformFactory)
             throws Exception {
-        StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
-        if (stateFactory == null) {
-            String message =
+        InternalKvState internalState =
+                keyedStateBackend.createInternalState(
+                        namespaceSerializer, stateDesc, snapshotTransformFactory);
+
+        if (stateDesc instanceof ValueStateDescriptor) {
+            return (IS) new ChangelogValueState<>((InternalValueState) internalState);
+        } else if (stateDesc instanceof ListStateDescriptor) {
+            return (IS) new ChangelogListState<>((InternalListState) internalState);
+        } else if (stateDesc instanceof ReducingStateDescriptor) {
+            return (IS) new ChangelogReducingState((InternalReducingState) internalState);
+        } else if (stateDesc instanceof AggregatingStateDescriptor) {
+            return (IS) new ChangelogAggregatingState<>(((InternalAggregatingState) internalState));
+        } else if (stateDesc instanceof MapStateDescriptor) {
+            return (IS) new ChangelogMapState((InternalMapState) internalState);
+        } else {
+            throw new FlinkRuntimeException(
                     String.format(
                             "State %s is not supported by %s",
-                            stateDesc.getClass(), this.getClass());
-            throw new FlinkRuntimeException(message);
+                            stateDesc.getClass(), this.getClass()));
         }
-
-        return stateFactory.create(
-                keyedStateBackend.createInternalState(
-                        namespaceSerializer, stateDesc, snapshotTransformFactory));
-    }
-
-    // Factory function interface
-    private interface StateFactory {
-        <K, N, SV, S extends State, IS extends S> IS create(InternalKvState<K, N, SV> kvState)
-                throws Exception;
     }
 }

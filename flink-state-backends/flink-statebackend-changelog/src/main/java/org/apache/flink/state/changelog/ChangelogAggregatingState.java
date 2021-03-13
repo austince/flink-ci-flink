@@ -19,10 +19,8 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.state.AggregatingState;
-import org.apache.flink.api.common.state.State;
 import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
-import org.apache.flink.runtime.state.internal.InternalKvState;
 
 import java.util.Collection;
 
@@ -72,13 +70,5 @@ class ChangelogAggregatingState<K, N, IN, ACC, OUT>
     @Override
     public void clear() {
         delegatedState.clear();
-    }
-
-    @SuppressWarnings("unchecked")
-    static <T, K, N, SV, S extends State, IS extends S> IS create(
-            InternalKvState<K, N, SV> aggregatingState) {
-        return (IS)
-                new ChangelogAggregatingState<>(
-                        (InternalAggregatingState<K, N, T, SV, ?>) aggregatingState);
     }
 }
