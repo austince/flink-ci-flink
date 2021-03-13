@@ -59,10 +59,15 @@ abstract class ExpressionTestBase {
 
   val config = new TableConfig()
 
-  // (originalExpr, optimizedExpr, expectedResult)
-  private val validExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
-  // (sqlExpr, optimizedExpr, keywords, exception class)
-  private val invalidExprs = mutable.ArrayBuffer[(String, String, Class[_ <: Throwable])]()
+  // (originalExpr, expectedResult)
+  private val validSqlExprs = mutable.ArrayBuffer[(String, String)]()
+  private val validTableApiExprs = mutable.ArrayBuffer[(Expression, String)]()
+
+  // (originalExpr, keywords, exceptionClass)
+  private val invalidSqlExprs = mutable.ArrayBuffer[(String, String, Class[_ <: Throwable])]()
+  private val invalidTableApiExprs = mutable
+    .ArrayBuffer[(Expression, String, Class[_ <: Throwable])]()
+
   private val env = StreamExecutionEnvironment.createLocalEnvironment(4)
   private val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
   // use impl class instead of interface class to avoid
@@ -105,21 +110,53 @@ abstract class ExpressionTestBase {
     relBuilder.scan(tableName)
 
     // reset test exprs
-    validExprs.clear()
-    invalidExprs.clear()
+    validSqlExprs.clear()
+    validTableApiExprs.clear()
+    invalidSqlExprs.clear()
+    invalidTableApiExprs.clear()
   }
 
   @After
   def evaluateExprs(): Unit = {
 
+    // evaluate valid expressions
+    val validExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
+    validSqlExprs.foreach(
+      r => addSqlTestExpr(r._1, r._2, validExprs))
+    validTableApiExprs.foreach(
+      r => addTableApiTestExpr(r._1, r._2, validExprs)
+    )
     evaluateGivenExprs(validExprs)
 
-    invalidExprs.foreach {
+    // evaluate invalid expressions
+    invalidSqlExprs.foreach {
       case (sqlExpr, keywords, clazz) => {
         try {
-          val exprs = mutable.ArrayBuffer[(String, RexNode, String)]()
-          addSqlTestExpr(sqlExpr, keywords, clazz, exprs)
-          evaluateGivenExprs(exprs)
+          val invalidExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
+          addSqlTestExpr(sqlExpr, keywords, invalidExprs, clazz)
+          evaluateGivenExprs(invalidExprs)
+          fail(s"Expected a $clazz, but no exception is thrown.")
+        } catch {
+          case e if e.getClass == clazz =>
+            if (keywords != null) {
+              assertTrue(
+                s"The actual exception message \n${e.getMessage}\n" +
+                  s"doesn't contain expected keyword \n$keywords\n",
+                e.getMessage.contains(keywords))
+            }
+          case e: Throwable =>
+            e.printStackTrace()
+            fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
+        }
+      }
+    }
+
+    invalidTableApiExprs.foreach {
+      case (tableExpr, keywords, clazz) => {
+        try {
+          val invalidExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
+          addTableApiTestExpr(tableExpr, keywords, invalidExprs, clazz)
+          evaluateGivenExprs(invalidExprs)
           fail(s"Expected a $clazz, but no exception is thrown.")
         } catch {
           case e if e.getClass == clazz =>
@@ -137,17 +174,76 @@ abstract class ExpressionTestBase {
     }
   }
 
+  def testAllApis(
+      expr: Expression,
+      sqlExpr: String,
+      expected: String): Unit = {
+    validTableApiExprs += ((expr, expected))
+    validSqlExprs += ((sqlExpr, expected))
+  }
+
+  def testTableApi(
+      expr: Expression,
+      expected: String): Unit = {
+    validTableApiExprs += ((expr, expected))
+  }
+
+  def testSqlApi(
+    sqlExpr: String,
+    expected: String): Unit = {
+    validSqlExprs += ((sqlExpr, expected))
+  }
+
+  def testExpectedAllApisException(
+    expr: Expression,
+    sqlExpr: String,
+    keywords: String,
+    clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
+    invalidTableApiExprs += ((expr, keywords, clazz))
+    invalidSqlExprs += ((sqlExpr, keywords, clazz))
+  }
+  def testExpectedSqlException(
+    sqlExpr: String,
+    keywords: String,
+    clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
+    invalidSqlExprs += ((sqlExpr, keywords, clazz))
+  }
+
+  def testExpectedTableApiException(
+    expr: Expression,
+    keywords: String,
+    clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
+    invalidTableApiExprs += ((expr, keywords, clazz))
+  }
+
+  private def testTableApiTestExpr(tableApiString: String, expected: String): Unit = {
+    validTableApiExprs += ((ExpressionParser.parseExpression(tableApiString),
+      expected))
+  }
+
   private def addSqlTestExpr(
     sqlExpr: String,
     expected: String,
-    exceptionClass: Class[_ <: Throwable] = null,
-    exprsContainer: mutable.ArrayBuffer[_] = validExprs)
+    exprsContainer: mutable.ArrayBuffer[_],
+    exceptionClass: Class[_ <: Throwable] = null)
   : Unit = {
     // create RelNode from SQL expression
     val parsed = parser.parse(s"SELECT $sqlExpr FROM $tableName")
     val validated = calcitePlanner.validate(parsed)
     val converted = calcitePlanner.rel(validated).rel
     addTestExpr(converted, expected, sqlExpr, exceptionClass, exprsContainer)
+  }
+
+  private def addTableApiTestExpr(
+    tableApiExpr: Expression,
+    expected: String,
+    exprsContainer: mutable.ArrayBuffer[_],
+    exceptionClass: Class[_ <: Throwable] = null): Unit = {
+    // create RelNode from Table API expression
+    val relNode = relBuilder
+        .queryOperation(tEnv.from(tableName).select(tableApiExpr).getQueryOperation).build()
+
+    addTestExpr(relNode, expected, tableApiExpr.asSummaryString(), null, exprsContainer)
   }
 
   private def addTestExpr(
@@ -177,38 +273,6 @@ abstract class ExpressionTestBase {
       .asInstanceOf[LogicalCalc]
       .getProgram
     calcProgram.expandLocalRef(calcProgram.getProjectList.get(0))
-  }
-
-  def testAllApis(
-      expr: Expression,
-      sqlExpr: String,
-      expected: String): Unit = {
-    addTableApiTestExpr(expr, expected)
-    addSqlTestExpr(sqlExpr, expected)
-  }
-
-  def testTableApi(
-      expr: Expression,
-      expected: String): Unit = {
-    addTableApiTestExpr(expr, expected)
-  }
-
-  private def addTableApiTestExpr(tableApiString: String, expected: String): Unit = {
-    addTableApiTestExpr(ExpressionParser.parseExpression(tableApiString), expected)
-  }
-
-  private def addTableApiTestExpr(tableApiExpr: Expression, expected: String): Unit = {
-    // create RelNode from Table API expression
-    val relNode = relBuilder
-        .queryOperation(tEnv.from(tableName).select(tableApiExpr).getQueryOperation).build()
-
-    addTestExpr(relNode, expected, tableApiExpr.asSummaryString(), null, validExprs)
-  }
-
-  def testSqlApi(
-      sqlExpr: String,
-      expected: String): Unit = {
-    addSqlTestExpr(sqlExpr, expected)
   }
 
   private def evaluateGivenExprs(exprArray: mutable.ArrayBuffer[(String, RexNode, String)])
@@ -304,14 +368,6 @@ abstract class ExpressionTestBase {
       }
   }
 
-  def expectExceptionThrown(
-    sqlExpr: String,
-    keywords: String,
-    clazz: Class[_ <: Throwable] = classOf[ValidationException])
-  : Unit = {
-    invalidExprs += ((sqlExpr, keywords, clazz))
-  }
-
   def testData: Row
 
   def testDataType: AbstractDataType[_] =
@@ -338,9 +394,9 @@ abstract class ExpressionTestBase {
       exprString: String,
       sqlExpr: String,
       expected: String): Unit = {
-    addTableApiTestExpr(expr, expected)
-    addTableApiTestExpr(exprString, expected)
-    addSqlTestExpr(sqlExpr, expected)
+    testSqlApi(sqlExpr, expected)
+    testTableApi(expr, expected)
+    testTableApiTestExpr(exprString, expected)
   }
 
   @deprecated
@@ -348,7 +404,7 @@ abstract class ExpressionTestBase {
       expr: Expression,
       exprString: String,
       expected: String): Unit = {
-    addTableApiTestExpr(expr, expected)
-    addTableApiTestExpr(exprString, expected)
+    testTableApi(expr, expected)
+    testTableApiTestExpr(exprString, expected)
   }
 }
