@@ -34,6 +34,7 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriterFactory;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -92,8 +93,10 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
                                 metricGroup,
                                 stateHandles,
                                 cancelStreamRegistry);
+        StateChangelogWriter<?> stateChangelogWriter =
+            stateChangelogWriterFactory.createWriter(operatorIdentifier, keyGroupRange);
         return new ChangelogKeyedStateBackend<>(
-                keyedStateBackend, env.getExecutionConfig(), ttlTimeProvider);
+                keyedStateBackend, env.getExecutionConfig(), ttlTimeProvider, stateChangelogWriter);
     }
 
     @Override
@@ -127,8 +130,11 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
                                 stateHandles,
                                 cancelStreamRegistry,
                                 managedMemoryFraction);
+
+        StateChangelogWriter<?> stateChangelogWriter =
+                stateChangelogWriterFactory.createWriter(operatorIdentifier, keyGroupRange);
         return new ChangelogKeyedStateBackend<>(
-                keyedStateBackend, env.getExecutionConfig(), ttlTimeProvider);
+                keyedStateBackend, env.getExecutionConfig(), ttlTimeProvider, stateChangelogWriter);
     }
 
     @Override

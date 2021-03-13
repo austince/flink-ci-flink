@@ -48,6 +48,7 @@ import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.TestableKeyedStateBackend;
+import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
@@ -93,6 +94,8 @@ class ChangelogKeyedStateBackend<K>
 
     private final TtlTimeProvider ttlTimeProvider;
 
+    private final StateChangelogWriter<?> stateChangelogWriter;
+
     /** last accessed partitioned state. */
     @SuppressWarnings("rawtypes")
     private InternalKvState lastState;
@@ -103,11 +106,13 @@ class ChangelogKeyedStateBackend<K>
     public ChangelogKeyedStateBackend(
             AbstractKeyedStateBackend<K> keyedStateBackend,
             ExecutionConfig executionConfig,
-            TtlTimeProvider ttlTimeProvider) {
+            TtlTimeProvider ttlTimeProvider,
+            StateChangelogWriter<?> stateChangelogWriter) {
         this.keyedStateBackend = keyedStateBackend;
         this.executionConfig = executionConfig;
         this.ttlTimeProvider = ttlTimeProvider;
         this.keyValueStatesByName = new HashMap<>();
+        this.stateChangelogWriter = stateChangelogWriter;
     }
 
     // -------------------- CheckpointableKeyedStateBackend --------------------------------
