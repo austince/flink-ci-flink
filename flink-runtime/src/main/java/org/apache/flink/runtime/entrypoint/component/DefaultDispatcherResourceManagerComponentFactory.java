@@ -40,7 +40,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmanager.HaServicesJobGraphStoreFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.util.MetricUtils;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -199,7 +199,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             blobServer,
                             heartbeatServices,
                             () ->
-                                    MetricUtils.instantiateJobManagerMetricGroup(
+                                    JobManagerMetricGroup.createJobManagerMetricGroup(
                                             metricRegistry, hostname),
                             executionGraphInfoStore,
                             fatalErrorHandler,
