@@ -19,11 +19,18 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.runtime.state.changelog.StateChange;
+import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
+import org.apache.flink.runtime.state.heap.InternalReadOnlyKeyContext;
 import org.apache.flink.runtime.state.internal.InternalListState;
 
 import java.util.Collection;
 import java.util.List;
+
+import static java.util.Collections.singletonList;
+import static java.util.Collections.unmodifiableList;
+import static org.apache.flink.shaded.guava18.com.google.common.collect.Iterables.unmodifiableIterable;
 
 /**
  * Delegated partitioned {@link ListState} that forwards changes to {@link StateChange} upon {@link
@@ -37,47 +44,69 @@ class ChangelogListState<K, N, V>
         extends AbstractChangelogState<K, N, List<V>, InternalListState<K, N, V>>
         implements InternalListState<K, N, V> {
 
-    ChangelogListState(InternalListState<K, N, V> delegatedState) {
-        super(delegatedState);
+    ChangelogListState(
+            InternalListState<K, N, V> delegatedState,
+            StateChangelogWriter<?> stateChangelogWriter,
+            InternalReadOnlyKeyContext<K> keyContext) {
+        super(delegatedState, stateChangelogWriter, keyContext);
     }
 
     @Override
     public void update(List<V> values) throws Exception {
+        logStateUpdate(values);
         delegatedState.update(values);
     }
 
     @Override
     public void addAll(List<V> values) throws Exception {
+        logStateAdd(values);
         delegatedState.addAll(values);
     }
 
     @Override
     public void updateInternal(List<V> valueToStore) throws Exception {
+        logStateUpdate(valueToStore);
         delegatedState.updateInternal(valueToStore);
     }
 
     @Override
     public void add(V value) throws Exception {
+        if (getValueSerializer() instanceof ListSerializer) {
+            logStateChange(
+                    StateChangeOperation.ADD,
+                    w ->
+                            ((ListSerializer<V>) getValueSerializer())
+                                    .getElementSerializer()
+                                    .serialize(value, w));
+        } else {
+            logStateAdd(singletonList(value));
+        }
         delegatedState.add(value);
     }
 
     @Override
     public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
+        logStateMerge(target, sources);
         delegatedState.mergeNamespaces(target, sources);
     }
 
     @Override
     public List<V> getInternal() throws Exception {
+        // NOTE: Both heap and rocks return copied state. But in RocksDB, changes to the returned
+        // value will not get into the snapshot.
         return delegatedState.getInternal();
     }
 
     @Override
     public Iterable<V> get() throws Exception {
+        // NOTE: Both heap and rocks return copied state. But in RocksDB, changes to the returned
+        // value will not get into the snapshot.
         return delegatedState.get();
     }
 
     @Override
     public void clear() {
+        logStateClear();
         delegatedState.clear();
     }
 }

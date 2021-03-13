@@ -20,6 +20,8 @@ package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.runtime.state.changelog.StateChange;
+import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
+import org.apache.flink.runtime.state.heap.InternalReadOnlyKeyContext;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 
 import java.util.Collection;
@@ -38,8 +40,11 @@ class ChangelogAggregatingState<K, N, IN, ACC, OUT>
         extends AbstractChangelogState<K, N, ACC, InternalAggregatingState<K, N, IN, ACC, OUT>>
         implements InternalAggregatingState<K, N, IN, ACC, OUT> {
 
-    ChangelogAggregatingState(InternalAggregatingState<K, N, IN, ACC, OUT> delegatedState) {
-        super(delegatedState);
+    ChangelogAggregatingState(
+            InternalAggregatingState<K, N, IN, ACC, OUT> delegatedState,
+            StateChangelogWriter<?> stateChangelogWriter,
+            InternalReadOnlyKeyContext<K> keyContext) {
+        super(delegatedState, stateChangelogWriter, keyContext);
     }
 
     @Override
