@@ -143,7 +143,7 @@ public class RocksIncrementalSnapshotStrategy<K>
     }
 
     @Override
-    public IncrementalRocksDBSnapshotResources syncPrepareResources(long checkpointId)
+    public IncrementalRocksDBSnapshotResources syncPrepareResources(long checkpointId, CheckpointOptions checkpointOptions)
             throws Exception {
 
         final SnapshotDirectory snapshotDirectory = prepareLocalSnapshotDirectory(checkpointId);
