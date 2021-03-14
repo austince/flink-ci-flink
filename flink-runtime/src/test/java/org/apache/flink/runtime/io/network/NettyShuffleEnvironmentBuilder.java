@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.io.network;
 
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
@@ -29,7 +30,6 @@ import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
 import java.time.Duration;
-import java.util.concurrent.Executor;
 
 /** Builder for the {@link NettyShuffleEnvironment}. */
 public class NettyShuffleEnvironmentBuilder {
@@ -54,6 +54,9 @@ public class NettyShuffleEnvironmentBuilder {
 
     private int floatingNetworkBuffersPerGate = 8;
 
+    private MemorySize batchReadMemorySize =
+            TaskManagerOptions.NETWORK_BATCH_READ_MEMORY_SIZE.defaultValue();
+
     private int sortShuffleMinBuffers = 100;
 
     private int sortShuffleMinParallelism = Integer.MAX_VALUE;
@@ -72,8 +75,6 @@ public class NettyShuffleEnvironmentBuilder {
             UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup();
 
     private ResultPartitionManager resultPartitionManager = new ResultPartitionManager();
-
-    private Executor ioExecutor = Executors.directExecutor();
 
     public NettyShuffleEnvironmentBuilder setTaskManagerLocation(ResourceID taskManagerLocation) {
         this.taskManagerLocation = taskManagerLocation;
@@ -119,6 +120,11 @@ public class NettyShuffleEnvironmentBuilder {
         return this;
     }
 
+    public NettyShuffleEnvironmentBuilder setBatchReadMemorySize(MemorySize batchReadMemorySize) {
+        this.batchReadMemorySize = batchReadMemorySize;
+        return this;
+    }
+
     public NettyShuffleEnvironmentBuilder setSortShuffleMinBuffers(int sortShuffleMinBuffers) {
         this.sortShuffleMinBuffers = sortShuffleMinBuffers;
         return this;
@@ -157,11 +163,6 @@ public class NettyShuffleEnvironmentBuilder {
         return this;
     }
 
-    public NettyShuffleEnvironmentBuilder setIoExecutor(Executor ioExecutor) {
-        this.ioExecutor = ioExecutor;
-        return this;
-    }
-
     public NettyShuffleEnvironment build() {
         return NettyShuffleServiceFactory.createNettyShuffleEnvironment(
                 new NettyShuffleEnvironmentConfiguration(
@@ -179,12 +180,12 @@ public class NettyShuffleEnvironmentBuilder {
                         blockingShuffleCompressionEnabled,
                         compressionCodec,
                         maxBuffersPerChannel,
+                        batchReadMemorySize,
                         sortShuffleMinBuffers,
                         sortShuffleMinParallelism),
                 taskManagerLocation,
                 new TaskEventDispatcher(),
                 resultPartitionManager,
-                metricGroup,
-                ioExecutor);
+                metricGroup);
     }
 }

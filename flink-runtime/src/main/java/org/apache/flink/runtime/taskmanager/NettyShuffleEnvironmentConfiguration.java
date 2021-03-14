@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
@@ -63,6 +64,9 @@ public class NettyShuffleEnvironmentConfiguration {
      */
     private final int floatingNetworkBuffersPerGate;
 
+    /** Size of direct memory to be used by the sort-merge blocking for file read. */
+    private final MemorySize batchReadMemorySize;
+
     private final int sortShuffleMinBuffers;
 
     private final int sortShuffleMinParallelism;
@@ -98,6 +102,7 @@ public class NettyShuffleEnvironmentConfiguration {
             boolean blockingShuffleCompressionEnabled,
             String compressionCodec,
             int maxBuffersPerChannel,
+            MemorySize batchReadMemorySize,
             int sortShuffleMinBuffers,
             int sortShuffleMinParallelism) {
 
@@ -115,6 +120,7 @@ public class NettyShuffleEnvironmentConfiguration {
         this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
         this.compressionCodec = Preconditions.checkNotNull(compressionCodec);
         this.maxBuffersPerChannel = maxBuffersPerChannel;
+        this.batchReadMemorySize = Preconditions.checkNotNull(batchReadMemorySize);
         this.sortShuffleMinBuffers = sortShuffleMinBuffers;
         this.sortShuffleMinParallelism = sortShuffleMinParallelism;
     }
@@ -143,6 +149,10 @@ public class NettyShuffleEnvironmentConfiguration {
 
     public int floatingNetworkBuffersPerGate() {
         return floatingNetworkBuffersPerGate;
+    }
+
+    public MemorySize batchReadMemorySize() {
+        return batchReadMemorySize;
     }
 
     public int sortShuffleMinBuffers() {
@@ -240,6 +250,9 @@ public class NettyShuffleEnvironmentConfiguration {
                 configuration.getInteger(
                         NettyShuffleEnvironmentOptions.NETWORK_MAX_BUFFERS_PER_CHANNEL);
 
+        MemorySize batchReadMemorySize =
+                configuration.get(TaskManagerOptions.NETWORK_BATCH_READ_MEMORY_SIZE);
+
         int sortShuffleMinBuffers =
                 configuration.getInteger(
                         NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
@@ -282,6 +295,7 @@ public class NettyShuffleEnvironmentConfiguration {
                 blockingShuffleCompressionEnabled,
                 compressionCodec,
                 maxBuffersPerChannel,
+                batchReadMemorySize,
                 sortShuffleMinBuffers,
                 sortShuffleMinParallelism);
     }
@@ -417,6 +431,7 @@ public class NettyShuffleEnvironmentConfiguration {
         result = 31 * result + (blockingShuffleCompressionEnabled ? 1 : 0);
         result = 31 * result + Objects.hashCode(compressionCodec);
         result = 31 * result + maxBuffersPerChannel;
+        result = 31 * result + batchReadMemorySize.hashCode();
         result = 31 * result + sortShuffleMinBuffers;
         result = 31 * result + sortShuffleMinParallelism;
         return result;
@@ -447,6 +462,7 @@ public class NettyShuffleEnvironmentConfiguration {
                     && Arrays.equals(this.tempDirs, that.tempDirs)
                     && this.blockingShuffleCompressionEnabled
                             == that.blockingShuffleCompressionEnabled
+                    && this.batchReadMemorySize.equals(that.batchReadMemorySize)
                     && this.maxBuffersPerChannel == that.maxBuffersPerChannel
                     && Objects.equals(this.compressionCodec, that.compressionCodec);
         }
@@ -479,6 +495,8 @@ public class NettyShuffleEnvironmentConfiguration {
                 + compressionCodec
                 + ", maxBuffersPerChannel="
                 + maxBuffersPerChannel
+                + ", batchReadMemorySize="
+                + batchReadMemorySize
                 + ", sortShuffleMinBuffers="
                 + sortShuffleMinBuffers
                 + ", sortShuffleMinParallelism="
