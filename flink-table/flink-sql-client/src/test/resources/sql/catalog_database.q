@@ -203,10 +203,12 @@ describe hivecatalog.`default`.param_types_table;
 !ok
 
 SET execution.type = batch;
+[WARNING] The specified key is a YAML key. Set the corresponding config option and YAML key together.
 [INFO] Session property has been set.
 !info
 
 SET execution.result-mode = tableau;
+[WARNING] The specified key is a YAML key. Set the corresponding config option and YAML key together.
 [INFO] Session property has been set.
 !info
 
@@ -310,6 +312,7 @@ MyTable5
 # ==========================================================================
 
 SET execution.result-mode = changelog;
+[WARNING] The specified key is a YAML key. Set the corresponding config option and YAML key together.
 [INFO] Session property has been set.
 !info
 

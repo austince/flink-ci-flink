@@ -444,6 +444,7 @@ public class LocalExecutorITCase extends TestLogger {
         replaceVars.put("$VAR_SOURCE_SINK_PATH", csvOutputPath);
         replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
         replaceVars.put("$VAR_MAX_ROWS", "100");
+        replaceVars.put("$VAR_RESULT_MODE", "table");
 
         final Executor executor =
                 createLocalExecutor(createModifiedEnvironment(replaceVars), udfDependency);
