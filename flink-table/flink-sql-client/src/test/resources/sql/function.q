@@ -151,6 +151,7 @@ temporalOverlaps
 times
 timestampDiff
 toBase64
+toTimestampLtz
 trim
 truncate
 unboundedRange
@@ -315,6 +316,7 @@ temporalOverlaps
 times
 timestampDiff
 toBase64
+toTimestampLtz
 trim
 truncate
 unboundedRange
@@ -485,6 +487,7 @@ temporalOverlaps
 times
 timestampDiff
 toBase64
+toTimestampLtz
 trim
 truncate
 unboundedRange
@@ -637,6 +640,7 @@ temporalOverlaps
 times
 timestampDiff
 toBase64
+toTimestampLtz
 trim
 truncate
 unboundedRange
@@ -794,6 +798,7 @@ temporalOverlaps
 times
 timestampDiff
 toBase64
+toTimestampLtz
 trim
 truncate
 unboundedRange
@@ -967,6 +972,7 @@ temporalOverlaps
 times
 timestampDiff
 toBase64
+toTimestampLtz
 trim
 truncate
 unboundedRange
@@ -1147,6 +1153,7 @@ temporalOverlaps
 times
 timestampDiff
 toBase64
+toTimestampLtz
 trim
 truncate
 unboundedRange

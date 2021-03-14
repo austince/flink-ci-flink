@@ -59,9 +59,8 @@ abstract class ExpressionTestBase {
 
   val config = new TableConfig()
 
-  // (originalExpr, expectedResult)
-  private val validSqlExprs = mutable.ArrayBuffer[(String, String)]()
-  private val validTableApiExprs = mutable.ArrayBuffer[(Expression, String)]()
+  // (originalExpr, optimizedExpr, expectedResult)
+  private val validExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
 
   // (originalExpr, keywords, exceptionClass)
   private val invalidSqlExprs = mutable.ArrayBuffer[(String, String, Class[_ <: Throwable])]()
@@ -110,8 +109,7 @@ abstract class ExpressionTestBase {
     relBuilder.scan(tableName)
 
     // reset test exprs
-    validSqlExprs.clear()
-    validTableApiExprs.clear()
+    validExprs.clear()
     invalidSqlExprs.clear()
     invalidTableApiExprs.clear()
   }
@@ -120,12 +118,6 @@ abstract class ExpressionTestBase {
   def evaluateExprs(): Unit = {
 
     // evaluate valid expressions
-    val validExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
-    validSqlExprs.foreach(
-      r => addSqlTestExpr(r._1, r._2, validExprs))
-    validTableApiExprs.foreach(
-      r => addTableApiTestExpr(r._1, r._2, validExprs)
-    )
     evaluateGivenExprs(validExprs)
 
     // evaluate invalid expressions
@@ -174,24 +166,25 @@ abstract class ExpressionTestBase {
     }
   }
 
+
   def testAllApis(
-      expr: Expression,
-      sqlExpr: String,
-      expected: String): Unit = {
-    validTableApiExprs += ((expr, expected))
-    validSqlExprs += ((sqlExpr, expected))
+    expr: Expression,
+    sqlExpr: String,
+    expected: String): Unit = {
+    addTableApiTestExpr(expr, expected, validExprs)
+    addSqlTestExpr(sqlExpr, expected, validExprs)
   }
 
   def testTableApi(
-      expr: Expression,
-      expected: String): Unit = {
-    validTableApiExprs += ((expr, expected))
+  expr: Expression,
+  expected: String): Unit = {
+    addTableApiTestExpr(expr, expected, validExprs)
   }
 
   def testSqlApi(
     sqlExpr: String,
     expected: String): Unit = {
-    validSqlExprs += ((sqlExpr, expected))
+    addSqlTestExpr(sqlExpr, expected, validExprs)
   }
 
   def testExpectedAllApisException(
@@ -217,8 +210,7 @@ abstract class ExpressionTestBase {
   }
 
   private def testTableApiTestExpr(tableApiString: String, expected: String): Unit = {
-    validTableApiExprs += ((ExpressionParser.parseExpression(tableApiString),
-      expected))
+    addTableApiTestExpr(ExpressionParser.parseExpression(tableApiString), expected, validExprs)
   }
 
   private def addSqlTestExpr(
@@ -394,9 +386,9 @@ abstract class ExpressionTestBase {
       exprString: String,
       sqlExpr: String,
       expected: String): Unit = {
-    testSqlApi(sqlExpr, expected)
     testTableApi(expr, expected)
     testTableApiTestExpr(exprString, expected)
+    testSqlApi(sqlExpr, expected)
   }
 
   @deprecated
