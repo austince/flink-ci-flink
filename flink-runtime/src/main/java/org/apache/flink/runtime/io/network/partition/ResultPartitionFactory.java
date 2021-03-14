@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
+import org.apache.flink.runtime.io.network.buffer.BatchReadBufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
@@ -35,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
 
 /** Factory for {@link ResultPartition} to use in {@link NettyShuffleEnvironment}. */
@@ -47,6 +49,10 @@ public class ResultPartitionFactory {
     private final FileChannelManager channelManager;
 
     private final BufferPoolFactory bufferPoolFactory;
+
+    private final Executor ioExecutor;
+
+    private final BatchReadBufferPool ioBufferPool;
 
     private final BoundedBlockingSubpartitionType blockingSubpartitionType;
 
@@ -72,6 +78,8 @@ public class ResultPartitionFactory {
             ResultPartitionManager partitionManager,
             FileChannelManager channelManager,
             BufferPoolFactory bufferPoolFactory,
+            Executor ioExecutor,
+            BatchReadBufferPool ioBufferPool,
             BoundedBlockingSubpartitionType blockingSubpartitionType,
             int networkBuffersPerChannel,
             int floatingNetworkBuffersPerGate,
@@ -88,6 +96,8 @@ public class ResultPartitionFactory {
         this.networkBuffersPerChannel = networkBuffersPerChannel;
         this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
         this.bufferPoolFactory = bufferPoolFactory;
+        this.ioExecutor = ioExecutor;
+        this.ioBufferPool = ioBufferPool;
         this.blockingSubpartitionType = blockingSubpartitionType;
         this.networkBufferSize = networkBufferSize;
         this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;

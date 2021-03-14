@@ -513,6 +513,34 @@ public class TaskManagerOptions {
                                     + " the configured min/max size, the min/max size will be used. The exact size of Network Memory can be"
                                     + " explicitly specified by setting the min/max size to the same value.");
 
+    /**
+     * Memory used by sort-merge blocking shuffle for file read. The minimum value can be configured
+     * is 32M.
+     */
+    @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
+    public static final ConfigOption<MemorySize> NETWORK_BATCH_READ_MEMORY_SIZE =
+            key("taskmanager.memory.network.batch-read.size")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("32M"))
+                    .withDescription(
+                            String.format(
+                                    "Size of memory used by sort-merge blocking shuffle for file "
+                                            + "read. The minimum value can be configured is 32M. "
+                                            + "Notes: 1) This memory is cut from %s thus must be "
+                                            + "smaller than that, which means you need increase %s"
+                                            + "if you want to increase this config value; 2) The "
+                                            + "memory size can influence the performance of sort-"
+                                            + "merge blocking shuffle, you can increase this value"
+                                            + " for large-scale batch jobs (for example, 128M or "
+                                            + "256M); 3) The memory will be allocated when first "
+                                            + "used so there is a small possibility of OOM error."
+                                            + " If that happens, it usually means some other part"
+                                            + " of your application has consumed too many direct "
+                                            + "memory, you can just increase %s.",
+                                    FRAMEWORK_OFF_HEAP_MEMORY.key(),
+                                    FRAMEWORK_OFF_HEAP_MEMORY.key(),
+                                    TASK_OFF_HEAP_MEMORY.key()));
+
     /** JVM Metaspace Size for the TaskExecutors. */
     @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
     public static final ConfigOption<MemorySize> JVM_METASPACE =
