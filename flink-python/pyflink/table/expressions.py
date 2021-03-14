@@ -151,7 +151,6 @@ Unbounded over windows start with the first row of a partition.
 """
 UNBOUNDED_ROW = Expression("UNBOUNDED_ROW")  # type: Expression
 
-
 """
 Offset constant to be used in the `preceding` clause of unbounded
 :class:`~pyflink.table.window.Over` windows. Use this constant for a row-count interval.
@@ -160,7 +159,6 @@ Unbounded over windows start with the first row of a partition.
 .. versionadded:: 1.12.0
 """
 UNBOUNDED_RANGE = Expression("UNBOUNDED_RANGE")  # type: Expression
-
 
 """
 Offset constant to be used in the `following` clause of :class:`~pyflink.table.window.Over` windows.
@@ -215,6 +213,7 @@ def local_timestamp() -> Expression:
     """
     return _leaf_op("localTimestamp")
 
+
 def to_timestamp_ltz(numeric_epoch_time, precision) -> Expression:
     """
     Converts a numeric type epoch time to TIMESTAMP_LTZ.
@@ -228,6 +227,7 @@ def to_timestamp_ltz(numeric_epoch_time, precision) -> Expression:
     :return: The timestamp value with TIMESTAMP_LTZ type.
     """
     return _binary_op("toTimestampLtz", numeric_epoch_time, precision)
+
 
 def temporal_overlaps(left_time_point,
                       left_temporal,
