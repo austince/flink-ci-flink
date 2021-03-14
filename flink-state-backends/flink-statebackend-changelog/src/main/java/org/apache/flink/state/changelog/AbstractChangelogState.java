@@ -34,6 +34,7 @@ abstract class AbstractChangelogState<K, N, V, S extends InternalKvState<K, N, V
     protected final S delegatedState;
 
     AbstractChangelogState(S state) {
+        // todo: check that state is not a changelog state
         this.delegatedState = state;
     }
 
