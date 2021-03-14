@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
+import org.apache.flink.runtime.io.network.buffer.BatchReadBufferPool;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -43,8 +44,10 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import static org.apache.flink.runtime.io.network.partition.SortBuffer.BufferWithChannel;
@@ -78,9 +81,6 @@ public class SortMergeResultPartition extends ResultPartition {
     @GuardedBy("lock")
     private PartitionedFile resultFile;
 
-    /** Number of data buffers (excluding events) written for each subpartition. */
-    private final int[] numDataBuffers;
-
     /** Buffers cut from the network buffer pool for data writing. */
     private final List<MemorySegment> writeBuffers = new ArrayList<>();
 
@@ -89,6 +89,12 @@ public class SortMergeResultPartition extends ResultPartition {
 
     /** File writer for this result partition. */
     private final PartitionedFileWriter fileWriter;
+
+    /** Subpartition orders of coping data from {@link SortBuffer} and writing to file. */
+    private final int[] subpartitionOrder;
+
+    /** Data reader for this result partition which schedules subpartition data reading. */
+    private final SortMergeResultPartitionReader partitionReader;
 
     /** Number of guaranteed network buffers can be used by {@link #currentSortBuffer}. */
     private int numBuffersForSort;
@@ -103,7 +109,8 @@ public class SortMergeResultPartition extends ResultPartition {
             ResultPartitionType partitionType,
             int numSubpartitions,
             int numTargetKeyGroups,
-            int networkBufferSize,
+            Executor ioExecutor,
+            BatchReadBufferPool ioBufferPool,
             ResultPartitionManager partitionManager,
             String resultFileBasePath,
             @Nullable BufferCompressor bufferCompressor,
@@ -120,8 +127,9 @@ public class SortMergeResultPartition extends ResultPartition {
                 bufferCompressor,
                 bufferPoolFactory);
 
-        this.networkBufferSize = networkBufferSize;
-        this.numDataBuffers = new int[numSubpartitions];
+        this.networkBufferSize = ioBufferPool.getBufferSize();
+        this.subpartitionOrder = getRandomSubpartitionOrder(numSubpartitions);
+        this.partitionReader = new SortMergeResultPartitionReader(ioBufferPool, ioExecutor, lock);
 
         PartitionedFileWriter fileWriter = null;
         try {
@@ -175,6 +183,8 @@ public class SortMergeResultPartition extends ResultPartition {
     @Override
     protected void releaseInternal() {
         synchronized (lock) {
+            partitionReader.release();
+
             if (resultFile == null) {
                 fileWriter.releaseQuietly();
             }
@@ -256,7 +266,7 @@ public class SortMergeResultPartition extends ResultPartition {
                         numSubpartitions,
                         networkBufferSize,
                         numBuffersForSort,
-                        null);
+                        subpartitionOrder);
         return currentSortBuffer;
     }
 
@@ -301,7 +311,7 @@ public class SortMergeResultPartition extends ResultPartition {
         Buffer buffer = bufferWithChannel.getBuffer();
         int channelIndex = bufferWithChannel.getChannelIndex();
 
-        updateStatistics(buffer, channelIndex);
+        updateStatistics(buffer);
 
         if (!canBeCompressed(buffer)) {
             return bufferWithChannel;
@@ -311,12 +321,9 @@ public class SortMergeResultPartition extends ResultPartition {
         return new BufferWithChannel(buffer, channelIndex);
     }
 
-    private void updateStatistics(Buffer buffer, int subpartitionIndex) {
+    private void updateStatistics(Buffer buffer) {
         numBuffersOut.inc();
         numBytesOut.inc(buffer.readableBytes());
-        if (buffer.isBuffer()) {
-            ++numDataBuffers[subpartitionIndex];
-        }
     }
 
     /**
@@ -350,6 +357,7 @@ public class SortMergeResultPartition extends ResultPartition {
 
     void releaseReader(SortMergeSubpartitionReader reader) {
         synchronized (lock) {
+            partitionReader.releaseSubpartitionReader(reader);
             readers.remove(reader);
 
             // release the result partition if it has been marked as released
@@ -402,13 +410,8 @@ public class SortMergeResultPartition extends ResultPartition {
             checkState(isFinished(), "Trying to read unfinished blocking partition.");
 
             SortMergeSubpartitionReader reader =
-                    new SortMergeSubpartitionReader(
-                            subpartitionIndex,
-                            numDataBuffers[subpartitionIndex],
-                            networkBufferSize,
-                            this,
-                            availabilityListener,
-                            resultFile);
+                    partitionReader.crateSubpartitionReader(
+                            this, availabilityListener, subpartitionIndex, resultFile);
             readers.add(reader);
 
             return reader;
@@ -451,5 +454,24 @@ public class SortMergeResultPartition extends ResultPartition {
     @VisibleForTesting
     PartitionedFile getResultFile() {
         return resultFile;
+    }
+
+    private int[] getRandomSubpartitionOrder(int numSubpartitions) {
+        Random random = new Random();
+
+        int shift = random.nextInt(numSubpartitions);
+        int[] subpartitionReadOrder = new int[numSubpartitions];
+        for (int channel = 0; channel < numSubpartitions; ++channel) {
+            subpartitionReadOrder[channel] = (channel + shift) % numSubpartitions;
+        }
+
+        for (int channel = numSubpartitions; channel > 1; --channel) {
+            int channelToSwap = random.nextInt(channel);
+            int temp = subpartitionReadOrder[channelToSwap];
+            subpartitionReadOrder[channelToSwap] = subpartitionReadOrder[channel - 1];
+            subpartitionReadOrder[channel - 1] = temp;
+        }
+
+        return subpartitionReadOrder;
     }
 }

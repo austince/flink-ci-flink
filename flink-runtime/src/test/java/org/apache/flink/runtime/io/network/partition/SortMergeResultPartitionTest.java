@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
+import org.apache.flink.runtime.io.network.buffer.BatchReadBufferPool;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
@@ -41,6 +42,8 @@ import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Queue;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import static org.junit.Assert.assertEquals;
@@ -61,6 +64,10 @@ public class SortMergeResultPartitionTest {
 
     private NetworkBufferPool globalPool;
 
+    private ExecutorService ioExecutor;
+
+    private BatchReadBufferPool ioBufferPool;
+
     @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
     @Before
@@ -68,12 +75,16 @@ public class SortMergeResultPartitionTest {
         fileChannelManager =
                 new FileChannelManagerImpl(new String[] {tmpFolder.getRoot().getPath()}, "testing");
         globalPool = new NetworkBufferPool(totalBuffers, bufferSize);
+        ioExecutor = Executors.newSingleThreadExecutor();
+        ioBufferPool = new BatchReadBufferPool(BatchReadBufferPool.MIN_TOTAL_BYTES, bufferSize);
     }
 
     @After
     public void shutdown() throws Exception {
         fileChannelManager.close();
         globalPool.destroy();
+        ioBufferPool.destroy();
+        ioExecutor.shutdown();
     }
 
     @Test
@@ -339,7 +350,8 @@ public class SortMergeResultPartitionTest {
                         ResultPartitionType.BLOCKING,
                         numSubpartitions,
                         numSubpartitions,
-                        bufferSize,
+                        ioExecutor,
+                        ioBufferPool,
                         new ResultPartitionManager(),
                         fileChannelManager.createChannel().getPath(),
                         null,
