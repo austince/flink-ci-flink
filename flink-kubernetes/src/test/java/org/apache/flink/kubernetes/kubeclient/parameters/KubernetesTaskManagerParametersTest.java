@@ -49,7 +49,7 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
 
     private static final String POD_NAME = "task-manager-pod-1";
     private static final String DYNAMIC_PROPERTIES = "-Dkey.b='b2'";
-    private static final String JVM_MEM_OPTS_ENV = "-Xmx:1234";
+    private static final String JVM_MEM_OPTS_ENV = "-Xmx512m";
 
     private final Map<String, String> customizedEnvs =
             new HashMap<String, String>() {
@@ -151,7 +151,7 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
 
     @Test
     public void testGetJvmMemOptsEnv() {
-        assertEquals(JVM_MEM_OPTS_ENV, kubernetesTaskManagerParameters.getJvmMemOptsEnv());
+        assertThat(kubernetesTaskManagerParameters.getJvmMemOptsEnv(), is(JVM_MEM_OPTS_ENV));
     }
 
     @Test
