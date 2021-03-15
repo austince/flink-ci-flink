@@ -1213,8 +1213,7 @@ abstract class TableEnvImpl(
       if (!exist) {
         functionCatalog.registerTemporarySystemFunction(
           createFunctionOperation.getFunctionName,
-          createFunctionOperation.getFunctionClass,
-          createFunctionOperation.getFunctionLanguage,
+          createFunctionOperation.getCatalogFunction,
           false)
       } else if (!createFunctionOperation.isIgnoreIfExists) {
         throw new ValidationException(

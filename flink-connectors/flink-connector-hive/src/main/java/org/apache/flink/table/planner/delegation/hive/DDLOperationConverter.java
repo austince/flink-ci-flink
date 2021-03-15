@@ -41,7 +41,6 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.CatalogViewImpl;
-import org.apache.flink.table.catalog.FunctionCatalog.InlineCatalogFunction;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -51,6 +50,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFactory;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.Operation;
@@ -72,7 +72,7 @@ import org.apache.flink.table.operations.ddl.AlterViewRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
-import org.apache.flink.table.operations.ddl.CreateTempSystemInlineFunctionOperation;
+import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
@@ -80,8 +80,17 @@ import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
-import org.apache.flink.table.planner.delegation.hive.HiveParserCreateTableDesc.NotNullConstraint;
-import org.apache.flink.table.planner.delegation.hive.HiveParserCreateTableDesc.PrimaryKey;
+import org.apache.flink.table.planner.delegation.hive.desc.DropPartitionDesc;
+import org.apache.flink.table.planner.delegation.hive.desc.HiveParserAlterDatabaseDesc;
+import org.apache.flink.table.planner.delegation.hive.desc.HiveParserAlterTableDesc;
+import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc;
+import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc.NotNullConstraint;
+import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc.PrimaryKey;
+import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateViewDesc;
+import org.apache.flink.table.planner.delegation.hive.desc.HiveParserDropDatabaseDesc;
+import org.apache.flink.table.planner.delegation.hive.desc.HiveParserDropFunctionDesc;
+import org.apache.flink.table.planner.delegation.hive.desc.HiveParserDropTableDesc;
+import org.apache.flink.table.planner.delegation.hive.desc.HiveParserShowTablesDesc;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserBaseSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserStorageFormat;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
@@ -142,10 +151,12 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCA
 /** A converter to generate DDL operations. */
 public class DDLOperationConverter {
 
+    private final Parser parser;
     private final CatalogManager catalogManager;
     private final HiveFunctionDefinitionFactory funcDefFactory;
 
-    public DDLOperationConverter(CatalogManager catalogManager, HiveShim hiveShim) {
+    public DDLOperationConverter(Parser parser, CatalogManager catalogManager, HiveShim hiveShim) {
+        this.parser = parser;
         this.catalogManager = catalogManager;
         this.funcDefFactory = new HiveFunctionDefinitionFactory(hiveShim);
     }
@@ -240,8 +251,8 @@ public class DDLOperationConverter {
                     funcDefFactory.createFunctionDefinition(
                             desc.getFunctionName(),
                             new CatalogFunctionImpl(desc.getClassName(), FunctionLanguage.JAVA));
-            return new CreateTempSystemInlineFunctionOperation(
-                    desc.getFunctionName(), false, new InlineCatalogFunction(funcDefinition));
+            return new CreateTempSystemFunctionOperation(
+                    desc.getFunctionName(), false, funcDefinition);
         } else {
             ObjectIdentifier identifier = parseObjectIdentifier(desc.getFunctionName());
             CatalogFunction catalogFunction =
@@ -318,7 +329,7 @@ public class DDLOperationConverter {
                         UnresolvedIdentifier.of(desc.getDbName(), desc.getTableName()));
         CatalogBaseTable catalogBaseTable = getCatalogBaseTable(tableIdentifier);
         if (catalogBaseTable instanceof CatalogView) {
-            throw new ValidationException("ALTER TABLE for a view is not allowed");
+            throw new ValidationException("DROP PARTITION for a view is not supported");
         }
         List<CatalogPartitionSpec> specs =
                 desc.getSpecs().stream()
@@ -335,7 +346,7 @@ public class DDLOperationConverter {
                                 UnresolvedIdentifier.of(desc.getDbName(), desc.getTableName()));
         CatalogBaseTable catalogBaseTable = getCatalogBaseTable(tableIdentifier);
         if (catalogBaseTable instanceof CatalogView) {
-            throw new ValidationException("ALTER TABLE for a view is not allowed");
+            throw new ValidationException("ADD PARTITION for a view is not supported");
         }
         List<CatalogPartitionSpec> specs = new ArrayList<>();
         List<CatalogPartition> partitions = new ArrayList<>();
@@ -746,8 +757,7 @@ public class DDLOperationConverter {
     }
 
     private ObjectIdentifier parseObjectIdentifier(String compoundName) {
-        UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(compoundName.split("\\."));
+        UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(compoundName);
         return catalogManager.qualifyIdentifier(unresolvedIdentifier);
     }
 

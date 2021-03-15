@@ -33,6 +33,8 @@ import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.SqlExprToRexConverter;
 import org.apache.flink.table.planner.delegation.ParserImpl;
 import org.apache.flink.table.planner.delegation.PlannerContext;
+import org.apache.flink.table.planner.delegation.hive.desc.CreateTableASDesc;
+import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateViewDesc;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParseException;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParseUtils;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
@@ -200,8 +202,6 @@ public class HiveParser extends ParserImpl {
             final HiveParserContext context = new HiveParserContext(hiveConf);
             // parse statement to get AST
             final ASTNode node = HiveASTParseUtils.parse(cmd, context);
-            // generate Calcite plan
-            Operation operation;
             if (DDL_NODES.contains(node.getType())) {
                 HiveParserQueryState queryState = new HiveParserQueryState(hiveConf);
                 HiveParserDDLSemanticAnalyzer ddlAnalyzer =
@@ -212,7 +212,7 @@ public class HiveParser extends ParserImpl {
                                 getCatalogManager().getCurrentDatabase());
                 Serializable work = ddlAnalyzer.analyzeInternal(node);
                 DDLOperationConverter ddlConverter =
-                        new DDLOperationConverter(getCatalogManager(), hiveShim);
+                        new DDLOperationConverter(this, getCatalogManager(), hiveShim);
                 if (work instanceof HiveParserCreateViewDesc) {
                     return super.parse(cmd);
                 } else if (work instanceof CreateTableASDesc) {

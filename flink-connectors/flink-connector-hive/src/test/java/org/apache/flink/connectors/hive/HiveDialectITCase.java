@@ -66,6 +66,7 @@ import java.util.List;
 
 import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_CATALOG;
 import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -300,7 +301,7 @@ public class HiveDialectITCase {
         ObjectPath tablePath = new ObjectPath("default", "tbl1");
 
         // change properties
-        tableEnv.executeSql("alter table tbl1 set tblproperties ('k2'='v2')");
+        tableEnv.executeSql("alter table `default`.tbl1 set tblproperties ('k2'='v2')");
         Table hiveTable = hiveCatalog.getHiveTable(tablePath);
         assertEquals("v1", hiveTable.getParameters().get("k1"));
         assertEquals("v2", hiveTable.getParameters().get("k2"));
@@ -546,9 +547,8 @@ public class HiveDialectITCase {
                 String.format(
                         "create temporary function temp_abs as '%s'",
                         GenericUDFAbs.class.getName()));
-        List<Row> functions =
-                CollectionUtil.iteratorToList(tableEnv.executeSql("show functions").collect());
-        assertTrue(functions.toString().contains("temp_abs"));
+        String[] functions = tableEnv.listUserDefinedFunctions();
+        assertArrayEquals(new String[] {"temp_abs"}, functions);
         // call the function
         tableEnv.executeSql("create table src(x int)");
         tableEnv.executeSql("insert into src values (1),(-1)").await();
@@ -563,8 +563,8 @@ public class HiveDialectITCase {
                 queryResult(tableEnv.sqlQuery("select temp_abs(x) from `default`.src")).toString());
         // drop the function
         tableEnv.executeSql("drop temporary function temp_abs");
-        functions = CollectionUtil.iteratorToList(tableEnv.executeSql("show functions").collect());
-        assertFalse(functions.toString().contains("temp_abs"));
+        functions = tableEnv.listUserDefinedFunctions();
+        assertEquals(0, functions.length);
         tableEnv.executeSql("drop temporary function if exists foo");
     }
 

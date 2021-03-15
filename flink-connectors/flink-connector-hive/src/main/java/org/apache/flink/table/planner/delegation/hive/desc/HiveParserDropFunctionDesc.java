@@ -16,40 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.delegation.hive;
+package org.apache.flink.table.planner.delegation.hive.desc;
+
+import org.apache.hadoop.hive.ql.plan.DropFunctionDesc;
 
 import java.io.Serializable;
-import java.util.List;
-import java.util.Map;
 
-/** Desc to represent DROP PARTITIONS. */
-public class DropPartitionDesc implements Serializable {
+/** Desc for DROP FUNCTION. */
+public class HiveParserDropFunctionDesc implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private final String dbName;
-    private final String tableName;
-    private final List<Map<String, String>> specs;
+    private final DropFunctionDesc desc;
     private final boolean ifExists;
 
-    public DropPartitionDesc(
-            String dbName, String tableName, List<Map<String, String>> specs, boolean ifExists) {
-        this.dbName = dbName;
-        this.tableName = tableName;
-        this.specs = specs;
+    public HiveParserDropFunctionDesc(DropFunctionDesc desc, boolean ifExists) {
+        this.desc = desc;
         this.ifExists = ifExists;
     }
 
-    public String getDbName() {
-        return dbName;
-    }
-
-    public String getTableName() {
-        return tableName;
-    }
-
-    public List<Map<String, String>> getSpecs() {
-        return specs;
+    public DropFunctionDesc getDesc() {
+        return desc;
     }
 
     public boolean ifExists() {

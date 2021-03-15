@@ -16,33 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.delegation.hive;
+package org.apache.flink.table.planner.delegation.hive.desc;
 
 import java.io.Serializable;
 
-/** Desc for SHOW TABLES/VIEWS operation. */
-public class HiveParserShowTablesDesc implements Serializable {
-    private static final long serialVersionUID = -3381731226279052381L;
+/** Desc for drop database. */
+public class HiveParserDropDatabaseDesc implements Serializable {
+    private static final long serialVersionUID = 1L;
 
-    private final String pattern;
-    private final String dbName;
-    private final boolean expectView;
+    private final String databaseName;
+    private final boolean ifExists;
+    private final boolean cascade;
 
-    public HiveParserShowTablesDesc(String pattern, String dbName, boolean expectView) {
-        this.pattern = pattern;
-        this.dbName = dbName;
-        this.expectView = expectView;
+    public HiveParserDropDatabaseDesc(String databaseName, boolean ifExists, boolean cascade) {
+        this.databaseName = databaseName;
+        this.ifExists = ifExists;
+        this.cascade = cascade;
     }
 
-    public String getPattern() {
-        return pattern;
+    public String getDatabaseName() {
+        return databaseName;
     }
 
-    public String getDbName() {
-        return dbName;
+    public boolean ifExists() {
+        return ifExists;
     }
 
-    public boolean isExpectView() {
-        return expectView;
+    public boolean cascade() {
+        return cascade;
     }
 }
