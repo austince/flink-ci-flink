@@ -294,31 +294,21 @@ public class CliClient implements AutoCloseable {
                 callHelp();
                 break;
             case SHOW_CATALOGS:
-                callShowCatalogs();
-                break;
-            case SHOW_CURRENT_CATALOG:
-                callShowCurrentCatalog();
-                break;
             case SHOW_DATABASES:
-                callShowDatabases();
-                break;
-            case SHOW_CURRENT_DATABASE:
-                callShowCurrentDatabase();
-                break;
             case SHOW_TABLES:
-                callShowTables();
-                break;
             case SHOW_VIEWS:
-                callShowViews();
+                callShowResult(cmdCall, true, false);
                 break;
             case SHOW_FUNCTIONS:
-                callShowFunctions();
+                callShowResult(cmdCall, true, true);
                 break;
             case SHOW_MODULES:
-                callShowModules(cmdCall);
-                break;
             case SHOW_PARTITIONS:
-                callShowPartitions(cmdCall);
+                callShowResult(cmdCall, false, false);
+                break;
+            case SHOW_CURRENT_CATALOG:
+            case SHOW_CURRENT_DATABASE:
+                callShowCurrentResult(cmdCall);
                 break;
             case USE_CATALOG:
                 callUseCatalog(cmdCall);
@@ -478,147 +468,6 @@ public class CliClient implements AutoCloseable {
         terminal.flush();
     }
 
-    private void callShowCatalogs() {
-        final List<String> catalogs;
-        try {
-            catalogs = getShowResult("CATALOGS");
-        } catch (SqlExecutionException e) {
-            printExecutionException(e);
-            return;
-        }
-        if (catalogs.isEmpty()) {
-            terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
-        } else {
-            catalogs.forEach((v) -> terminal.writer().println(v));
-        }
-        terminal.flush();
-    }
-
-    private void callShowCurrentCatalog() {
-        String currentCatalog;
-        try {
-            Row result = executor.executeSql(sessionId, "SHOW CURRENT CATALOG").collect().next();
-            currentCatalog = checkNotNull(result.getField(0)).toString();
-        } catch (SqlExecutionException e) {
-            printExecutionException(e);
-            return;
-        }
-        terminal.writer().println(currentCatalog);
-        terminal.flush();
-    }
-
-    private void callShowDatabases() {
-        final List<String> dbs;
-        try {
-            dbs = getShowResult("DATABASES");
-        } catch (SqlExecutionException e) {
-            printExecutionException(e);
-            return;
-        }
-        if (dbs.isEmpty()) {
-            terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
-        } else {
-            dbs.forEach((v) -> terminal.writer().println(v));
-        }
-        terminal.flush();
-    }
-
-    private void callShowCurrentDatabase() {
-        String currentDatabase;
-        try {
-            Row result = executor.executeSql(sessionId, "SHOW CURRENT DATABASE").collect().next();
-            currentDatabase = checkNotNull(result.getField(0)).toString();
-        } catch (SqlExecutionException e) {
-            printExecutionException(e);
-            return;
-        }
-        terminal.writer().println(currentDatabase);
-        terminal.flush();
-    }
-
-    private void callShowTables() {
-        final List<String> tables;
-        try {
-            tables = getShowResult("TABLES");
-        } catch (SqlExecutionException e) {
-            printExecutionException(e);
-            return;
-        }
-        if (tables.isEmpty()) {
-            terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
-        } else {
-            tables.forEach((v) -> terminal.writer().println(v));
-        }
-        terminal.flush();
-    }
-
-    private void callShowViews() {
-        final List<String> views;
-        try {
-            views = getShowResult("VIEWS");
-        } catch (SqlExecutionException e) {
-            printExecutionException(e);
-            return;
-        }
-        if (views.isEmpty()) {
-            terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
-        } else {
-            views.forEach((v) -> terminal.writer().println(v));
-        }
-        terminal.flush();
-    }
-
-    private void callShowFunctions() {
-        final List<String> functions;
-        try {
-            functions = getShowResult("FUNCTIONS");
-        } catch (SqlExecutionException e) {
-            printExecutionException(e);
-            return;
-        }
-        if (functions.isEmpty()) {
-            terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
-        } else {
-            Collections.sort(functions);
-            functions.forEach((v) -> terminal.writer().println(v));
-        }
-        terminal.flush();
-    }
-
-    private List<String> getShowResult(String objectToShow) {
-        TableResult tableResult = executor.executeSql(sessionId, "SHOW " + objectToShow);
-        return CollectionUtil.iteratorToList(tableResult.collect()).stream()
-                .map(r -> checkNotNull(r.getField(0)).toString())
-                .collect(Collectors.toList());
-    }
-
-    private List<String> getShowResult(SqlCommandCall cmdCall) {
-        TableResult tableResult = executor.executeSql(sessionId, cmdCall.operands[0]);
-        return CollectionUtil.iteratorToList(tableResult.collect()).stream()
-                .map(r -> checkNotNull(r.getField(0)).toString())
-                .collect(Collectors.toList());
-    }
-
-    private void callShowModules(SqlCommandCall cmdCall) {
-        getResultAsTableauForm(cmdCall.operands[0]);
-    }
-
-    private void callShowPartitions(SqlCommandCall cmdCall) {
-        final List<String> partitions;
-        try {
-            partitions = getShowResult(cmdCall);
-        } catch (SqlExecutionException e) {
-            printExecutionException(e);
-            return;
-        }
-        if (partitions.isEmpty()) {
-            terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
-        } else {
-            partitions.forEach((v) -> terminal.writer().println(v));
-        }
-        terminal.flush();
-    }
-
     private void callUseCatalog(SqlCommandCall cmdCall) {
         try {
             executor.executeSql(sessionId, "USE CATALOG `" + cmdCall.operands[0] + "`");
@@ -642,13 +491,9 @@ public class CliClient implements AutoCloseable {
     }
 
     private void callDescribe(SqlCommandCall cmdCall) {
-        getResultAsTableauForm("DESCRIBE " + cmdCall.operands[0]);
-    }
-
-    private void getResultAsTableauForm(String statement) {
         final TableResult result;
         try {
-            result = executor.executeSql(sessionId, statement);
+            result = executor.executeSql(sessionId, "DESCRIBE " + cmdCall.operands[0]);
         } catch (SqlExecutionException e) {
             printExecutionException(e);
             return;
@@ -777,6 +622,51 @@ public class CliClient implements AutoCloseable {
         } catch (SqlExecutionException e) {
             printExecutionException(errorMessage, e);
         }
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    private void callShowResult(SqlCommandCall cmdCall, boolean useCommand, boolean isSorted) {
+        final List<String> results;
+        try {
+            results =
+                    CollectionUtil.iteratorToList(
+                                    executor.executeSql(
+                                                    sessionId,
+                                                    useCommand
+                                                            ? cmdCall.command.toString()
+                                                            : cmdCall.operands[0])
+                                            .collect())
+                            .stream()
+                            .map(r -> checkNotNull(r.getField(0)).toString())
+                            .collect(Collectors.toList());
+        } catch (SqlExecutionException e) {
+            printExecutionException(e);
+            return;
+        }
+        if (results.isEmpty()) {
+            terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
+        } else {
+            if (isSorted) {
+                Collections.sort(results);
+            }
+            results.forEach((v) -> terminal.writer().println(v));
+        }
+        terminal.flush();
+    }
+
+    private void callShowCurrentResult(SqlCommandCall cmdCall) {
+        String currentResult;
+        try {
+            Row result =
+                    executor.executeSql(sessionId, cmdCall.command.toString()).collect().next();
+            currentResult = checkNotNull(result.getField(0)).toString();
+        } catch (SqlExecutionException e) {
+            printExecutionException(e);
+            return;
+        }
+        terminal.writer().println(currentResult);
+        terminal.flush();
     }
 
     // --------------------------------------------------------------------------------------------
