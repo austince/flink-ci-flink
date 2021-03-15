@@ -20,7 +20,6 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.security.FlinkSecurityManager;
 import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.util.OperatingSystem;
@@ -29,7 +28,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeTrue;
 
@@ -38,6 +37,8 @@ public class FlinkSecurityManagerITCase extends TestLogger {
 
     @Before
     public void ensureSupportedOS() {
+        // based on the assumption in JvmExitOnFatalErrorTest, and manual testing on Mac, we do not
+        // support all platforms (in particular not Windows)
         assumeTrue(OperatingSystem.isLinux() || OperatingSystem.isMac());
     }
 
@@ -50,6 +51,7 @@ public class FlinkSecurityManagerITCase extends TestLogger {
         try {
             testProcess.startProcess();
             testProcess.waitFor();
+            assertThat(testProcess.exitCode(), is(222));
         } finally {
             testProcess.destroy();
         }
@@ -63,12 +65,7 @@ public class FlinkSecurityManagerITCase extends TestLogger {
         try {
             testProcess.startProcess();
             testProcess.waitFor();
-            // ensure last line got printed
-            assertThat(testProcess.getProcessOutput(), containsString("Test has passed"));
-            // ensure FlinkSecurityManager threw an exception
-            assertThat(
-                    testProcess.getProcessOutput(),
-                    containsString("Flink user code attempted to exit JVM"));
+            assertThat(testProcess.exitCode(), is(0));
 
         } finally {
             testProcess.destroy();
@@ -117,7 +114,7 @@ public class FlinkSecurityManagerITCase extends TestLogger {
 
             FlinkSecurityManager.forceProcessExit(222);
 
-            CommonTestUtils.blockForeverNonInterruptibly();
+            System.exit(0);
         }
     }
 
@@ -140,7 +137,7 @@ public class FlinkSecurityManagerITCase extends TestLogger {
                         "Caught exception during system exit with message: " + t.getMessage());
             }
 
-            System.err.println("Test has passed because System.exit() call was ignored");
+            System.err.println("Test has passed");
         }
     }
 }
