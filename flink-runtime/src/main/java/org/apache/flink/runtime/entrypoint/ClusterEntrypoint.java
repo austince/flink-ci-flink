@@ -39,7 +39,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
+import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.MiniDispatcher;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
@@ -145,7 +145,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     @GuardedBy("lock")
     private ExecutorService ioExecutor;
 
-    private ArchivedExecutionGraphStore archivedExecutionGraphStore;
+    private ExecutionGraphInfoStore executionGraphInfoStore;
 
     private final Thread shutDownHook;
 
@@ -254,7 +254,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             blobServer,
                             heartbeatServices,
                             metricRegistry,
-                            archivedExecutionGraphStore,
+                            executionGraphInfoStore,
                             new RpcMetricQueryServiceRetriever(
                                     metricRegistry.getMetricQueryServiceRpcService()),
                             this);
@@ -322,7 +322,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             ConfigurationUtils.getSystemResourceMetricsProbingInterval(
                                     configuration));
 
-            archivedExecutionGraphStore =
+            executionGraphInfoStore =
                     createSerializableExecutionGraphStore(
                             configuration, commonRpcService.getScheduledExecutor());
         }
@@ -399,9 +399,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                 }
             }
 
-            if (archivedExecutionGraphStore != null) {
+            if (executionGraphInfoStore != null) {
                 try {
-                    archivedExecutionGraphStore.close();
+                    executionGraphInfoStore.close();
                 } catch (Throwable t) {
                     exception = ExceptionUtils.firstOrSuppressed(t, exception);
                 }
@@ -538,7 +538,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             createDispatcherResourceManagerComponentFactory(Configuration configuration)
                     throws IOException;
 
-    protected abstract ArchivedExecutionGraphStore createSerializableExecutionGraphStore(
+    protected abstract ExecutionGraphInfoStore createSerializableExecutionGraphStore(
             Configuration configuration, ScheduledExecutor scheduledExecutor) throws IOException;
 
     protected static EntrypointClusterConfiguration parseArguments(String[] args)
@@ -589,25 +589,22 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             System.exit(STARTUP_FAILURE_RETURN_CODE);
         }
 
-        clusterEntrypoint
-                .getTerminationFuture()
-                .whenComplete(
-                        (applicationStatus, throwable) -> {
-                            final int returnCode;
+        int returnCode;
+        Throwable throwable = null;
 
-                            if (throwable != null) {
-                                returnCode = RUNTIME_FAILURE_RETURN_CODE;
-                            } else {
-                                returnCode = applicationStatus.processExitCode();
-                            }
+        try {
+            returnCode = clusterEntrypoint.getTerminationFuture().get().processExitCode();
+        } catch (Throwable e) {
+            throwable = ExceptionUtils.stripExecutionException(e);
+            returnCode = RUNTIME_FAILURE_RETURN_CODE;
+        }
 
-                            LOG.info(
-                                    "Terminating cluster entrypoint process {} with exit code {}.",
-                                    clusterEntrypointName,
-                                    returnCode,
-                                    throwable);
-                            System.exit(returnCode);
-                        });
+        LOG.info(
+                "Terminating cluster entrypoint process {} with exit code {}.",
+                clusterEntrypointName,
+                returnCode,
+                throwable);
+        System.exit(returnCode);
     }
 
     /** Execution mode of the {@link MiniDispatcher}. */

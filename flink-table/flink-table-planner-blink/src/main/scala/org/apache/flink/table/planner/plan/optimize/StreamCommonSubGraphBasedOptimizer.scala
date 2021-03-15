@@ -64,7 +64,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
           ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY).toMillis
         Preconditions.checkArgument(miniBatchLatency > 0,
           "MiniBatch Latency must be greater than 0 ms.", null)
-        MiniBatchInterval(miniBatchLatency, MiniBatchMode.ProcTime)
+        new MiniBatchInterval(miniBatchLatency, MiniBatchMode.ProcTime)
       }  else {
         MiniBatchIntervalTrait.NONE.getMiniBatchInterval
       }
@@ -303,12 +303,14 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       modifyKindSet: ModifyKindSet,
       isUpdateBeforeRequired: Boolean): IntermediateRelTable = {
     val uniqueKeys = getUniqueKeys(relNode)
-    val monotonicity = FlinkRelMetadataQuery
+    val fmq = FlinkRelMetadataQuery
       .reuseOrCreate(planner.getRelBuilder.getCluster.getMetadataQuery)
-      .getRelModifiedMonotonicity(relNode)
+    val monotonicity = fmq.getRelModifiedMonotonicity(relNode)
+    val windowProperties = fmq.getRelWindowProperties(relNode)
     val statistic = FlinkStatistic.builder()
       .uniqueKeys(uniqueKeys)
       .relModifiedMonotonicity(monotonicity)
+      .relWindowProperties(windowProperties)
       .build()
     new IntermediateRelTable(
       Collections.singletonList(name),

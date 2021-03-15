@@ -33,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -44,6 +45,7 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Assume;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -76,6 +78,7 @@ import static org.junit.Assert.fail;
  * ITCases testing the stop with savepoint functionality. This includes checking both SUSPEND and
  * TERMINATE.
  */
+@Ignore("broken test; see FLINK-21031")
 public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -277,18 +280,14 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
         clusterClient = (MiniClusterClient) miniClusterResource.getClusterClient();
 
-        jobGraph = new JobGraph();
-
         final ExecutionConfig config = new ExecutionConfig();
         config.setRestartStrategy(restartStrategy);
-        jobGraph.setExecutionConfig(config);
 
         final JobVertex vertex = new JobVertex("testVertex");
         vertex.setInvokableClass(invokable);
         vertex.setParallelism(PARALLELISM);
-        jobGraph.addVertex(vertex);
 
-        jobGraph.setSnapshotSettings(
+        final JobCheckpointingSettings jobCheckpointingSettings =
                 new JobCheckpointingSettings(
                         new CheckpointCoordinatorConfiguration(
                                 CHECKPOINT_INTERVAL,
@@ -300,7 +299,14 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
                                 false,
                                 false,
                                 0),
-                        null));
+                        null);
+
+        jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .setExecutionConfig(config)
+                        .addJobVertex(vertex)
+                        .setJobCheckpointingSettings(jobCheckpointingSettings)
+                        .build();
 
         clusterClient.submitJob(jobGraph).get();
         assertTrue(invokeLatch.await(60, TimeUnit.SECONDS));
@@ -347,19 +353,16 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
         @Override
         public Future<Boolean> triggerCheckpointAsync(
-                CheckpointMetaData checkpointMetaData,
-                CheckpointOptions checkpointOptions,
-                boolean advanceToEndOfEventTime) {
+                CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
             final long checkpointId = checkpointMetaData.getCheckpointId();
             final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
 
-            if (checkpointType == CheckpointType.SYNC_SAVEPOINT) {
+            if (checkpointType == CheckpointType.SAVEPOINT_SUSPEND) {
                 synchronousSavepointId = checkpointId;
                 syncSavepointId.compareAndSet(-1, synchronousSavepointId);
             }
 
-            return super.triggerCheckpointAsync(
-                    checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
+            return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
         }
 
         @Override
@@ -431,8 +434,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
         @Override
         public Future<Boolean> triggerCheckpointAsync(
                 final CheckpointMetaData checkpointMetaData,
-                final CheckpointOptions checkpointOptions,
-                final boolean advanceToEndOfEventTime) {
+                final CheckpointOptions checkpointOptions) {
             final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
             if (taskIndex == 0) {
                 checkpointsToWaitFor.countDown();

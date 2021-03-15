@@ -40,6 +40,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy;
@@ -80,9 +81,16 @@ import static org.apache.flink.table.planner.plan.utils.AggregateUtil.toDuration
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.toLong;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToStreamAggregateInfoList;
 
-/** Stream {@link ExecNode} for either group window aggregate or group window table aggregate. */
+/**
+ * Stream {@link ExecNode} for either group window aggregate or group window table aggregate.
+ *
+ * <p>The differences between {@link StreamExecWindowAggregate} and {@link
+ * StreamExecGroupWindowAggregate} is that, this node is translated from window TVF syntax, but the
+ * * other is from the legacy GROUP WINDOW FUNCTION syntax. In the long future, {@link
+ * StreamExecGroupWindowAggregate} will be dropped.
+ */
 public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData> {
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
     private static final Logger LOGGER =
             LoggerFactory.getLogger(StreamExecGroupWindowAggregate.class);
 
@@ -199,11 +207,6 @@ public class StreamExecGroupWindowAggregate extends ExecNodeBase<RowData>
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
-
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
 
         // set KeyType and Selector for state
         final RowDataKeySelector selector =

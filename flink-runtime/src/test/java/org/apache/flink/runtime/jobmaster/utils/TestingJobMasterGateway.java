@@ -30,7 +30,6 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -48,6 +47,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
@@ -111,8 +111,11 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     @Nonnull private final TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer;
 
     @Nonnull
-    private final BiFunction<
-                    String, UnresolvedTaskManagerLocation, CompletableFuture<RegistrationResponse>>
+    private final TriFunction<
+                    String,
+                    UnresolvedTaskManagerLocation,
+                    JobID,
+                    CompletableFuture<RegistrationResponse>>
             registerTaskManagerFunction;
 
     @Nonnull
@@ -123,7 +126,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 
     @Nonnull private final Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier;
 
-    @Nonnull private final Supplier<CompletableFuture<ArchivedExecutionGraph>> requestJobSupplier;
+    @Nonnull private final Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier;
 
     @Nonnull
     private final BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction;
@@ -211,9 +214,10 @@ public class TestingJobMasterGateway implements JobMasterGateway {
                             offerSlotsFunction,
             @Nonnull TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer,
             @Nonnull
-                    BiFunction<
+                    TriFunction<
                                     String,
                                     UnresolvedTaskManagerLocation,
+                                    JobID,
                                     CompletableFuture<RegistrationResponse>>
                             registerTaskManagerFunction,
             @Nonnull
@@ -221,7 +225,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
                             taskManagerHeartbeatConsumer,
             @Nonnull Consumer<ResourceID> resourceManagerHeartbeatConsumer,
             @Nonnull Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier,
-            @Nonnull Supplier<CompletableFuture<ArchivedExecutionGraph>> requestJobSupplier,
+            @Nonnull Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier,
             @Nonnull
                     BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction,
             @Nonnull
@@ -361,9 +365,10 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     public CompletableFuture<RegistrationResponse> registerTaskManager(
             String taskManagerRpcAddress,
             UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
+            JobID jobId,
             Time timeout) {
         return registerTaskManagerFunction.apply(
-                taskManagerRpcAddress, unresolvedTaskManagerLocation);
+                taskManagerRpcAddress, unresolvedTaskManagerLocation, jobId);
     }
 
     @Override
@@ -388,7 +393,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     }
 
     @Override
-    public CompletableFuture<ArchivedExecutionGraph> requestJob(Time timeout) {
+    public CompletableFuture<ExecutionGraphInfo> requestJob(Time timeout) {
         return requestJobSupplier.get();
     }
 
@@ -400,10 +405,8 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            @Nullable final String targetDirectory,
-            final boolean advanceToEndOfEventTime,
-            final Time timeout) {
-        return stopWithSavepointFunction.apply(targetDirectory, advanceToEndOfEventTime);
+            @Nullable final String targetDirectory, final boolean terminate, final Time timeout) {
+        return stopWithSavepointFunction.apply(targetDirectory, terminate);
     }
 
     @Override

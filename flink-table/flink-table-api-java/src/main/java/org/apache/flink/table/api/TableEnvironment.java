@@ -20,6 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.descriptors.ConnectTableDescriptor;
@@ -28,6 +29,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.module.Module;
+import org.apache.flink.table.module.ModuleEntry;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.AbstractDataType;
@@ -90,6 +92,33 @@ public interface TableEnvironment {
      */
     static TableEnvironment create(EnvironmentSettings settings) {
         return TableEnvironmentImpl.create(settings);
+    }
+
+    /**
+     * Creates a table environment that is the entry point and central context for creating Table
+     * and SQL API programs.
+     *
+     * <p>It is unified both on a language level for all JVM-based languages (i.e. there is no
+     * distinction between Scala and Java API) and for bounded and unbounded data processing.
+     *
+     * <p>A table environment is responsible for:
+     *
+     * <ul>
+     *   <li>Connecting to external systems.
+     *   <li>Registering and retrieving {@link Table}s and other meta objects from a catalog.
+     *   <li>Executing SQL statements.
+     *   <li>Offering further configuration options.
+     * </ul>
+     *
+     * <p>Note: This environment is meant for pure table programs. If you would like to convert from
+     * or to other Flink APIs, it might be necessary to use one of the available language-specific
+     * table environments in the corresponding bridging modules.
+     *
+     * @param configuration The specified options are used to instantiate the {@link
+     *     TableEnvironment}.
+     */
+    static TableEnvironment create(Configuration configuration) {
+        return TableEnvironmentImpl.create(configuration);
     }
 
     /**
@@ -382,6 +411,14 @@ public interface TableEnvironment {
      * @param module the module instance
      */
     void loadModule(String moduleName, Module module);
+
+    /**
+     * Enable modules in use with declared name order. Modules that have been loaded but not exist
+     * in names varargs will become unused.
+     *
+     * @param moduleNames module names to be used
+     */
+    void useModules(String... moduleNames);
 
     /**
      * Unloads a {@link Module} with given name. ValidationException is thrown when there is no
@@ -718,11 +755,19 @@ public interface TableEnvironment {
     String[] listCatalogs();
 
     /**
-     * Gets an array of names of all modules in this environment in the loaded order.
+     * Gets an array of names of all used modules in this environment in resolution order.
      *
-     * @return A list of the names of all modules in the loaded order.
+     * @return A list of the names of used modules in resolution order.
      */
     String[] listModules();
+
+    /**
+     * Gets an array of all loaded modules with use status in this environment. Used modules are
+     * kept in resolution order.
+     *
+     * @return A list of name and use status entries of all loaded modules.
+     */
+    ModuleEntry[] listFullModules();
 
     /**
      * Gets the names of all databases registered in the current catalog.

@@ -114,11 +114,6 @@ cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
 
 cdef class DataStreamMapCoderImpl(FlattenRowCoderImpl):
     cdef readonly FieldCoder _single_field_coder
-    cdef object _decode_data_stream_field_simple(self, TypeName field_type)
-    cdef object _decode_data_stream_field_complex(self, TypeName field_type, FieldCoder field_coder)
-    cdef void _encode_data_stream_field_simple(self, TypeName field_type, item)
-    cdef void _encode_data_stream_field_complex(self, TypeName field_type, FieldCoder field_coder,
-                                                item)
 
 cdef class DataStreamFlatMapCoderImpl(BaseCoderImpl):
     cdef readonly object _single_field_coder
@@ -126,6 +121,19 @@ cdef class DataStreamFlatMapCoderImpl(BaseCoderImpl):
 
 cdef class DataStreamCoFlatMapCoderImpl(BaseCoderImpl):
     cdef readonly object _single_field_coder
+
+cdef class WindowCoderImpl(BaseCoderImpl):
+    cdef size_t _tmp_output_pos
+    cdef char*_tmp_output_data
+
+    cpdef bytes encode_nested(self, value)
+    cdef void _encode_bigint(self, libc.stdint.int64_t v)
+
+cdef class TimeWindowCoderImpl(WindowCoderImpl):
+    pass
+
+cdef class CountWindowCoderImpl(WindowCoderImpl):
+    pass
 
 cdef enum CoderType:
     UNDEFINED = -1
