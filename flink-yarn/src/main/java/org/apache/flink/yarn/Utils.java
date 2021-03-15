@@ -197,21 +197,28 @@ public final class Utils {
     }
 
     public static void setTokensFor(
-            ContainerLaunchContext amContainer, List<Path> paths, Configuration conf)
+            ContainerLaunchContext amContainer,
+            List<Path> paths,
+            Configuration conf,
+            boolean yarnFetchDelegationEnabled)
             throws IOException {
         Credentials credentials = new Credentials();
-        // for HDFS
-        TokenCache.obtainTokensForNamenodes(credentials, paths.toArray(new Path[0]), conf);
-        // for HBase
-        obtainTokenForHBase(credentials, conf);
+
+        if (yarnFetchDelegationEnabled) {
+            // for HDFS
+            TokenCache.obtainTokensForNamenodes(credentials, paths.toArray(new Path[0]), conf);
+            // for HBase
+            obtainTokenForHBase(credentials, conf);
+        }
+
         // for user
         UserGroupInformation currUsr = UserGroupInformation.getCurrentUser();
 
         Collection<Token<? extends TokenIdentifier>> usrTok = currUsr.getTokens();
         for (Token<? extends TokenIdentifier> token : usrTok) {
-            final Text id = new Text(token.getIdentifier());
-            LOG.info("Adding user token " + id + " with " + token);
-            credentials.addToken(id, token);
+            final Text alias = new Text(token.getService());
+            LOG.info("Adding user token " + alias + " with " + token);
+            credentials.addToken(alias, token);
         }
         try (DataOutputBuffer dob = new DataOutputBuffer()) {
             credentials.writeTokenStorageToStream(dob);
@@ -560,8 +567,8 @@ public final class Utils {
                 Collection<Token<? extends TokenIdentifier>> userTokens = cred.getAllTokens();
                 for (Token<? extends TokenIdentifier> token : userTokens) {
                     if (!token.getKind().equals(AMRMTokenIdentifier.KIND_NAME)) {
-                        final Text id = new Text(token.getIdentifier());
-                        taskManagerCred.addToken(id, token);
+                        final Text alias = new Text(token.getService());
+                        taskManagerCred.addToken(alias, token);
                     }
                 }
 

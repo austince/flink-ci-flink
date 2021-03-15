@@ -344,6 +344,13 @@ public class YarnConfigOptions {
                     .withDescription(
                             "A comma-separated list of additional Kerberos-secured Hadoop filesystems Flink is going to access. For example, yarn.security.kerberos.additionalFileSystems=hdfs://namenode2:9002,hdfs://namenode3:9003. The client submitting to YARN needs to have access to these file systems to retrieve the security tokens.");
 
+    public static final ConfigOption<Boolean> YARN_SECURITY_ENABLED =
+            key("yarn.security.kerberos.fetch.delegationToken.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "When this is true Flink will fetch HDFS/HBase delegation token injected into AM container.");
+
     @SuppressWarnings("unused")
     public static final ConfigOption<String> HADOOP_CONFIG_KEY =
             key("flink.hadoop.<key>")

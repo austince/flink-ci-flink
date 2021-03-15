@@ -105,6 +105,7 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -1079,15 +1080,24 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         // setup security tokens
         if (UserGroupInformation.isSecurityEnabled()) {
-            // set HDFS delegation tokens when security is enabled
-            LOG.info("Adding delegation token to the AM container.");
-            List<Path> yarnAccessList =
-                    ConfigUtils.decodeListFromConfig(
-                            configuration, YarnConfigOptions.YARN_ACCESS, Path::new);
+            List<Path> yarnAccessList = new ArrayList<>();
+
+            Boolean yarnFetchDelegationTokenEnabled =
+                    configuration.getBoolean(YarnConfigOptions.YARN_SECURITY_ENABLED);
+
+            if (yarnFetchDelegationTokenEnabled) {
+                // set HDFS delegation tokens when security is enabled
+                LOG.info("Adding delegation token to the AM container.");
+                yarnAccessList =
+                        ConfigUtils.decodeListFromConfig(
+                                configuration, YarnConfigOptions.YARN_ACCESS, Path::new);
+            }
+
             Utils.setTokensFor(
                     amContainer,
                     ListUtils.union(yarnAccessList, fileUploader.getRemotePaths()),
-                    yarnConfiguration);
+                    yarnConfiguration,
+                    yarnFetchDelegationTokenEnabled);
         }
 
         amContainer.setLocalResources(fileUploader.getRegisteredLocalResources());
