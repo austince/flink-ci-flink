@@ -22,6 +22,8 @@ import org.apache.flink.runtime.state.changelog.StateChange;
 
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -32,6 +34,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.util.Collections.unmodifiableList;
 import static java.util.Comparator.comparingInt;
 import static java.util.EnumSet.noneOf;
 import static java.util.EnumSet.of;
@@ -61,11 +64,21 @@ class StateChangeSet {
 
     public StateChangeSet(
             UUID logId, SequenceNumber sequenceNumber, List<StateChange> changes, Status status) {
+        this(logId, sequenceNumber, changes, status, new CompletableFuture<>());
+    }
+
+    public StateChangeSet(
+            UUID logId,
+            SequenceNumber sequenceNumber,
+            List<StateChange> changes,
+            Status status,
+            CompletableFuture<StoreResult> storeResultFuture) {
         this.logId = logId;
-        this.changes = changes;
-        this.changes.sort(comparingInt(StateChange::getKeyGroup));
+        List<StateChange> copy = new ArrayList<>(changes); // precaution
+        copy.sort(comparingInt(StateChange::getKeyGroup));
+        this.changes = unmodifiableList(copy);
         this.sequenceNumber = sequenceNumber;
-        this.storeResultFuture = new CompletableFuture<>();
+        this.storeResultFuture = storeResultFuture;
         this.status = new AtomicReference<>(status);
     }
 
@@ -102,8 +115,8 @@ class StateChangeSet {
     }
 
     void setUploaded(StoreResult storeResult) {
-        setStatusOrFail(UPLOADED);
         storeResultFuture.complete(storeResult);
+        setStatusOrFail(UPLOADED);
     }
 
     void setSentToJm() {
@@ -111,9 +124,7 @@ class StateChangeSet {
     }
 
     void setConfirmed() {
-        if (setStatus(CONFIRMED)) {
-            changes.clear();
-        }
+        setStatus(CONFIRMED);
     }
 
     void setAborted() {
@@ -121,9 +132,7 @@ class StateChangeSet {
     }
 
     void setTruncated() {
-        if (setStatus(MATERIALIZED)) {
-            changes.clear();
-        }
+        setStatus(MATERIALIZED);
     }
 
     void setCancelled() {
@@ -164,6 +173,12 @@ class StateChangeSet {
 
     public Status getStatus() {
         return status.get();
+    }
+
+    public StateChangeSet asConfirmed() {
+        checkState(storeResultFuture.isDone());
+        return new StateChangeSet(
+                logId, sequenceNumber, Collections.emptyList(), CONFIRMED, storeResultFuture);
     }
 
     enum Status {

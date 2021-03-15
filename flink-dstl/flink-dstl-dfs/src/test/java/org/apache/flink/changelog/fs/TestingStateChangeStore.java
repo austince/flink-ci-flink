@@ -52,7 +52,7 @@ class TestingStateChangeStore implements StateChangeStore {
         for (StateChangeSet stateChangeSet : saved) {
             stateChangeSet.setUploadStarted();
             stateChangeSet.setUploaded(new StoreResult(null, 0, SequenceNumber.of(0)));
-            stateChangeSet.setUploadStarted();
+            stateChangeSet.setSentToJm();
             if (confirmed) {
                 stateChangeSet.setConfirmed();
             }

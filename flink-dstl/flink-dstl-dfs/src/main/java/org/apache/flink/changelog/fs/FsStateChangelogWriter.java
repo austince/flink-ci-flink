@@ -144,7 +144,13 @@ class FsStateChangelogWriter implements StateChangelogWriter<StateChangelogHandl
     @Override
     public void confirm(SequenceNumber from, SequenceNumber to) {
         LOG.debug("confirm {} from {} to {}", logId, from, to);
-        changeSets.subMap(from, true, to, false).values().forEach(StateChangeSet::setConfirmed);
+        changeSets
+                .subMap(from, true, to, false)
+                .forEach(
+                        (sequenceNumber, stateChangeSet) -> {
+                            stateChangeSet.setConfirmed();
+                            changeSets.put(sequenceNumber, stateChangeSet.asConfirmed());
+                        });
     }
 
     @Override
